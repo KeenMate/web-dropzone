@@ -1,0 +1,57 @@
+/* ==============================================================================
+   DEBUG INFO PANEL
+   ==============================================================================
+   Debug information display for development and troubleshooting
+*/
+
+.ms-debug-info {
+  margin-top: calc(0.4 * var(--ms-rem));
+  padding: calc(0.4 * var(--ms-rem));
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: calc(var(--base-border-radius-md, 0.6) * var(--ms-rem));
+  font-size: calc(1.2 * var(--ms-rem));
+  color: #111827;
+}
+
+.ms-debug-info details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #2563eb;
+  user-select: none;
+  padding: calc(0.4 * var(--ms-rem));
+  border-radius: calc(var(--base-border-radius-sm, 0.4) * var(--ms-rem));
+}
+
+.ms-debug-info details summary:hover {
+  background-color: #f3f4f6;
+}
+
+.ms-debug-info details summary:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.ms-debug-info .ms-debug-stats {
+  display: flex;
+  flex-direction: column;
+  gap: calc(0.4 * var(--ms-rem));
+  margin-top: calc(0.4 * var(--ms-rem));
+  padding: calc(0.4 * var(--ms-rem));
+  background-color: #ffffff;
+  border-radius: calc(var(--base-border-radius-sm, 0.4) * var(--ms-rem));
+}
+
+.ms-debug-info .ms-debug-stats span {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 4px;
+  font-family: monospace;
+  font-size: calc(1 * var(--ms-rem));
+}
+
+.ms-debug-info .ms-debug-stats span::before {
+  content: '•';
+  margin-right: calc(0.4 * var(--ms-rem));
+  color: #3b82f6;
+}

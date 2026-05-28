@@ -1,0 +1,1073 @@
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h2>Multiselect with Typeahead</h2>
+  </div>
+  <div class="pa-card__body">
+    <p>Comprehensive multiselect component with typeahead search, rich content support, checkboxes, and removable badges for selected items.</p>
+    <p><strong>Features:</strong> Real-time search filtering, keyboard navigation, option groups, icons and multiline content, Select All/Clear All actions, and smart positioning with Floating UI.</p>
+  </div>
+</div>
+
+<!-- Async Data Loading -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Async Data Loading (On-Demand)</h3>
+  </div>
+  <div class="pa-card__body">
+    <p>Load data asynchronously as the user types. Shows only search hint initially, then displays loader while fetching data (300-1200ms simulated delay).</p>
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Search Products (Type to load)</label>
+          <div id="async-multiselect"
+               data-search-hint="Start typing to search products..."
+               data-search-placeholder="Type product name..."
+               data-min-search-length="2"
+               data-loading-message="Searching products..."
+               data-empty-message="No products found">
+          </div>
+          <small class="pa-form-text">Min 2 characters. Data loads on-demand with simulated API delay.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Single-Select Mode -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Single-Select Mode</h3>
+  </div>
+  <div class="pa-card__body">
+    <p>True single-select mode where only one item can be selected at a time. Use <code>data-multiple="false"</code> to enable this mode. The selected item displays directly in the input field.</p>
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Select Programming Language</label>
+          <div data-multiselect
+               data-multiple="false"
+               data-options='[
+                 {"value": "js", "label": "JavaScript", "icon": "🟨"},
+                 {"value": "ts", "label": "TypeScript", "icon": "🔷"},
+                 {"value": "python", "label": "Python", "icon": "🐍"},
+                 {"value": "java", "label": "Java", "icon": "☕"},
+                 {"value": "csharp", "label": "C#", "icon": "💜"},
+                 {"value": "php", "label": "PHP", "icon": "🐘"},
+                 {"value": "ruby", "label": "Ruby", "icon": "💎"},
+                 {"value": "go", "label": "Go", "icon": "🐹"}
+               ]'
+               data-initial-values='["python"]'
+               data-search-placeholder="Search languages...">
+          </div>
+          <small class="pa-form-text">Only one language can be selected. Selecting another replaces the current selection.</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Select Country</label>
+          <div data-multiselect
+               data-multiple="false"
+               data-options='[
+                 {"value": "us", "label": "United States", "icon": "🇺🇸"},
+                 {"value": "uk", "label": "United Kingdom", "icon": "🇬🇧"},
+                 {"value": "de", "label": "Germany", "icon": "🇩🇪"},
+                 {"value": "fr", "label": "France", "icon": "🇫🇷"},
+                 {"value": "es", "label": "Spain", "icon": "🇪🇸"},
+                 {"value": "it", "label": "Italy", "icon": "🇮🇹"},
+                 {"value": "ca", "label": "Canada", "icon": "🇨🇦"},
+                 {"value": "au", "label": "Australia", "icon": "🇦🇺"}
+               ]'
+               data-search-placeholder="Select country...">
+          </div>
+          <small class="pa-form-text">No checkboxes, selected item shows in input, dropdown closes automatically</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Narrow Input with Long Options -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Narrow Input with Long Options</h3>
+  </div>
+  <div class="pa-card__body">
+    <p>Configure dropdown width independently from input width using <code>data-dropdown-min-width</code>.</p>
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Wrapping Behavior (Default)</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "pending", "label": "Pending Review and Approval", "subtitle": "Awaiting manager decision"},
+                 {"value": "approved", "label": "Approved and Ready to Proceed", "subtitle": "All checks passed successfully"},
+                 {"value": "rejected", "label": "Rejected - Needs Revision", "subtitle": "Please review comments and resubmit"},
+                 {"value": "archived", "label": "Archived for Historical Records", "subtitle": "No longer active in the system"}
+               ]'
+               data-search-placeholder="Select..."
+               style="max-width: 8rem;">
+          </div>
+          <small class="pa-form-text">Input: 8rem, dropdown matches input width, text wraps</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Wide Dropdown with Min Width</label>
+          <div data-multiselect
+               data-dropdown-min-width="20rem"
+               data-options='[
+                 {"value": "pending", "label": "Pending Review and Approval", "subtitle": "Awaiting manager decision"},
+                 {"value": "approved", "label": "Approved and Ready to Proceed", "subtitle": "All checks passed successfully"},
+                 {"value": "rejected", "label": "Rejected - Needs Revision", "subtitle": "Please review comments and resubmit"},
+                 {"value": "archived", "label": "Archived for Historical Records", "subtitle": "No longer active in the system"}
+               ]'
+               data-search-placeholder="Select..."
+               style="max-width: 8rem;">
+          </div>
+          <small class="pa-form-text">Input: 8rem, dropdown: min 20rem, no wrapping needed</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Selection Count Display -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Selection Count Display</h3>
+  </div>
+  <div class="pa-card__body">
+    <p>For narrow dropdowns with many options, display a selection count instead of individual badges. Features: count in placeholder when closed, clickable count text, [3] badge next to toggle icon, and popover with selected items.</p>
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-3">
+        <div class="pa-form-group">
+          <label>Count Display Mode</label>
+          <div data-multiselect
+               data-display-mode="count"
+               data-count-format="{count} selected"
+               data-options='[
+                 {"value": "js", "label": "JavaScript", "icon": "🟨"},
+                 {"value": "ts", "label": "TypeScript", "icon": "🔷"},
+                 {"value": "python", "label": "Python", "icon": "🐍"},
+                 {"value": "java", "label": "Java", "icon": "☕"},
+                 {"value": "csharp", "label": "C#", "icon": "💜"},
+                 {"value": "php", "label": "PHP", "icon": "🐘"},
+                 {"value": "ruby", "label": "Ruby", "icon": "💎"},
+                 {"value": "go", "label": "Go", "icon": "🐹"},
+                 {"value": "rust", "label": "Rust", "icon": "🦀"},
+                 {"value": "swift", "label": "Swift", "icon": "🐦"}
+               ]'
+               data-initial-values='["js", "ts", "python"]'
+               data-search-placeholder="Select..."
+               style="max-width: 10rem;">
+          </div>
+          <small class="pa-form-text">Shows "3 selected" instead of badges. Click count to view selected items.</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-3">
+        <div class="pa-form-group">
+          <label>With Count Badge</label>
+          <div data-multiselect
+               data-display-mode="count"
+               data-show-count-badge="true"
+               data-count-format="{count} items"
+               data-options='[
+                 {"value": "1", "label": "Task 1"},
+                 {"value": "2", "label": "Task 2"},
+                 {"value": "3", "label": "Task 3"},
+                 {"value": "4", "label": "Task 4"},
+                 {"value": "5", "label": "Task 5"},
+                 {"value": "6", "label": "Task 6"},
+                 {"value": "7", "label": "Task 7"},
+                 {"value": "8", "label": "Task 8"}
+               ]'
+               data-initial-values='["1", "2", "3", "4", "5"]'
+               data-search-placeholder="Select..."
+               style="max-width: 10rem;">
+          </div>
+          <small class="pa-form-text">Shows [5] badge next to toggle icon. Click badge or count text to open popover.</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-3">
+        <div class="pa-form-group">
+          <label>Auto-Switch at Threshold</label>
+          <div data-multiselect
+               data-display-mode="pills"
+               data-badges-threshold="3"
+               data-show-count-badge="true"
+               data-count-format="{count} selected"
+               data-options='[
+                 {"value": "cat1", "label": "Category 1"},
+                 {"value": "cat2", "label": "Category 2"},
+                 {"value": "cat3", "label": "Category 3"},
+                 {"value": "cat4", "label": "Category 4"},
+                 {"value": "cat5", "label": "Category 5"},
+                 {"value": "cat6", "label": "Category 6"}
+               ]'
+               data-initial-values='["cat1"]'
+               data-search-placeholder="Select..."
+               style="max-width: 10rem;">
+          </div>
+          <small class="pa-form-text">Shows badges when ≤3 selected, switches to count when >3. Try selecting more items!</small>
+        </div>
+      </div>
+    </div>
+    <div class="pure-g" style="margin-top: 1rem;">
+      <div class="pure-u-1 pure-u-md-1-3">
+        <div class="pa-form-group">
+          <label>Compact Mode (Count Only)</label>
+          <div data-multiselect
+               data-display-mode="compact"
+               data-show-count-badge="true"
+               data-count-format="{count}"
+               data-options='[
+                 {"value": "a", "label": "Option A"},
+                 {"value": "b", "label": "Option B"},
+                 {"value": "c", "label": "Option C"},
+                 {"value": "d", "label": "Option D"},
+                 {"value": "e", "label": "Option E"}
+               ]'
+               data-initial-values='["a", "b"]'
+               data-search-placeholder="Select..."
+               style="max-width: 8rem;">
+          </div>
+          <small class="pa-form-text">Most compact: just the number. Perfect for very narrow inputs.</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-3">
+        <div class="pa-form-group">
+          <label>Custom Format Template</label>
+          <div data-multiselect
+               data-display-mode="count"
+               data-count-format="{count} of 10 selected"
+               data-options='[
+                 {"value": "1", "label": "Item 1"},
+                 {"value": "2", "label": "Item 2"},
+                 {"value": "3", "label": "Item 3"},
+                 {"value": "4", "label": "Item 4"},
+                 {"value": "5", "label": "Item 5"},
+                 {"value": "6", "label": "Item 6"},
+                 {"value": "7", "label": "Item 7"},
+                 {"value": "8", "label": "Item 8"},
+                 {"value": "9", "label": "Item 9"},
+                 {"value": "10", "label": "Item 10"}
+               ]'
+               data-initial-values='["1", "2", "3"]'
+               data-search-placeholder="Select..."
+               style="max-width: 12rem;">
+          </div>
+          <small class="pa-form-text">Use {count} placeholder in format template</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-3">
+        <div class="pa-form-group">
+          <label>With Async Data Loading</label>
+          <div id="async-count-multiselect"
+               data-display-mode="count"
+               data-show-count-badge="true"
+               data-count-format="{count} products"
+               data-search-hint="Start typing to search..."
+               data-search-placeholder="Type to search..."
+               data-min-search-length="2"
+               data-loading-message="Searching..."
+               style="max-width: 10rem;">
+          </div>
+          <small class="pa-form-text">Popover shows selected items even if they're not in current search results</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Badge Position Control -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Badge Position & Alignment</h3>
+  </div>
+  <div class="pa-card__body">
+    <p>Control where selected item badges appear using <code>data-badges-position</code> attribute. Options: <code>bottom</code> (default), <code>top</code>, <code>left</code>, <code>right</code>.</p>
+
+    <!-- Bottom Position (Default) -->
+    <div class="pure-g" style="margin-bottom: 2rem;">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <h4 style="margin-bottom: 0.5rem; color: #555; font-size: 0.875rem; text-transform: uppercase;">Bottom (Default)</h4>
+        <div class="pa-form-group">
+          <label>Select Technologies</label>
+          <div data-multiselect
+               data-badges-position="bottom"
+               data-options='[
+                 {"value": "html", "label": "HTML5", "icon": "🟧"},
+                 {"value": "css", "label": "CSS3", "icon": "🔵"},
+                 {"value": "js", "label": "JavaScript", "icon": "🟨"},
+                 {"value": "ts", "label": "TypeScript", "icon": "🔷"}
+               ]'
+               data-initial-values='["html", "css"]'
+               class="w-75">
+          </div>
+          <small class="pa-form-text">Badges appear below the input, left-aligned (default behavior)</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Position -->
+    <div class="pure-g" style="margin-bottom: 2rem;">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <h4 style="margin-bottom: 0.5rem; color: #555; font-size: 0.875rem; text-transform: uppercase;">Top</h4>
+        <div class="pa-form-group">
+          <label>Select Frameworks</label>
+          <div data-multiselect
+               data-badges-position="top"
+               data-options='[
+                 {"value": "react", "label": "React", "icon": "⚛️"},
+                 {"value": "vue", "label": "Vue.js", "icon": "🟢"},
+                 {"value": "angular", "label": "Angular", "icon": "🔴"},
+                 {"value": "svelte", "label": "Svelte", "icon": "🟠"}
+               ]'
+               data-initial-values='["react", "vue"]'
+               class="w-75">
+          </div>
+          <small class="pa-form-text">Badges appear above the input, left-aligned</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Left and Right Alignment -->
+    <div class="pure-g" style="margin-bottom: 1rem;">
+      <div class="pure-u-1 pure-u-md-1-3" style="padding-right: 0.5rem;">
+        <h4 style="margin-bottom: 0.5rem; color: #555; font-size: 0.875rem; text-transform: uppercase;">Left-Aligned</h4>
+        <div class="pa-form-group">
+          <label>Select Databases</label>
+          <div data-multiselect
+               data-badges-position="left"
+               data-options='[
+                 {"value": "mysql", "label": "MySQL", "icon": "🐬"},
+                 {"value": "pg", "label": "PostgreSQL", "icon": "🐘"},
+                 {"value": "mongo", "label": "MongoDB", "icon": "🍃"},
+                 {"value": "redis", "label": "Redis", "icon": "🔴"},
+                 {"value": "sqlite", "label": "SQLite", "icon": "💿"},
+                 {"value": "mariadb", "label": "MariaDB", "icon": "🦭"},
+                 {"value": "oracle", "label": "Oracle", "icon": "🔶"},
+                 {"value": "mssql", "label": "MS SQL", "icon": "🟦"},
+                 {"value": "cassandra", "label": "Cassandra", "icon": "🌟"},
+                 {"value": "couchdb", "label": "CouchDB", "icon": "🛋️"}
+               ]'
+               data-initial-values='["mysql", "pg"]'>
+          </div>
+          <small class="pa-form-text">Badges aligned to the left (LTR)</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-3" style="padding-left: 0.5rem; padding-right: 0.5rem;">
+        <h4 style="margin-bottom: 0.5rem; color: #555; font-size: 0.875rem; text-transform: uppercase;">Right-Aligned</h4>
+        <div class="pa-form-group">
+          <label>Select Tools</label>
+          <div data-multiselect
+               data-badges-position="right"
+               data-options='[
+                 {"value": "git", "label": "Git", "icon": "🔀"},
+                 {"value": "docker", "label": "Docker", "icon": "🐳"},
+                 {"value": "k8s", "label": "Kubernetes", "icon": "☸️"},
+                 {"value": "jenkins", "label": "Jenkins", "icon": "👷"},
+                 {"value": "gitlab", "label": "GitLab", "icon": "🦊"},
+                 {"value": "ansible", "label": "Ansible", "icon": "🔧"},
+                 {"value": "terraform", "label": "Terraform", "icon": "🌍"},
+                 {"value": "nginx", "label": "Nginx", "icon": "🟢"},
+                 {"value": "apache", "label": "Apache", "icon": "🪶"},
+                 {"value": "vault", "label": "Vault", "icon": "🔐"}
+               ]'
+               data-initial-values='["git", "docker"]'>
+          </div>
+          <small class="pa-form-text">Badges aligned to the right (RTL)</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-3" style="padding-left: 0.5rem;">
+        <h4 style="margin-bottom: 0.5rem; color: #555; font-size: 0.875rem; text-transform: uppercase;">Auto-Convert at 7+</h4>
+        <div class="pa-form-group">
+          <label>Select Languages</label>
+          <div data-multiselect
+               data-badges-position="left"
+               data-badges-threshold="7"
+               data-options='[
+                 {"value": "js", "label": "JavaScript", "icon": "🟨"},
+                 {"value": "ts", "label": "TypeScript", "icon": "🔷"},
+                 {"value": "py", "label": "Python", "icon": "🐍"},
+                 {"value": "java", "label": "Java", "icon": "☕"},
+                 {"value": "cs", "label": "C#", "icon": "🟪"},
+                 {"value": "go", "label": "Go", "icon": "🐹"},
+                 {"value": "rust", "label": "Rust", "icon": "🦀"},
+                 {"value": "php", "label": "PHP", "icon": "🐘"},
+                 {"value": "ruby", "label": "Ruby", "icon": "💎"},
+                 {"value": "swift", "label": "Swift", "icon": "🍎"}
+               ]'
+               data-initial-values='["js", "ts", "py"]'>
+          </div>
+          <small class="pa-form-text">Switches to count after 7 selections</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Count Display with Positions -->
+    <div class="pure-g" style="margin-top: 2rem; border-top: 1px solid #ddd; padding-top: 2rem;">
+      <div class="pure-u-1">
+        <h4 style="margin-bottom: 0.5rem; color: #555; font-size: 0.875rem; text-transform: uppercase;">Count Display Mode with Different Alignments</h4>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-3">
+        <div class="pa-form-group">
+          <label>Count - Bottom (Default)</label>
+          <div data-multiselect
+               data-badges-position="bottom"
+               data-display-mode="count"
+               data-count-format="{count} selected"
+               data-options='[
+                 {"value": "a", "label": "Option A"},
+                 {"value": "b", "label": "Option B"},
+                 {"value": "c", "label": "Option C"}
+               ]'
+               data-initial-values='["a", "b"]'
+               class="w-75">
+          </div>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-3">
+        <div class="pa-form-group">
+          <label>Count - Top</label>
+          <div data-multiselect
+               data-badges-position="top"
+               data-display-mode="count"
+               data-count-format="{count} selected"
+               data-options='[
+                 {"value": "x", "label": "Option X"},
+                 {"value": "y", "label": "Option Y"},
+                 {"value": "z", "label": "Option Z"}
+               ]'
+               data-initial-values='["x", "y"]'
+               class="w-75">
+          </div>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-3">
+        <div class="pa-form-group">
+          <label>Count - Right-Aligned</label>
+          <div data-multiselect
+               data-badges-position="right"
+               data-display-mode="count"
+               data-count-format="{count} items"
+               data-options='[
+                 {"value": "1", "label": "Item 1"},
+                 {"value": "2", "label": "Item 2"},
+                 {"value": "3", "label": "Item 3"}
+               ]'
+               data-initial-values='["1", "2"]'
+               class="w-75">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Basic Multiselect -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Basic Multiselect</h3>
+  </div>
+  <div class="pa-card__body">
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Select Technologies</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "js", "label": "JavaScript"},
+                 {"value": "ts", "label": "TypeScript"},
+                 {"value": "python", "label": "Python"},
+                 {"value": "java", "label": "Java"},
+                 {"value": "csharp", "label": "C#"},
+                 {"value": "php", "label": "PHP"},
+                 {"value": "ruby", "label": "Ruby"},
+                 {"value": "go", "label": "Go"}
+               ]'
+               data-search-placeholder="Search technologies..."
+               data-initial-values='["js", "ts"]'>
+          </div>
+          <small class="pa-form-text">Select multiple programming languages</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Select Countries</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "us", "label": "United States"},
+                 {"value": "uk", "label": "United Kingdom"},
+                 {"value": "de", "label": "Germany"},
+                 {"value": "fr", "label": "France"},
+                 {"value": "es", "label": "Spain"},
+                 {"value": "it", "label": "Italy"},
+                 {"value": "jp", "label": "Japan"},
+                 {"value": "cn", "label": "China"}
+               ]'
+               data-search-placeholder="Search countries...">
+          </div>
+          <small class="pa-form-text">Start typing to filter options</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Close on Select Option -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Close on Select Behavior</h3>
+  </div>
+  <div class="pa-card__body">
+    <p>Control whether the dropdown stays open or closes after selecting an option using the <code>data-close-on-select</code> attribute.</p>
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Stays Open (Default)</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "apple", "label": "Apple"},
+                 {"value": "banana", "label": "Banana"},
+                 {"value": "orange", "label": "Orange"},
+                 {"value": "grape", "label": "Grape"},
+                 {"value": "mango", "label": "Mango"}
+               ]'
+               data-search-placeholder="Select fruits...">
+          </div>
+          <small class="pa-form-text">Dropdown stays open after selection (default behavior)</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Closes After Selection</label>
+          <div data-multiselect
+               data-close-on-select="true"
+               data-options='[
+                 {"value": "red", "label": "Red"},
+                 {"value": "blue", "label": "Blue"},
+                 {"value": "green", "label": "Green"},
+                 {"value": "yellow", "label": "Yellow"},
+                 {"value": "purple", "label": "Purple"}
+               ]'
+               data-search-placeholder="Select colors...">
+          </div>
+          <small class="pa-form-text">Dropdown closes after each selection (<code>data-close-on-select="true"</code>)</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Rich Content Multiselect -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Rich Content with Icons</h3>
+  </div>
+  <div class="pa-card__body">
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Select Frameworks</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "react", "label": "React", "icon": "⚛️", "subtitle": "A JavaScript library for building user interfaces"},
+                 {"value": "vue", "label": "Vue.js", "icon": "🖖", "subtitle": "The Progressive JavaScript Framework"},
+                 {"value": "angular", "label": "Angular", "icon": "🅰️", "subtitle": "Platform for building web applications"},
+                 {"value": "svelte", "label": "Svelte", "icon": "🔥", "subtitle": "Cybernetically enhanced web apps"},
+                 {"value": "solid", "label": "Solid", "icon": "💎", "subtitle": "Simple and performant reactivity"}
+               ]'
+               data-search-placeholder="Search frameworks...">
+          </div>
+          <small class="pa-form-text">Options with icons and descriptions</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Select Tools</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "git", "label": "Git", "icon": "🔀", "subtitle": "Distributed version control system"},
+                 {"value": "docker", "label": "Docker", "icon": "🐳", "subtitle": "Platform for containerized applications"},
+                 {"value": "k8s", "label": "Kubernetes", "icon": "☸️", "subtitle": "Container orchestration platform"},
+                 {"value": "jenkins", "label": "Jenkins", "icon": "👷", "subtitle": "Automation server for CI/CD"},
+                 {"value": "webpack", "label": "Webpack", "icon": "📦", "subtitle": "Module bundler for JavaScript"}
+               ]'
+               data-search-placeholder="Search tools...">
+          </div>
+          <small class="pa-form-text">Multiline content support</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Grouped Options -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Grouped Options</h3>
+  </div>
+  <div class="pa-card__body">
+    <div class="pure-g">
+      <div class="pure-u-1">
+        <div class="pa-form-group">
+          <label>Select Programming Languages by Type</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "js", "label": "JavaScript", "group": "Frontend"},
+                 {"value": "ts", "label": "TypeScript", "group": "Frontend"},
+                 {"value": "html", "label": "HTML", "group": "Frontend"},
+                 {"value": "css", "label": "CSS", "group": "Frontend"},
+                 {"value": "python", "label": "Python", "group": "Backend"},
+                 {"value": "java", "label": "Java", "group": "Backend"},
+                 {"value": "csharp", "label": "C#", "group": "Backend"},
+                 {"value": "php", "label": "PHP", "group": "Backend"},
+                 {"value": "sql", "label": "SQL", "group": "Database"},
+                 {"value": "mongodb", "label": "MongoDB", "group": "Database"},
+                 {"value": "redis", "label": "Redis", "group": "Database"}
+               ]'
+               data-search-placeholder="Search languages..."
+               data-allow-groups="true">
+          </div>
+          <small class="pa-form-text">Options organized into groups</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Search Hint Example -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>With Search Hint</h3>
+  </div>
+  <div class="pa-card__body">
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Search Products</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "prod001", "label": "MacBook Pro 16\"", "subtitle": "EAN: 0194252147283"},
+                 {"value": "prod002", "label": "iPhone 15 Pro", "subtitle": "EAN: 0195949046497"},
+                 {"value": "prod003", "label": "iPad Air", "subtitle": "EAN: 0194252719091"},
+                 {"value": "prod004", "label": "AirPods Pro", "subtitle": "EAN: 0190199246850"},
+                 {"value": "prod005", "label": "Apple Watch Series 9", "subtitle": "EAN: 0195949046510"}
+               ]'
+               data-search-placeholder="Search by product code or EAN..."
+               data-search-hint="Search in product code, EAN, ISBN. You can use * and ? wildcards">
+          </div>
+          <small class="pa-form-text">Search hint appears above the input when focused</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Select Team Members</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "u1", "label": "John Doe", "subtitle": "john.doe@example.com"},
+                 {"value": "u2", "label": "Jane Smith", "subtitle": "jane.smith@example.com"},
+                 {"value": "u3", "label": "Bob Johnson", "subtitle": "bob.johnson@example.com"},
+                 {"value": "u4", "label": "Alice Williams", "subtitle": "alice.williams@example.com"},
+                 {"value": "u5", "label": "Charlie Brown", "subtitle": "charlie.brown@example.com"}
+               ]'
+               data-search-placeholder="Search by name or email..."
+               data-search-hint="Type to search by name or email address">
+          </div>
+          <small class="pa-form-text">Helpful search instructions displayed above</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Size Variants -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Size Variants</h3>
+  </div>
+  <div class="pa-card__body">
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Extra Small</label>
+          <div class="ml--xs" data-multiselect
+               data-options='[
+                 {"value": "opt1", "label": "Option 1"},
+                 {"value": "opt2", "label": "Option 2"},
+                 {"value": "opt3", "label": "Option 3"}
+               ]'
+               data-search-placeholder="Search...">
+          </div>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Small</label>
+          <div class="ml--sm" data-multiselect
+               data-options='[
+                 {"value": "opt1", "label": "Option 1"},
+                 {"value": "opt2", "label": "Option 2"},
+                 {"value": "opt3", "label": "Option 3"}
+               ]'
+               data-search-placeholder="Search...">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Default</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "opt1", "label": "Option 1"},
+                 {"value": "opt2", "label": "Option 2"},
+                 {"value": "opt3", "label": "Option 3"}
+               ]'
+               data-search-placeholder="Search...">
+          </div>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Large</label>
+          <div class="ml--lg" data-multiselect
+               data-options='[
+                 {"value": "opt1", "label": "Option 1"},
+                 {"value": "opt2", "label": "Option 2"},
+                 {"value": "opt3", "label": "Option 3"}
+               ]'
+               data-search-placeholder="Search...">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Extra Large</label>
+          <div class="ml--xl" data-multiselect
+               data-options='[
+                 {"value": "opt1", "label": "Option 1"},
+                 {"value": "opt2", "label": "Option 2"},
+                 {"value": "opt3", "label": "Option 3"}
+               ]'
+               data-search-placeholder="Search...">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Actions -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Select All / Clear All</h3>
+  </div>
+  <div class="pa-card__body">
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>With Both Actions</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "cat1", "label": "Electronics"},
+                 {"value": "cat2", "label": "Clothing"},
+                 {"value": "cat3", "label": "Books"},
+                 {"value": "cat4", "label": "Home & Garden"},
+                 {"value": "cat5", "label": "Sports"},
+                 {"value": "cat6", "label": "Toys"}
+               ]'
+               data-search-placeholder="Search categories..."
+               data-allow-select-all="true"
+               data-allow-clear-all="true">
+          </div>
+          <small class="pa-form-text">Select All and Clear All buttons available</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>No Actions</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "tag1", "label": "Important"},
+                 {"value": "tag2", "label": "Urgent"},
+                 {"value": "tag3", "label": "Personal"},
+                 {"value": "tag4", "label": "Work"},
+                 {"value": "tag5", "label": "Follow-up"}
+               ]'
+               data-search-placeholder="Search tags..."
+               data-allow-select-all="false"
+               data-allow-clear-all="false">
+          </div>
+          <small class="pa-form-text">Action buttons disabled</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Disabled Options -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Disabled Options</h3>
+  </div>
+  <div class="pa-card__body">
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>License Selection</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "basic", "label": "Basic License", "subtitle": "Free forever"},
+                 {"value": "pro", "label": "Pro License", "subtitle": "Available for purchase"},
+                 {"value": "enterprise", "label": "Enterprise License", "subtitle": "Contact sales", "disabled": true},
+                 {"value": "student", "label": "Student License", "subtitle": "50% discount"},
+                 {"value": "academic", "label": "Academic License", "subtitle": "Not available", "disabled": true}
+               ]'
+               data-search-placeholder="Search licenses...">
+          </div>
+          <small class="pa-form-text">Some options are disabled</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pre-selected Values -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Pre-selected Values</h3>
+  </div>
+  <div class="pa-card__body">
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>User Permissions</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "read", "label": "Read", "icon": "👁️"},
+                 {"value": "write", "label": "Write", "icon": "✏️"},
+                 {"value": "delete", "label": "Delete", "icon": "🗑️"},
+                 {"value": "admin", "label": "Admin", "icon": "👑"},
+                 {"value": "share", "label": "Share", "icon": "🔗"}
+               ]'
+               data-search-placeholder="Search permissions..."
+               data-initial-values='["read", "write"]'>
+          </div>
+          <small class="pa-form-text">Read and Write permissions pre-selected</small>
+        </div>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-2">
+        <div class="pa-form-group">
+          <label>Notification Preferences</label>
+          <div data-multiselect
+               data-options='[
+                 {"value": "email", "label": "Email", "icon": "📧"},
+                 {"value": "sms", "label": "SMS", "icon": "📱"},
+                 {"value": "push", "label": "Push", "icon": "🔔"},
+                 {"value": "slack", "label": "Slack", "icon": "💬"},
+                 {"value": "webhook", "label": "Webhook", "icon": "🔗"}
+               ]'
+               data-search-placeholder="Search notification types..."
+               data-initial-values='["email", "push"]'>
+          </div>
+          <small class="pa-form-text">Email and Push notifications pre-selected</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Features -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Features & Keyboard Shortcuts</h3>
+  </div>
+  <div class="pa-card__body">
+    <div class="pure-g">
+      <div class="pure-u-1 pure-u-md-1-2">
+        <h4>Features</h4>
+        <ul>
+          <li><strong>Typeahead Search:</strong> Real-time filtering as you type</li>
+          <li><strong>Rich Content:</strong> Support for icons, subtitles, and multiline text</li>
+          <li><strong>Option Groups:</strong> Organize options into collapsible groups</li>
+          <li><strong>Checkboxes:</strong> Visual indication of selected state</li>
+          <li><strong>Selected Badges:</strong> Removable chips for selected items</li>
+          <li><strong>Search Hint:</strong> Optional explanation text above input</li>
+          <li><strong>Select All / Clear All:</strong> Bulk selection actions</li>
+          <li><strong>Disabled Options:</strong> Prevent selection of specific items</li>
+          <li><strong>Keyboard Navigation:</strong> Full keyboard support</li>
+          <li><strong>Smart Positioning:</strong> Uses Floating UI for intelligent dropdown placement</li>
+          <li><strong>Match Highlighting:</strong> Search terms highlighted in results</li>
+          <li><strong>Empty State:</strong> Customizable "no results" message</li>
+          <li><strong>Max Height:</strong> Scrollable dropdown with configurable height</li>
+        </ul>
+      </div>
+      <div class="pure-u-1 pure-u-md-1-2">
+        <h4>Keyboard Shortcuts</h4>
+        <ul>
+          <li><kbd>↑</kbd> <strong>Up Arrow:</strong> Move to previous option</li>
+          <li><kbd>↓</kbd> <strong>Down Arrow:</strong> Move to next option</li>
+          <li><kbd>Enter</kbd> <strong>Enter:</strong> Toggle focused option</li>
+          <li><kbd>Esc</kbd> <strong>Escape:</strong> Close dropdown</li>
+          <li><kbd>Tab</kbd> <strong>Tab:</strong> Close dropdown and move to next field</li>
+        </ul>
+        <h4 style="margin-top: 1rem;">Mouse Actions</h4>
+        <ul>
+          <li><strong>Click input:</strong> Open dropdown and focus search</li>
+          <li><strong>Click option:</strong> Toggle selection</li>
+          <li><strong>Click badge remove:</strong> Deselect item</li>
+          <li><strong>Click outside:</strong> Close dropdown</li>
+          <li><strong>Click Select All:</strong> Select all visible options</li>
+          <li><strong>Click Clear All:</strong> Deselect all options</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Implementation Notes -->
+<div class="pa-card">
+  <div class="pa-card__header">
+    <h3>Implementation Notes</h3>
+  </div>
+  <div class="pa-card__body">
+    <h4>Auto-Initialization</h4>
+    <p>Add <code>data-multiselect</code> attribute to automatically initialize:</p>
+    <pre><code>&lt;div data-multiselect
+     data-options='[...]'
+     data-search-placeholder="Search..."&gt;
+&lt;/div&gt;</code></pre>
+
+    <h4>Data Attributes</h4>
+    <ul>
+      <li><code>data-options</code> - JSON array of options</li>
+      <li><code>data-search-placeholder</code> - Input placeholder text</li>
+      <li><code>data-search-hint</code> - Optional hint text above input</li>
+      <li><code>data-initial-values</code> - JSON array of pre-selected values</li>
+      <li><code>data-allow-groups</code> - Enable/disable option groups (default: true)</li>
+      <li><code>data-allow-select-all</code> - Show Select All button (default: true)</li>
+      <li><code>data-allow-clear-all</code> - Show Clear All button (default: true)</li>
+      <li><code>data-max-height</code> - Max dropdown height (default: 20rem)</li>
+      <li><code>data-empty-message</code> - Custom empty state message</li>
+    </ul>
+
+    <h4>Option Structure</h4>
+    <pre><code>{
+  "value": "unique-id",      // Required: Unique identifier
+  "label": "Display Text",   // Required: Main text
+  "icon": "🔥",              // Optional: Icon or emoji
+  "subtitle": "Description", // Optional: Subtitle text
+  "group": "Group Name",     // Optional: Group label
+  "disabled": false          // Optional: Disable selection
+}</code></pre>
+
+    <h4>Programmatic Initialization</h4>
+    <pre><code>const multiselect = new MultiSelect(element, {
+  options: [
+    {value: 'js', label: 'JavaScript'},
+    {value: 'py', label: 'Python'}
+  ],
+  searchPlaceholder: 'Search...',
+  searchHint: 'Type to search',
+  allowGroups: true,
+  allowSelectAll: true,
+  allowClearAll: true,
+  maxHeight: '20rem',
+  emptyMessage: 'No results found',
+  onSelect: (option) => {
+    console.log('Selected:', option);
+  },
+  onDeselect: (option) => {
+    console.log('Deselected:', option);
+  },
+  onChange: (selectedOptions) => {
+    console.log('Changed:', selectedOptions);
+  }
+});</code></pre>
+
+    <h4>Public API</h4>
+    <pre><code>// Get selected options
+const selected = multiselect.getSelected();
+
+// Set selected values programmatically
+multiselect.setSelected(['js', 'py']);
+
+// Destroy instance
+multiselect.destroy();</code></pre>
+
+    <h4>Size Modifiers</h4>
+    <p>Add size classes to the container element:</p>
+    <ul>
+      <li><code>ml--xs</code> - Extra small</li>
+      <li><code>ml--sm</code> - Small</li>
+      <li>(no modifier) - Default size</li>
+      <li><code>ml--lg</code> - Large</li>
+      <li><code>ml--xl</code> - Extra large</li>
+    </ul>
+
+    <h4>Floating UI Integration</h4>
+    <p>The component uses <a href="https://floating-ui.com/" target="_blank">Floating UI</a> for intelligent dropdown positioning with automatic flipping and shifting to stay within the viewport.</p>
+  </div>
+</div>
+
+<!-- Script to include multiselect.js -->
+<script src="/src/js/multiselect.js"></script>
+
+<!-- Async loading demo script -->
+<script>
+// Wait for DOM and MultiSelect to be available
+document.addEventListener('DOMContentLoaded', () => {
+  // Fake product database
+  const allProducts = [
+    { value: 'laptop-1', label: 'MacBook Pro 16"', subtitle: 'Apple M3 Max, 32GB RAM', icon: '💻' },
+    { value: 'laptop-2', label: 'Dell XPS 15', subtitle: 'Intel i9, 32GB RAM', icon: '💻' },
+    { value: 'laptop-3', label: 'ThinkPad X1 Carbon', subtitle: 'Intel i7, 16GB RAM', icon: '💻' },
+    { value: 'phone-1', label: 'iPhone 15 Pro', subtitle: '256GB, Titanium', icon: '📱' },
+    { value: 'phone-2', label: 'Samsung Galaxy S24', subtitle: '512GB, Phantom Black', icon: '📱' },
+    { value: 'phone-3', label: 'Google Pixel 8 Pro', subtitle: '256GB, Obsidian', icon: '📱' },
+    { value: 'tablet-1', label: 'iPad Pro 12.9"', subtitle: 'M2, 256GB', icon: '📱' },
+    { value: 'tablet-2', label: 'Surface Pro 9', subtitle: 'Intel i7, 16GB', icon: '📱' },
+    { value: 'monitor-1', label: 'LG UltraWide 34"', subtitle: '3440x1440, 144Hz', icon: '🖥️' },
+    { value: 'monitor-2', label: 'Dell UltraSharp 27"', subtitle: '4K, IPS', icon: '🖥️' },
+    { value: 'keyboard-1', label: 'Keychron K8 Pro', subtitle: 'Mechanical, Wireless', icon: '⌨️' },
+    { value: 'mouse-1', label: 'Logitech MX Master 3S', subtitle: 'Wireless, Ergonomic', icon: '🖱️' }
+  ];
+
+  // Simulate async API call with random delay
+  async function searchProducts(searchTerm) {
+    // Random delay between 300-1200ms
+    const delay = 300 + Math.random() * 900;
+    await new Promise(resolve => setTimeout(resolve, delay));
+
+    // Filter products by search term
+    return allProducts.filter(product => {
+      const searchLower = searchTerm.toLowerCase();
+      return product.label.toLowerCase().includes(searchLower) ||
+             product.subtitle.toLowerCase().includes(searchLower);
+    });
+  }
+
+  // Initialize async multiselect
+  const asyncElement = document.getElementById('async-multiselect');
+  if (asyncElement) {
+    new MultiSelect(asyncElement, {
+      onSearch: searchProducts,
+      minSearchLength: 2
+    });
+  }
+
+  // Initialize async multiselect with count display
+  const asyncCountElement = document.getElementById('async-count-multiselect');
+  if (asyncCountElement) {
+    new MultiSelect(asyncCountElement, {
+      onSearch: searchProducts,
+      minSearchLength: 2
+    });
+  }
+});
+</script>

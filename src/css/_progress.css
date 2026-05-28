@@ -1,0 +1,48 @@
+/* ==============================================================================
+   PROGRESS BAR
+   ==============================================================================
+   Upload progress indicator (for future upload feature) */
+
+.dz__progress {
+  width: 100%;
+  margin-top: calc(0.4 * var(--dz-rem));
+}
+
+.dz__progress__bar {
+  width: 100%;
+  height: var(--dz-progress-height);
+  background: var(--dz-progress-bg);
+  border-radius: var(--dz-progress-border-radius);
+  overflow: hidden;
+}
+
+.dz__progress__fill {
+  height: 100%;
+  background: var(--dz-progress-fill-bg);
+  border-radius: var(--dz-progress-border-radius);
+  transition: var(--dz-progress-transition);
+}
+
+/* Progress states */
+.dz__progress--complete .dz__progress__fill {
+  background: var(--dz-success-color);
+}
+
+.dz__progress--error .dz__progress__fill {
+  background: var(--dz-error-color);
+}
+
+/* Status text */
+.dz__progress__status {
+  margin-top: calc(0.2 * var(--dz-rem));
+  font-size: var(--dz-font-size-xs);
+  color: var(--dz-text-color-3);
+}
+
+.dz__progress__status--complete {
+  color: var(--dz-success-color);
+}
+
+.dz__progress__status--error {
+  color: var(--dz-error-color);
+}

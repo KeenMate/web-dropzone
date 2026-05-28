@@ -1,0 +1,2178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MultiSelect API Reference</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 3rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            font-size: 2.5rem;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 3rem;
+            font-size: 1.1rem;
+        }
+
+        h2 {
+            color: #34495e;
+            margin-top: 3rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #3498db;
+            font-size: 1.8rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+            background: white;
+        }
+
+        thead {
+            background: #3498db;
+            color: white;
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        code {
+            background: #ecf0f1;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #e74c3c;
+        }
+
+        .type {
+            color: #9b59b6;
+            font-weight: 500;
+        }
+
+        .default {
+            color: #27ae60;
+            font-style: italic;
+        }
+
+        .section-intro {
+            color: #7f8c8d;
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MultiSelect API Reference</h1>
+        <p class="subtitle">Complete reference for attributes, options, callbacks, and methods</p>
+
+        <!-- HTML ATTRIBUTES -->
+        <h2>HTML Attributes (Web Component)</h2>
+        <p class="section-intro">These attributes can be set on the <code>&lt;multi-select&gt;</code> custom element.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%">Attribute</th>
+                    <th style="width: 20%">Type</th>
+                    <th style="width: 15%">Default</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>multiple</code></td>
+                    <td class="type">boolean</td>
+                    <td class="default">true</td>
+                    <td>Allow multiple selections. Set to "false" for single-select mode.</td>
+                </tr>
+                <tr>
+                    <td><code>enable-search</code></td>
+                    <td class="type">boolean</td>
+                    <td class="default">true</td>
+                    <td>Enable search/filtering functionality. When false, only keyboard navigation works.</td>
+                </tr>
+                <tr>
+                    <td><code>search-input-mode</code></td>
+                    <td class="type">string</td>
+                    <td class="default">'normal'</td>
+                    <td>Input display mode: 'normal', 'readonly', or 'hidden'.</td>
+                </tr>
+                <tr>
+                    <td><code>search-placeholder</code></td>
+                    <td class="type">string</td>
+                    <td class="default">'Search...'</td>
+                    <td>Placeholder text for the search input field.</td>
+                </tr>
+                <tr>
+                    <td><code>search-hint</code></td>
+                    <td class="type">string</td>
+                    <td class="default">undefined</td>
+                    <td>Hint text shown in a popover when input is focused.</td>
+                </tr>
+                <tr>
+                    <td><code>min-search-length</code></td>
+                    <td class="type">number</td>
+                    <td class="default">0</td>
+                    <td>Minimum characters required before triggering async search.</td>
+                </tr>
+                <tr>
+                    <td><code>allow-groups</code></td>
+                    <td class="type">boolean</td>
+                    <td class="default">true</td>
+                    <td>Enable grouping of options by the group property.</td>
+                </tr>
+                <tr>
+                    <td><code>allow-select-all</code></td>
+                    <td class="type">boolean</td>
+                    <td class="default">true</td>
+                    <td>Show "Select All" button in multi-select mode.</td>
+                </tr>
+                <tr>
+                    <td><code>allow-clear-all</code></td>
+                    <td class="type">boolean</td>
+                    <td class="default">true</td>
+                    <td>Show "Clear All" button in multi-select mode.</td>
+                </tr>
+                <tr>
+                    <td><code>allow-add-new</code></td>
+                    <td class="type">boolean</td>
+                    <td class="default">false</td>
+                    <td>Allow adding new options not in the list.</td>
+                </tr>
+                <tr>
+                    <td><code>show-checkboxes</code></td>
+                    <td class="type">boolean</td>
+                    <td class="default">true</td>
+                    <td>Display checkboxes next to options in multi-select mode.</td>
+                </tr>
+                <tr>
+                    <td><code>sticky-actions</code></td>
+                    <td class="type">boolean</td>
+                    <td class="default">true</td>
+                    <td>Keep Select All/Clear All buttons fixed while scrolling.</td>
+                </tr>
+                <tr>
+                    <td><code>close-on-select</code></td>
+                    <td class="type">boolean</td>
+                    <td class="default">false</td>
+                    <td>Close dropdown after selecting an option.</td>
+                </tr>
+                <tr>
+                    <td><code>lock-placement</code></td>
+                    <td class="type">boolean</td>
+                    <td class="default">true</td>
+                    <td>Lock dropdown placement after first open to prevent jumping.</td>
+                </tr>
+                <tr>
+                    <td><code>display-mode</code></td>
+                    <td class="type">string</td>
+                    <td class="default">'pills'</td>
+                    <td>Display mode for selected items: 'pills', 'count', or 'compact'.</td>
+                </tr>
+                <tr>
+                    <td><code>badges-position</code></td>
+                    <td class="type">string</td>
+                    <td class="default">'bottom'</td>
+                    <td>Position of badges container: 'top', 'bottom', 'left', or 'right'.</td>
+                </tr>
+                <tr>
+                    <td><code>badges-threshold</code></td>
+                    <td class="type">number</td>
+                    <td class="default">null</td>
+                    <td>Auto-switch from badges to count when this number is exceeded.</td>
+                </tr>
+                <tr>
+                    <td><code>count-format</code></td>
+                    <td class="type">string</td>
+                    <td class="default">'{count} selected'</td>
+                    <td>Template for count display. Use {count} as placeholder.</td>
+                </tr>
+                <tr>
+                    <td><code>show-counter</code></td>
+                    <td class="type">boolean</td>
+                    <td class="default">false</td>
+                    <td>Show count badge next to the toggle icon.</td>
+                </tr>
+                <tr>
+                    <td><code>dropdown-min-width</code></td>
+                    <td class="type">string</td>
+                    <td class="default">null</td>
+                    <td>Minimum width for dropdown (e.g., '20rem', '300px').</td>
+                </tr>
+                <tr>
+                    <td><code>max-height</code></td>
+                    <td class="type">string</td>
+                    <td class="default">'20rem'</td>
+                    <td>Maximum height for dropdown options list.</td>
+                </tr>
+                <tr>
+                    <td><code>empty-message</code></td>
+                    <td class="type">string</td>
+                    <td class="default">'No results found'</td>
+                    <td>Message displayed when no options match search.</td>
+                </tr>
+                <tr>
+                    <td><code>loading-message</code></td>
+                    <td class="type">string</td>
+                    <td class="default">'Loading...'</td>
+                    <td>Message displayed while loading async data.</td>
+                </tr>
+                <tr>
+                    <td><code>initial-values</code></td>
+                    <td class="type">string</td>
+                    <td class="default">undefined</td>
+                    <td>JSON string array of initially selected values (e.g., '["val1","val2"]').</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- JAVASCRIPT OPTIONS -->
+        <h2>JavaScript Options (WebMultiSelect)</h2>
+        <p class="section-intro">These options can be passed when instantiating <code>new WebMultiSelect(element, options)</code>.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%">Option</th>
+                    <th style="width: 20%">Type</th>
+                    <th style="width: 15%">Default</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>options</code></td>
+                    <td class="type">MultiSelectOption[]</td>
+                    <td class="default">undefined</td>
+                    <td>Array of option objects to display in the dropdown.</td>
+                </tr>
+                <tr>
+                    <td><code>container</code></td>
+                    <td class="type">HTMLElement</td>
+                    <td class="default">null</td>
+                    <td>Container element for dropdown/hint/popover (for Shadow DOM support).</td>
+                </tr>
+                <tr>
+                    <td colspan="4" style="background: #ecf0f1; font-style: italic; color: #7f8c8d;">
+                        All attributes listed above are also available as JavaScript options with camelCase naming (e.g., searchPlaceholder, enableSearch, etc.)
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- CALLBACKS -->
+        <h2>Event Callbacks</h2>
+        <p class="section-intro">Callback functions for handling user interactions and data loading.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%">Callback</th>
+                    <th style="width: 30%">Signature</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>searchCallback</code></td>
+                    <td class="type">(searchTerm: string) => Promise&lt;MultiSelectOption[]&gt;</td>
+                    <td>Async function to load options based on search term. Returns array of options.</td>
+                </tr>
+                <tr>
+                    <td><code>addNewCallback</code></td>
+                    <td class="type">(value: string) => MultiSelectOption | Promise&lt;MultiSelectOption&gt;</td>
+                    <td>Called when user adds a new option (when allowAddNew is true). Should return the created option.</td>
+                </tr>
+                <tr>
+                    <td><code>selectCallback</code></td>
+                    <td class="type">(option: MultiSelectOption) => void</td>
+                    <td>Called when an option is selected.</td>
+                </tr>
+                <tr>
+                    <td><code>deselectCallback</code></td>
+                    <td class="type">(option: MultiSelectOption) => void</td>
+                    <td>Called when an option is deselected.</td>
+                </tr>
+                <tr>
+                    <td><code>changeCallback</code></td>
+                    <td class="type">(selectedOptions: MultiSelectOption[]) => void</td>
+                    <td>Called whenever the selection changes (after select or deselect).</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- CUSTOM EVENTS -->
+        <h2>Custom Events (Web Component)</h2>
+        <p class="section-intro">Events dispatched by the <code>&lt;multi-select&gt;</code> element that can be listened to via <code>addEventListener</code>.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%">Event Name</th>
+                    <th style="width: 30%">Detail Type</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>select</code></td>
+                    <td class="type">MultiSelectEventDetail</td>
+                    <td>Fired when an option is selected. Detail contains: option, selectedOptions.</td>
+                </tr>
+                <tr>
+                    <td><code>deselect</code></td>
+                    <td class="type">MultiSelectEventDetail</td>
+                    <td>Fired when an option is deselected. Detail contains: option, selectedOptions.</td>
+                </tr>
+                <tr>
+                    <td><code>change</code></td>
+                    <td class="type">MultiSelectEventDetail</td>
+                    <td>Fired when selection changes. Detail contains: selectedOptions, selectedValues.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- PUBLIC METHODS -->
+        <h2>Public Methods</h2>
+        <p class="section-intro">Methods available on the MultiSelectElement or WebMultiSelect instance.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%">Method</th>
+                    <th style="width: 30%">Signature</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>getSelected</code></td>
+                    <td class="type">() => MultiSelectOption[]</td>
+                    <td>Returns array of currently selected options.</td>
+                </tr>
+                <tr>
+                    <td><code>setSelected</code></td>
+                    <td class="type">(values: string[]) => void</td>
+                    <td>Programmatically set selected options by their values.</td>
+                </tr>
+                <tr>
+                    <td><code>destroy</code></td>
+                    <td class="type">() => void</td>
+                    <td>Clean up and remove the multiselect instance.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- TYPE DEFINITIONS -->
+        <h2>Type Definitions</h2>
+        <p class="section-intro">TypeScript interfaces and types used in the API.</p>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">MultiSelectOption</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%">Property</th>
+                    <th style="width: 20%">Type</th>
+                    <th style="width: 15%">Required</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>value</code></td>
+                    <td class="type">string</td>
+                    <td class="default">Yes</td>
+                    <td>Unique identifier for the option.</td>
+                </tr>
+                <tr>
+                    <td><code>label</code></td>
+                    <td class="type">string</td>
+                    <td class="default">Yes</td>
+                    <td>Display label for the option.</td>
+                </tr>
+                <tr>
+                    <td><code>icon</code></td>
+                    <td class="type">string</td>
+                    <td class="default">No</td>
+                    <td>Optional icon or emoji to display.</td>
+                </tr>
+                <tr>
+                    <td><code>subtitle</code></td>
+                    <td class="type">string</td>
+                    <td class="default">No</td>
+                    <td>Optional subtitle or description text.</td>
+                </tr>
+                <tr>
+                    <td><code>group</code></td>
+                    <td class="type">string</td>
+                    <td class="default">No</td>
+                    <td>Optional group name for grouping options.</td>
+                </tr>
+                <tr>
+                    <td><code>disabled</code></td>
+                    <td class="type">boolean</td>
+                    <td class="default">No</td>
+                    <td>Whether the option is disabled.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">MultiSelectEventDetail</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%">Property</th>
+                    <th style="width: 20%">Type</th>
+                    <th style="width: 15%">Required</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>selectedOptions</code></td>
+                    <td class="type">MultiSelectOption[]</td>
+                    <td class="default">Yes</td>
+                    <td>Array of currently selected options.</td>
+                </tr>
+                <tr>
+                    <td><code>selectedValues</code></td>
+                    <td class="type">string[]</td>
+                    <td class="default">Yes</td>
+                    <td>Array of selected option values.</td>
+                </tr>
+                <tr>
+                    <td><code>option</code></td>
+                    <td class="type">MultiSelectOption</td>
+                    <td class="default">No</td>
+                    <td>The specific option that triggered the event (for select/deselect events).</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Display Modes</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%">Type</th>
+                    <th>Possible Values</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>DisplayMode</code></td>
+                    <td class="type">'pills' | 'count'</td>
+                </tr>
+                <tr>
+                    <td><code>BadgesPosition</code></td>
+                    <td class="type">'top' | 'bottom' | 'left' | 'right'</td>
+                </tr>
+                <tr>
+                    <td><code>SearchInputMode</code></td>
+                    <td class="type">'normal' | 'readonly' | 'hidden'</td>
+                </tr>
+            </tbody>
+        </table>
+        <!-- SCSS VARIABLES -->
+        <h2>SCSS Variables</h2>
+        <p class="section-intro">Customize the component by overriding these SCSS variables before importing the stylesheet.</p>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Layout & Spacing</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$multiselect-input-padding-v</code></td>
+                    <td class="default">0.5rem</td>
+                    <td>Vertical padding for input field</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-input-padding-h</code></td>
+                    <td class="default">0.75rem</td>
+                    <td>Horizontal padding for input field</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-hint-padding</code></td>
+                    <td class="default">0.5rem 0.75rem</td>
+                    <td>Padding for search hint popover</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-option-padding-v</code></td>
+                    <td class="default">0.5rem</td>
+                    <td>Vertical padding for dropdown options</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-option-padding-h</code></td>
+                    <td class="default">0.75rem</td>
+                    <td>Horizontal padding for dropdown options</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-badge-gap</code></td>
+                    <td class="default">0.5rem</td>
+                    <td>Gap between badges</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-spacing-xs</code></td>
+                    <td class="default">0.25rem</td>
+                    <td>Extra small spacing unit</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-spacing-sm</code></td>
+                    <td class="default">0.5rem</td>
+                    <td>Small spacing unit</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-spacing-md</code></td>
+                    <td class="default">0.75rem</td>
+                    <td>Medium spacing unit</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-spacing-lg</code></td>
+                    <td class="default">1rem</td>
+                    <td>Large spacing unit</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-input-icon-spacing</code></td>
+                    <td class="default">2.5rem</td>
+                    <td>Right padding for input to accommodate toggle icon</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-count-badge-offset</code></td>
+                    <td class="default">2rem</td>
+                    <td>Right position offset for count badge</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-option-icon-size</code></td>
+                    <td class="default">1.25rem</td>
+                    <td>Width and height of option icons</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-count-clear-size</code></td>
+                    <td class="default">1rem</td>
+                    <td>Width and height of count clear button</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-badge-height</code></td>
+                    <td class="default">1.5rem</td>
+                    <td>Height of badge badges</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-badge-remove-width</code></td>
+                    <td class="default">1.5rem</td>
+                    <td>Width of badge remove button</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-selected-popover-max-height</code></td>
+                    <td class="default">20rem</td>
+                    <td>Maximum height of selected items popover</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-popover-close-size</code></td>
+                    <td class="default">1.5rem</td>
+                    <td>Width and height of popover close button</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-selected-popover-body-max-height</code></td>
+                    <td class="default">18rem</td>
+                    <td>Maximum height of popover body content</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-count-badge-padding</code></td>
+                    <td class="default">0.125rem 0.25rem</td>
+                    <td>Padding for count badge</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-checkbox-offset</code></td>
+                    <td class="default">0.125rem</td>
+                    <td>Top margin offset for checkbox alignment</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Colors</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-input-bg</code></td>
+                    <td class="default">#ffffff</td>
+                    <td>Input field background color</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-input-text</code></td>
+                    <td class="default">#111827</td>
+                    <td>Input field text color</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-input-border</code></td>
+                    <td class="default">#d1d5db</td>
+                    <td>Input field border color</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-input-focus-border-color</code></td>
+                    <td class="default">#3b82f6</td>
+                    <td>Input field border color when focused</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-text-primary</code></td>
+                    <td class="default">#111827</td>
+                    <td>Primary text color</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-text-secondary</code></td>
+                    <td class="default">#6b7280</td>
+                    <td>Secondary text color (hints, subtitles)</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-accent-color</code></td>
+                    <td class="default">#3b82f6</td>
+                    <td>Accent color (selection, focus states)</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-accent-color-hover</code></td>
+                    <td class="default">#2563eb</td>
+                    <td>Darker accent color for hover states</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-primary-bg</code></td>
+                    <td class="default">#f3f4f6</td>
+                    <td>Background color for hover states</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-primary-bg-hover</code></td>
+                    <td class="default">#e5e7eb</td>
+                    <td>Darker background for active hover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-border-color</code></td>
+                    <td class="default">#e5e7eb</td>
+                    <td>Standard border color</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-hint-bg</code></td>
+                    <td class="default">#ffffff</td>
+                    <td>Search hint popover background</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-hint-border</code></td>
+                    <td class="default">#e5e7eb</td>
+                    <td>Search hint popover border</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-dropdown-bg</code></td>
+                    <td class="default">#ffffff</td>
+                    <td>Dropdown background color</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-dropdown-border</code></td>
+                    <td class="default">#e5e7eb</td>
+                    <td>Dropdown border color</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-dropdown-text</code></td>
+                    <td class="default">#111827</td>
+                    <td>Dropdown text color</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-option-hover-bg</code></td>
+                    <td class="default">#f9fafb</td>
+                    <td>Option background on hover</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-badge-bg</code></td>
+                    <td class="default">#eff6ff</td>
+                    <td>Badge background color</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-text-white</code></td>
+                    <td class="default">#ffffff</td>
+                    <td>White text color for badges and buttons</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Typography</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-font-size-2xs</code></td>
+                    <td class="default">0.625rem</td>
+                    <td>Extra extra small font size</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-font-size-xs</code></td>
+                    <td class="default">0.75rem</td>
+                    <td>Extra small font size</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-font-size-sm</code></td>
+                    <td class="default">0.875rem</td>
+                    <td>Small font size</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-font-size-base</code></td>
+                    <td class="default">1rem</td>
+                    <td>Base font size</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-font-size-lg</code></td>
+                    <td class="default">1.125rem</td>
+                    <td>Large font size</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-font-size-xl</code></td>
+                    <td class="default">1.25rem</td>
+                    <td>Extra large font size</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-font-weight-medium</code></td>
+                    <td class="default">500</td>
+                    <td>Medium font weight</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-font-weight-semibold</code></td>
+                    <td class="default">600</td>
+                    <td>Semibold font weight</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-line-height-none</code></td>
+                    <td class="default">1</td>
+                    <td>Line height of 1 (no extra spacing)</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-line-height-relaxed</code></td>
+                    <td class="default">1.4</td>
+                    <td>Relaxed line height for readable text</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-placeholder-opacity</code></td>
+                    <td class="default">0.6</td>
+                    <td>Opacity of input placeholder text</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-group-label-letter-spacing</code></td>
+                    <td class="default">0.05em</td>
+                    <td>Letter spacing for group labels</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-option-subtitle-line-height</code></td>
+                    <td class="default">1.3</td>
+                    <td>Line height for option subtitles</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-group-label-transform</code></td>
+                    <td class="default">uppercase</td>
+                    <td>Text transform for group labels</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-darken-amount</code></td>
+                    <td class="default">10%</td>
+                    <td>Amount to darken colors on hover states</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Opacity Values</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$multiselect-disabled-opacity</code></td>
+                    <td class="default">0.5</td>
+                    <td>Opacity for disabled options</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-disabled-input-opacity</code></td>
+                    <td class="default">0.6</td>
+                    <td>Opacity for disabled input and toggle</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-option-selected-bg-opacity</code></td>
+                    <td class="default">0.1</td>
+                    <td>Opacity for selected option background</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-highlight-bg-opacity</code></td>
+                    <td class="default">0.2</td>
+                    <td>Opacity for highlight and hover backgrounds</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-focus-shadow-opacity</code></td>
+                    <td class="default">0.5</td>
+                    <td>Opacity for focus box shadow</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-disabled-bg-opacity</code></td>
+                    <td class="default">0.05</td>
+                    <td>Opacity for disabled input background</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Z-Index Layers</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-z-index-dropdown</code></td>
+                    <td class="default">9999</td>
+                    <td>Z-index for dropdown layer</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-z-index-popover</code></td>
+                    <td class="default">10000</td>
+                    <td>Z-index for popovers and hints</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-z-index-sticky</code></td>
+                    <td class="default">1</td>
+                    <td>Z-index for sticky action buttons</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Transforms</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-transform-center-y</code></td>
+                    <td class="default">translateY(-50%)</td>
+                    <td>Transform for vertical centering</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-toggle-rotate-angle</code></td>
+                    <td class="default">180deg</td>
+                    <td>Rotation angle for toggle when dropdown is open</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-count-badge-hover-scale</code></td>
+                    <td class="default">1.1</td>
+                    <td>Scale factor for count badge on hover</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-active-scale</code></td>
+                    <td class="default">0.98</td>
+                    <td>Scale factor for buttons when pressed</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Borders & Radii</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-border-width-base</code></td>
+                    <td class="default">1px</td>
+                    <td>Standard border width</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-border-radius</code></td>
+                    <td class="default">0.375rem</td>
+                    <td>Standard border radius</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-border-radius-sm</code></td>
+                    <td class="default">0.25rem</td>
+                    <td>Small border radius</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-border-radius-full</code></td>
+                    <td class="default">50%</td>
+                    <td>Full border radius for circles</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-option-focus-outline-offset</code></td>
+                    <td class="default">-2px</td>
+                    <td>Outline offset for focused options</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Icons & Content</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$multiselect-clear-icon</code></td>
+                    <td class="default">'×'</td>
+                    <td>Icon character for clear buttons</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-remove-icon</code></td>
+                    <td class="default">'×'</td>
+                    <td>Icon character for remove buttons</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Layout Values</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-order-first</code></td>
+                    <td class="default">-1</td>
+                    <td>Flex order value for positioning elements first</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Shadows & Effects</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-shadow-md</code></td>
+                    <td class="default">0 4px 6px -1px...</td>
+                    <td>Medium shadow for hint popover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-shadow-xl</code></td>
+                    <td class="default">0 20px 25px -5px...</td>
+                    <td>Extra large shadow</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-dropdown-shadow</code></td>
+                    <td class="default">0 20px 25px -5px...</td>
+                    <td>Shadow for dropdown and selected popover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-focus-outline-width</code></td>
+                    <td class="default">2px</td>
+                    <td>Width of focus outline</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Transitions</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-transition-fast</code></td>
+                    <td class="default">150ms</td>
+                    <td>Fast transition duration</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-transition-normal</code></td>
+                    <td class="default">200ms</td>
+                    <td>Normal transition duration</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-easing-snappy</code></td>
+                    <td class="default">cubic-bezier(0.4, 0.0, 0.2, 1)</td>
+                    <td>Snappy easing function</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Dimensions</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$multiselect-dropdown-max-height</code></td>
+                    <td class="default">20rem</td>
+                    <td>Maximum height of dropdown (can be overridden by maxHeight option)</td>
+                </tr>
+                <tr>
+                    <td><code>$multiselect-selected-popover-width</code></td>
+                    <td class="default">20rem</td>
+                    <td>Width of selected items popover</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- COMPONENT-SPECIFIC SEMANTIC VARIABLES -->
+        <h2 style="margin-top: 3rem;">Component-Specific Semantic Variables</h2>
+        <p class="section-intro">These semantic variables provide an abstraction layer over primitive variables for easier component customization. Override these to style specific components without needing to know internal structure.</p>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Input Component</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-input-border-style</code></td>
+                    <td class="default">$ml-border-width-base solid $ml-input-border</td>
+                    <td>Complete border specification for input</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-input-border-radius</code></td>
+                    <td class="default">$ml-border-radius</td>
+                    <td>Border radius for input</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-input-font-size</code></td>
+                    <td class="default">$ml-font-size-sm</td>
+                    <td>Font size for input text</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-input-padding</code></td>
+                    <td class="default">$multiselect-input-padding-v $multiselect-input-padding-h</td>
+                    <td>Padding for input field</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-input-padding-right</code></td>
+                    <td class="default">$multiselect-input-icon-spacing</td>
+                    <td>Right padding to accommodate toggle icon</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-input-placeholder-color</code></td>
+                    <td class="default">$ml-text-secondary</td>
+                    <td>Color for placeholder text</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-input-bg-disabled</code></td>
+                    <td class="default">rgba($ml-text-secondary, 0.05)</td>
+                    <td>Background color for disabled input</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Toggle Icon & Count Badge</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-toggle-color</code></td>
+                    <td class="default">$ml-text-secondary</td>
+                    <td>Color for dropdown toggle icon</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-toggle-right</code></td>
+                    <td class="default">$multiselect-input-padding-h</td>
+                    <td>Right position for toggle icon</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-bg</code></td>
+                    <td class="default">$ml-accent-color</td>
+                    <td>Background for count badge (in input)</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-color</code></td>
+                    <td class="default">$ml-text-white</td>
+                    <td>Text color for count badge</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-font-size</code></td>
+                    <td class="default">$ml-font-size-xs</td>
+                    <td>Font size for count badge</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-font-weight</code></td>
+                    <td class="default">$ml-font-weight-semibold</td>
+                    <td>Font weight for count badge</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-border-radius</code></td>
+                    <td class="default">$ml-border-radius-sm</td>
+                    <td>Border radius for count badge</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-padding</code></td>
+                    <td class="default">$multiselect-count-badge-padding</td>
+                    <td>Padding for count badge</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-bg-hover</code></td>
+                    <td class="default">color.adjust($ml-accent-color, -10%)</td>
+                    <td>Background for count badge on hover</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Hint & Dropdown</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-hint-bg</code></td>
+                    <td class="default">$multiselect-hint-bg</td>
+                    <td>Background for search hint popover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-hint-border</code></td>
+                    <td class="default">$ml-border-width-base solid $multiselect-hint-border</td>
+                    <td>Border for hint popover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-hint-border-radius</code></td>
+                    <td class="default">$ml-border-radius</td>
+                    <td>Border radius for hint</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-hint-box-shadow</code></td>
+                    <td class="default">$ml-shadow-md</td>
+                    <td>Box shadow for hint</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-hint-font-size</code></td>
+                    <td class="default">$ml-font-size-xs</td>
+                    <td>Font size for hint text</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-hint-color</code></td>
+                    <td class="default">$ml-text-secondary</td>
+                    <td>Text color for hint</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-hint-padding</code></td>
+                    <td class="default">$multiselect-hint-padding</td>
+                    <td>Padding for hint popover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-dropdown-bg</code></td>
+                    <td class="default">$multiselect-dropdown-bg</td>
+                    <td>Background for dropdown</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-dropdown-border</code></td>
+                    <td class="default">$ml-border-width-base solid $multiselect-dropdown-border</td>
+                    <td>Border for dropdown</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-dropdown-border-radius</code></td>
+                    <td class="default">$ml-border-radius</td>
+                    <td>Border radius for dropdown</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-dropdown-box-shadow</code></td>
+                    <td class="default">$multiselect-dropdown-shadow</td>
+                    <td>Box shadow for dropdown</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-dropdown-color</code></td>
+                    <td class="default">$multiselect-dropdown-text</td>
+                    <td>Text color for dropdown</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Dropdown Actions & Buttons</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-actions-gap</code></td>
+                    <td class="default">$ml-spacing-xs</td>
+                    <td>Gap between action buttons</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-actions-padding</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Padding for actions container</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-actions-border-bottom</code></td>
+                    <td class="default">$ml-border-width-base solid $ml-border-color</td>
+                    <td>Bottom border for actions container</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-actions-bg</code></td>
+                    <td class="default">$multiselect-dropdown-bg</td>
+                    <td>Background for sticky actions</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-action-btn-padding</code></td>
+                    <td class="default">$ml-spacing-xs $ml-spacing-sm</td>
+                    <td>Padding for action buttons</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-action-btn-font-size</code></td>
+                    <td class="default">$ml-font-size-xs</td>
+                    <td>Font size for action buttons</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-action-btn-border</code></td>
+                    <td class="default">$ml-border-width-base solid $ml-border-color</td>
+                    <td>Border for action buttons</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-action-btn-border-radius</code></td>
+                    <td class="default">$ml-border-radius-sm</td>
+                    <td>Border radius for action buttons</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-action-btn-bg</code></td>
+                    <td class="default">transparent</td>
+                    <td>Background for action buttons</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-action-btn-color</code></td>
+                    <td class="default">inherit</td>
+                    <td>Text color for action buttons</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-action-btn-bg-hover</code></td>
+                    <td class="default">$ml-primary-bg</td>
+                    <td>Background on hover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-action-btn-border-color-hover</code></td>
+                    <td class="default">$ml-accent-color</td>
+                    <td>Border color on hover</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Options, Groups & Empty States</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-options-padding</code></td>
+                    <td class="default">$ml-spacing-xs 0</td>
+                    <td>Padding for options container</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-group-border-top</code></td>
+                    <td class="default">$ml-border-width-base solid $ml-border-color</td>
+                    <td>Top border between groups</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-group-margin-top</code></td>
+                    <td class="default">$ml-spacing-xs</td>
+                    <td>Top margin between groups</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-group-padding-top</code></td>
+                    <td class="default">$ml-spacing-xs</td>
+                    <td>Top padding for groups</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-group-label-padding</code></td>
+                    <td class="default">$ml-spacing-xs $multiselect-option-padding-h</td>
+                    <td>Padding for group labels</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-group-label-font-size</code></td>
+                    <td class="default">$ml-font-size-xs</td>
+                    <td>Font size for group labels</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-group-label-font-weight</code></td>
+                    <td class="default">$ml-font-weight-semibold</td>
+                    <td>Font weight for group labels</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-group-label-color</code></td>
+                    <td class="default">$ml-text-secondary</td>
+                    <td>Text color for group labels</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-gap</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Gap between checkbox and option content</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-padding</code></td>
+                    <td class="default">$multiselect-option-padding-v $multiselect-option-padding-h</td>
+                    <td>Padding for individual options</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-bg</code></td>
+                    <td class="default">transparent</td>
+                    <td>Background for options</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-bg-hover</code></td>
+                    <td class="default">$multiselect-option-hover-bg</td>
+                    <td>Background on hover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-bg-focused</code></td>
+                    <td class="default">$multiselect-option-hover-bg</td>
+                    <td>Background when focused (keyboard)</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-outline-focused</code></td>
+                    <td class="default">$ml-focus-outline-width solid $ml-accent-color</td>
+                    <td>Outline for focused option</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-bg-selected</code></td>
+                    <td class="default">rgba($ml-accent-color, 0.1)</td>
+                    <td>Background for selected option</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-content-gap</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Gap between icon and text in option</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-icon-font-size</code></td>
+                    <td class="default">$ml-font-size-base</td>
+                    <td>Font size for option icons</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-title-font-size</code></td>
+                    <td class="default">$ml-font-size-sm</td>
+                    <td>Font size for option title</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-title-color</code></td>
+                    <td class="default">inherit</td>
+                    <td>Text color for option title</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-mark-bg</code></td>
+                    <td class="default">rgba($ml-accent-color, 0.2)</td>
+                    <td>Background for highlighted search matches</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-mark-color</code></td>
+                    <td class="default">inherit</td>
+                    <td>Text color for highlighted matches</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-mark-font-weight</code></td>
+                    <td class="default">$ml-font-weight-semibold</td>
+                    <td>Font weight for highlighted matches</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-subtitle-margin-top</code></td>
+                    <td class="default">$ml-spacing-xs</td>
+                    <td>Top margin for option subtitle</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-subtitle-font-size</code></td>
+                    <td class="default">$ml-font-size-xs</td>
+                    <td>Font size for option subtitle</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-option-subtitle-color</code></td>
+                    <td class="default">$ml-text-secondary</td>
+                    <td>Text color for option subtitle</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-empty-padding</code></td>
+                    <td class="default">$ml-spacing-lg $multiselect-option-padding-h</td>
+                    <td>Padding for empty state message</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-empty-font-size</code></td>
+                    <td class="default">$ml-font-size-sm</td>
+                    <td>Font size for empty message</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-empty-color</code></td>
+                    <td class="default">$ml-text-secondary</td>
+                    <td>Text color for empty message</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-loader-padding</code></td>
+                    <td class="default">$ml-spacing-lg</td>
+                    <td>Padding for loader container</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-loader-gap</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Gap in loader layout</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-loading-text-font-size</code></td>
+                    <td class="default">$ml-font-size-sm</td>
+                    <td>Font size for loading message</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-loading-text-color</code></td>
+                    <td class="default">$ml-text-secondary</td>
+                    <td>Text color for loading message</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-checkbox-margin-top</code></td>
+                    <td class="default">$multiselect-checkbox-offset</td>
+                    <td>Top margin for checkbox alignment</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Badges & Counter Display</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-badges-gap</code></td>
+                    <td class="default">$multiselect-badge-gap</td>
+                    <td>Gap between badges</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badges-margin-bottom</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Top margin when badges are below input</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badges-margin-top</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Bottom margin when badges are above input</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badges-margin-left</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Right margin when badges are left of input</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badges-margin-right</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Left margin when badges are right of input</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-display-margin-bottom</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Top margin when count is below input</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-display-margin-top</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Bottom margin when count is above input</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-display-margin-left</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Right margin when count is left of input</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-display-margin-right</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Left margin when count is right of input</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-wrapper-bg</code></td>
+                    <td class="default">transparent</td>
+                    <td>Background for count badge wrapper</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-wrapper-border</code></td>
+                    <td class="default">$ml-border-width-base solid $ml-border-color</td>
+                    <td>Border for count badge wrapper</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-wrapper-border-radius</code></td>
+                    <td class="default">$ml-border-radius-sm</td>
+                    <td>Border radius for wrapper</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-wrapper-padding</code></td>
+                    <td class="default">$ml-spacing-xs $ml-spacing-sm</td>
+                    <td>Padding for wrapper</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-wrapper-gap</code></td>
+                    <td class="default">$ml-spacing-xs</td>
+                    <td>Gap between count text and clear button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-wrapper-bg-hover</code></td>
+                    <td class="default">$multiselect-option-hover-bg</td>
+                    <td>Background on hover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-badge-wrapper-border-color-hover</code></td>
+                    <td class="default">$ml-accent-color</td>
+                    <td>Border color on hover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-text-bg</code></td>
+                    <td class="default">transparent</td>
+                    <td>Background for count text</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-text-border</code></td>
+                    <td class="default">none</td>
+                    <td>Border for count text</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-text-font-size</code></td>
+                    <td class="default">$ml-font-size-sm</td>
+                    <td>Font size for count text</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-text-color</code></td>
+                    <td class="default">$ml-text-primary</td>
+                    <td>Text color for count</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-clear-bg</code></td>
+                    <td class="default">transparent</td>
+                    <td>Background for clear button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-clear-color</code></td>
+                    <td class="default">$ml-text-secondary</td>
+                    <td>Text color for clear button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-clear-font-size</code></td>
+                    <td class="default">$ml-font-size-lg</td>
+                    <td>Font size for clear button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-clear-border-radius</code></td>
+                    <td class="default">$ml-border-radius-full</td>
+                    <td>Border radius for clear button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-clear-bg-hover</code></td>
+                    <td class="default">rgba($ml-accent-color, 0.2)</td>
+                    <td>Background on hover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-count-clear-color-hover</code></td>
+                    <td class="default">$ml-accent-color</td>
+                    <td>Text color on hover</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Badge Elements</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-badge-font-size</code></td>
+                    <td class="default">$ml-font-size-xs</td>
+                    <td>Font size for badge text</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badge-font-weight</code></td>
+                    <td class="default">$ml-font-weight-semibold</td>
+                    <td>Font weight for badge text</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badge-border-radius</code></td>
+                    <td class="default">$ml-border-radius</td>
+                    <td>Border radius for badge</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badge-text-padding</code></td>
+                    <td class="default">0 $ml-spacing-sm</td>
+                    <td>Padding for badge text label</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badge-text-bg</code></td>
+                    <td class="default">$multiselect-badge-bg</td>
+                    <td>Background for badge text</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badge-text-color</code></td>
+                    <td class="default">$ml-accent-color</td>
+                    <td>Text color for badge</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badge-remove-bg</code></td>
+                    <td class="default">$ml-accent-color</td>
+                    <td>Background for badge remove button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badge-remove-color</code></td>
+                    <td class="default">$ml-text-white</td>
+                    <td>Text color for remove button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badge-remove-border</code></td>
+                    <td class="default">none</td>
+                    <td>Border for remove button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badge-remove-font-size</code></td>
+                    <td class="default">$ml-font-size-xs</td>
+                    <td>Font size for remove button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badge-remove-bg-hover</code></td>
+                    <td class="default">color.adjust($ml-accent-color, -10%)</td>
+                    <td>Background on hover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-badge-remove-box-shadow-focus</code></td>
+                    <td class="default">0 0 0 $ml-focus-outline-width rgba($ml-accent-color, 0.5)</td>
+                    <td>Focus box shadow</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Selected Items Popover</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Variable</th>
+                    <th style="width: 20%">Default Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>$ml-selected-popover-bg</code></td>
+                    <td class="default">$multiselect-dropdown-bg</td>
+                    <td>Background for selected items popover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-border</code></td>
+                    <td class="default">$ml-border-width-base solid $multiselect-dropdown-border</td>
+                    <td>Border for popover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-border-radius</code></td>
+                    <td class="default">$ml-border-radius</td>
+                    <td>Border radius for popover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-box-shadow</code></td>
+                    <td class="default">$multiselect-dropdown-shadow</td>
+                    <td>Box shadow for popover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-header-padding</code></td>
+                    <td class="default">$ml-spacing-sm $ml-spacing-md</td>
+                    <td>Padding for popover header</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-header-bg</code></td>
+                    <td class="default">rgba($ml-accent-color, 0.1)</td>
+                    <td>Background for header</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-header-border-bottom</code></td>
+                    <td class="default">$ml-border-width-base solid $ml-border-color</td>
+                    <td>Bottom border for header</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-header-font-size</code></td>
+                    <td class="default">$ml-font-size-sm</td>
+                    <td>Font size for header</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-header-font-weight</code></td>
+                    <td class="default">$ml-font-weight-semibold</td>
+                    <td>Font weight for header</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-header-color</code></td>
+                    <td class="default">$ml-text-primary</td>
+                    <td>Text color for header</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-close-bg</code></td>
+                    <td class="default">transparent</td>
+                    <td>Background for close button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-close-color</code></td>
+                    <td class="default">$ml-text-secondary</td>
+                    <td>Text color for close button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-close-font-size</code></td>
+                    <td class="default">$ml-font-size-xl</td>
+                    <td>Font size for close button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-close-border-radius</code></td>
+                    <td class="default">$ml-border-radius-full</td>
+                    <td>Border radius for close button</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-close-bg-hover</code></td>
+                    <td class="default">rgba($ml-accent-color, 0.2)</td>
+                    <td>Background on hover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-close-color-hover</code></td>
+                    <td class="default">$ml-accent-color</td>
+                    <td>Text color on hover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-body-gap</code></td>
+                    <td class="default">$ml-spacing-xs</td>
+                    <td>Gap between badges in popover</td>
+                </tr>
+                <tr>
+                    <td><code>$ml-selected-popover-body-padding</code></td>
+                    <td class="default">$ml-spacing-sm</td>
+                    <td>Padding for popover body</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- CSS CLASSES -->
+        <h2>CSS Classes</h2>
+        <p class="section-intro">All CSS classes used by the component. Use these for custom styling or overrides.</p>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Main Container Classes</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Class</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>.ml</code></td>
+                    <td>Main container element</td>
+                </tr>
+                <tr>
+                    <td><code>.ml--open</code></td>
+                    <td>Applied when dropdown is open</td>
+                </tr>
+                <tr>
+                    <td><code>.ml--disabled</code></td>
+                    <td>Applied when component is disabled</td>
+                </tr>
+                <tr>
+                    <td><code>.ml--no-checkboxes</code></td>
+                    <td>Applied when checkboxes are hidden or in single-select mode</td>
+                </tr>
+                <tr>
+                    <td><code>.ml--xs</code></td>
+                    <td>Extra small size variant</td>
+                </tr>
+                <tr>
+                    <td><code>.ml--sm</code></td>
+                    <td>Small size variant</td>
+                </tr>
+                <tr>
+                    <td><code>.ml--lg</code></td>
+                    <td>Large size variant</td>
+                </tr>
+                <tr>
+                    <td><code>.ml--xl</code></td>
+                    <td>Extra large size variant</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Input & Toggle</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Class</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>.ml__input-wrapper</code></td>
+                    <td>Container for input and toggle icon</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__input</code></td>
+                    <td>Search input field</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__toggle</code></td>
+                    <td>Dropdown toggle icon (arrow)</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__counter</code></td>
+                    <td>Counter next to toggle icon (when showCounter is true)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Hint Popover</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Class</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>.ml__hint</code></td>
+                    <td>Search hint popover container</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__hint--visible</code></td>
+                    <td>Applied when hint is visible</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Dropdown</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Class</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>.ml__dropdown</code></td>
+                    <td>Dropdown container</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__dropdown--visible</code></td>
+                    <td>Applied when dropdown is visible</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__actions</code></td>
+                    <td>Container for Select All/Clear All buttons</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__actions--sticky</code></td>
+                    <td>Applied when actions should stick to top while scrolling</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__action-btn</code></td>
+                    <td>Individual action button (Select All/Clear All)</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__options</code></td>
+                    <td>Container for all options</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__empty</code></td>
+                    <td>Empty state message container</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__loader</code></td>
+                    <td>Loading state container</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__loading-text</code></td>
+                    <td>Loading message text</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Options & Groups</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Class</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>.ml__group</code></td>
+                    <td>Group container for grouped options</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__group-label</code></td>
+                    <td>Group label/header</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__option</code></td>
+                    <td>Individual option container</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__option--focused</code></td>
+                    <td>Applied to keyboard-focused option</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__option--selected</code></td>
+                    <td>Applied to selected options</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__option--disabled</code></td>
+                    <td>Applied to disabled options</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__checkbox</code></td>
+                    <td>Checkbox input element</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__option-content</code></td>
+                    <td>Container for option content (icon + text)</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__option-icon</code></td>
+                    <td>Option icon/emoji container</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__option-text</code></td>
+                    <td>Container for option text (title + subtitle)</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__option-title</code></td>
+                    <td>Option main label/title</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__option-subtitle</code></td>
+                    <td>Option subtitle/description</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Badges Display</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Class</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>.ml__badges</code></td>
+                    <td>Container for selected item badges</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__badges--top</code></td>
+                    <td>Badges positioned above input</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__badges--bottom</code></td>
+                    <td>Badges positioned below input (default)</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__badges--left</code></td>
+                    <td>Badges positioned to the left of input</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__badges--right</code></td>
+                    <td>Badges positioned to the right of input</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__badge</code></td>
+                    <td>Individual badge element</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__badge-text</code></td>
+                    <td>Badge label text</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__badge-remove</code></td>
+                    <td>Badge remove button (×)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Count Display</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Class</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>.ml__count-display</code></td>
+                    <td>Container for count display mode</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__count-display--top</code></td>
+                    <td>Count positioned above input</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__count-display--bottom</code></td>
+                    <td>Count positioned below input</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__count-display--left</code></td>
+                    <td>Count positioned to the left of input</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__count-display--right</code></td>
+                    <td>Count positioned to the right of input</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__counter-wrapper</code></td>
+                    <td>Wrapper containing count text and clear button</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__count-text</code></td>
+                    <td>Count text button (clickable to show popover)</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__count-clear</code></td>
+                    <td>Clear all button in count display (×)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #34495e;">Selected Items Popover</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 35%">Class</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>.ml__selected-popover</code></td>
+                    <td>Popover showing selected items (in count mode)</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__selected-popover--visible</code></td>
+                    <td>Applied when popover is visible</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__selected-popover-header</code></td>
+                    <td>Popover header with title and close button</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__selected-popover-close</code></td>
+                    <td>Close button in popover header</td>
+                </tr>
+                <tr>
+                    <td><code>.ml__selected-popover-body</code></td>
+                    <td>Scrollable body containing selected badges</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

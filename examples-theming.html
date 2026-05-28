@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theming - Web Dropzone</title>
+    <link rel="stylesheet" href="examples-shared.css">
+    <style>
+        .container { max-width: 1400px; }
+
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .theme-card {
+            padding: 1.75rem;
+            border-radius: 12px;
+        }
+        .theme-card h2 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.5rem;
+        }
+        .theme-card p {
+            margin: 0 0 1.25rem 0;
+            font-size: 0.95rem;
+        }
+        .theme-card .form-group { margin-bottom: 1rem; }
+        .theme-card .form-group:last-child { margin-bottom: 0; }
+        .theme-card label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 0.4rem;
+            display: block;
+        }
+
+        /* --------------------------------------------------------------- DARK */
+        .dark-theme {
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .dark-theme h2, .dark-theme p, .dark-theme label { color: #e2e8f0; }
+        #dark-theme {
+            --base-input-background: #1e293b;
+            --base-text-color-1: #e2e8f0;
+            --base-text-color-3: #94a3b8;
+            --base-border-color: #334155;
+            --base-primary-bg: #1e293b;
+            --base-primary-bg-hover: #2c3a52;
+            --base-accent-color: #818cf8;
+            --base-text-on-accent: #ffffff;
+        }
+
+        /* --------------------------------------------------------------- NEON */
+        .neon-theme {
+            background: #000000;
+            color: #00ffff;
+        }
+        .neon-theme h2 { color: #ff00ff; text-shadow: 0 0 10px #ff00ff; }
+        .neon-theme p, .neon-theme label { color: #00ffff; }
+        #neon-theme {
+            --base-input-background: #0a0a0a;
+            --base-text-color-1: #00ffff;
+            --base-text-color-3: #66ffff;
+            --base-border-color: #ff00ff;
+            --base-primary-bg: #0a0a0a;
+            --base-primary-bg-hover: #1a001a;
+            --base-accent-color: #ff00ff;
+            --base-text-on-accent: #ffffff;
+            --base-success-color: #00ff00;
+            --base-danger-color: #ff0066;
+        }
+
+        /* --------------------------------------------------------------- CORPORATE */
+        .corporate-theme {
+            background: #f8fafc;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+        }
+        #corporate-theme {
+            --base-input-background: #ffffff;
+            --base-text-color-1: #0f172a;
+            --base-text-color-3: #64748b;
+            --base-border-color: #cbd5e1;
+            --base-primary-bg: #f1f5f9;
+            --base-primary-bg-hover: #e2e8f0;
+            --base-accent-color: #0369a1;
+            --base-accent-color-hover: #0284c7;
+            --base-border-radius-sm: 0.2;
+            --base-border-radius-md: 0.3;
+            --base-border-radius-lg: 0.4;
+        }
+
+        /* --------------------------------------------------------------- SUNSET */
+        .sunset-theme {
+            background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+            color: #7c2d12;
+        }
+        .sunset-theme h2, .sunset-theme p, .sunset-theme label { color: #7c2d12; }
+        #sunset-theme {
+            --base-input-background: #fffbeb;
+            --base-text-color-1: #7c2d12;
+            --base-text-color-3: #b45309;
+            --base-border-color: #fcd34d;
+            --base-primary-bg: #fef3c7;
+            --base-primary-bg-hover: #fde68a;
+            --base-accent-color: #ea580c;
+            --base-accent-color-hover: #c2410c;
+            --base-text-on-accent: #ffffff;
+            --base-border-radius-md: 1.0;
+            --base-border-radius-lg: 1.5;
+        }
+
+        /* --------------------------------------------------------------- FOREST */
+        .forest-theme {
+            background: #064e3b;
+            color: #d1fae5;
+        }
+        .forest-theme h2, .forest-theme p, .forest-theme label { color: #d1fae5; }
+        #forest-theme {
+            --base-input-background: #065f46;
+            --base-text-color-1: #d1fae5;
+            --base-text-color-3: #a7f3d0;
+            --base-border-color: #047857;
+            --base-primary-bg: #065f46;
+            --base-primary-bg-hover: #047857;
+            --base-accent-color: #34d399;
+            --base-accent-color-hover: #10b981;
+            --base-text-on-accent: #064e3b;
+        }
+
+        /* --------------------------------------------------------------- MINIMAL (component-level vars) */
+        .minimal-theme {
+            background: white;
+            border: 1px solid #e5e7eb;
+        }
+        #minimal-theme {
+            --dz-dropzone-border: 1px solid #d1d5db;
+            --dz-dropzone-border-radius: 0;
+            --dz-dropzone-min-height: 80px;
+            --dz-dropzone-icon-size: 24px;
+            --dz-dropzone-padding: 16px;
+            --dz-dropzone-text-font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to Examples</a>
+            <h1>🎭 Theming</h1>
+            <p class="subtitle">Pre-built theme cards using --base-* and --dz-* CSS custom properties</p>
+        </header>
+
+        <div class="theme-grid">
+            <!-- DARK -->
+            <div class="theme-card dark-theme">
+                <h2>🌙 Dark</h2>
+                <p>Slate blue palette with subtle indigo accent.</p>
+                <div class="form-group">
+                    <label>list</label>
+                    <web-dropzone id="dark-theme" display-mode="detailed" accept="*/*" max-file-count="5"></web-dropzone>
+                </div>
+                <div class="form-group">
+                    <label>compact</label>
+                    <web-dropzone id="dark-theme-compact" class="dark-theme-inner" display-mode="compact" accept="*/*" max-file-count="10"></web-dropzone>
+                </div>
+            </div>
+
+            <!-- NEON -->
+            <div class="theme-card neon-theme">
+                <h2>⚡ Neon</h2>
+                <p>Cyberpunk magenta and cyan on black.</p>
+                <div class="form-group">
+                    <label>grid</label>
+                    <web-dropzone id="neon-theme" display-mode="grid" accept="image/*" max-file-count="6"></web-dropzone>
+                </div>
+            </div>
+
+            <!-- CORPORATE -->
+            <div class="theme-card corporate-theme">
+                <h2>💼 Corporate</h2>
+                <p>Conservative palette with sharp 4px corners.</p>
+                <div class="form-group">
+                    <label>detailed</label>
+                    <web-dropzone id="corporate-theme" display-mode="detailed" accept=".pdf,.docx,.xlsx" max-file-count="5"></web-dropzone>
+                </div>
+            </div>
+
+            <!-- SUNSET -->
+            <div class="theme-card sunset-theme">
+                <h2>🌅 Sunset</h2>
+                <p>Warm amber tones with rounded corners.</p>
+                <div class="form-group">
+                    <label>list</label>
+                    <web-dropzone id="sunset-theme" display-mode="list" accept="*/*" max-file-count="5"></web-dropzone>
+                </div>
+            </div>
+
+            <!-- FOREST -->
+            <div class="theme-card forest-theme">
+                <h2>🌲 Forest</h2>
+                <p>Deep emerald with mint accent.</p>
+                <div class="form-group">
+                    <label>detailed</label>
+                    <web-dropzone id="forest-theme" display-mode="detailed" accept="*/*" max-file-count="5"></web-dropzone>
+                </div>
+            </div>
+
+            <!-- MINIMAL -->
+            <div class="theme-card minimal-theme">
+                <h2>◻ Minimal</h2>
+                <p>Component-level overrides for a flat, compact look.</p>
+                <div class="form-group">
+                    <label>list</label>
+                    <web-dropzone id="minimal-theme" display-mode="list" accept="*/*" max-file-count="5"></web-dropzone>
+                </div>
+            </div>
+        </div>
+
+        <!-- HOW IT WORKS -->
+        <div class="card">
+            <h2>How to build a theme</h2>
+            <p>There are three levels of theming, from broadest to most surgical:</p>
+
+            <h3>1 · Base variables (cross-component)</h3>
+            <p>Set <code>--base-*</code> on a parent — every KM component below inherits the same palette.</p>
+            <div class="code-block">
+                <pre><code>.app-shell {
+    --base-accent-color: #818cf8;
+    --base-text-color-1: #e2e8f0;
+    --base-border-color: #334155;
+    --base-input-background: #1e293b;
+}</code></pre>
+            </div>
+
+            <h3>2 · Component variables (dropzone-specific)</h3>
+            <p>Set <code>--dz-*</code> for dropzone-only customization — colors, radii, padding, font sizes, etc.</p>
+            <div class="code-block">
+                <pre><code>web-dropzone {
+    --dz-dropzone-border: 1px solid #d1d5db;
+    --dz-dropzone-border-radius: 0;
+    --dz-dropzone-min-height: 80px;
+    --dz-dropzone-padding: 16px;
+}</code></pre>
+            </div>
+
+            <h3>3 · Global scaling</h3>
+            <p>Use <code>--dz-rem</code> to scale everything proportionally — see the <a href="examples-sizes.html">Sizes page</a>.</p>
+        </div>
+
+        <footer>
+            <p><a href="index.html">← Back to Examples</a></p>
+        </footer>
+    </div>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>

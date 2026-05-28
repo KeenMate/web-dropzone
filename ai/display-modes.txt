@@ -1,0 +1,478 @@
+DISPLAY MODES
+=============
+
+CRITICAL: Five badge display modes for showing selections
+- pills (default): Individual removable badges
+- count: "X selected" text with clear button
+- compact: First item + count in single badge
+- partial: Limited badges + "+X more" badge
+- none: No display (minimal UI)
+
+PILLS MODE (DEFAULT)
+--------------------
+Shows each selection as individual badge:
+
+<web-multiselect badges-display-mode="pills">
+  <option value="1">JavaScript</option>
+  <option value="2">TypeScript</option>
+  <option value="3">Python</option>
+</web-multiselect>
+
+Behavior:
+- One badge per selection
+- X button to remove each
+- Badges wrap to multiple lines
+- Full control over each item
+
+Use when:
+- User needs to see all selections
+- Quick removal of individual items
+- Visual clarity important
+
+COUNT MODE
+----------
+Shows "X selected" text instead of individual badges:
+
+<web-multiselect badges-display-mode="count">
+</web-multiselect>
+
+Behavior:
+- Single text: "3 selected"
+- Clear all button (X)
+- No individual badges
+- Compact display
+
+Customize counter text:
+select.getCounterCallback = (count) => {
+  return count === 1 ? '1 item' : `${count} items`;
+};
+
+Or with internationalization:
+select.getCounterCallback = (count) => {
+  if (count === 0) return 'No items';
+  if (count === 1) return '1 item selected';
+  return `${count} items selected`;
+};
+
+Use when:
+- Space is limited
+- Exact selections don't need to be visible
+- Many items selected
+
+COMPACT MODE
+------------
+Shows first selected + count of remaining:
+
+<web-multiselect badges-display-mode="compact">
+</web-multiselect>
+
+Behavior:
+- First selection shown as badge
+- Remaining count in same badge
+- Single removable badge
+- Click badge to see all in popover
+
+Display:
+"JavaScript +2"
+
+Customize:
+select.getBadgeDisplayCallback = (option) => {
+  return option.label.substring(0, 10);  // Truncate
+};
+
+Use when:
+- Show what's selected with hint of more
+- Balance between pills and count
+- Limited horizontal space
+
+PARTIAL MODE
+------------
+Shows limited number of badges + "+X more":
+
+<web-multiselect
+  badges-display-mode="partial"
+  badges-max-visible="3">
+</web-multiselect>
+
+Behavior:
+- Shows first N badges (default 3)
+- "+X more" badge for remaining
+- Click "+X more" to see all in popover
+- Individual removal from badges
+
+Display:
+[JavaScript] [TypeScript] [Python] [+2 more]
+
+Configure max visible:
+select.badgesMaxVisible = 5;
+
+Use when:
+- Show some selections, hide overflow
+- Prevent excessive wrapping
+- Manage visual clutter
+
+NONE MODE
+---------
+Hides selected items completely:
+
+<web-multiselect badges-display-mode="none">
+</web-multiselect>
+
+Behavior:
+- No badges shown
+- No counter text
+- Selections still tracked
+- Minimal UI
+
+Use when:
+- Selections shown elsewhere
+- Embedded in custom UI
+- Space extremely limited
+
+BADGE POSITIONING
+-----------------
+Control where badges appear:
+
+Bottom (default):
+<web-multiselect badges-position="bottom">
+</web-multiselect>
+- Badges below search input
+- Dropdown below badges
+
+Top:
+<web-multiselect badges-position="top">
+</web-multiselect>
+- Badges above search input
+- Search at bottom
+
+Left:
+<web-multiselect badges-position="left">
+</web-multiselect>
+- Badges left of search input
+- Horizontal layout
+
+Right:
+<web-multiselect badges-position="right">
+</web-multiselect>
+- Badges right of search input
+- Horizontal layout
+
+AUTO-SWITCH THRESHOLD
+---------------------
+Automatically switch display mode based on selection count:
+
+<web-multiselect
+  badges-threshold="5"
+  badges-threshold-mode="count">
+</web-multiselect>
+
+Threshold modes:
+
+count:
+- Switches to count mode after N selections
+- badges-display-mode="pills" becomes "count" at threshold
+
+Example:
+badges-threshold="5"
+- 1-4 selected: Shows pills
+- 5+ selected: Shows "5 selected"
+
+partial:
+- Switches to partial mode after N selections
+- badges-display-mode="pills" becomes "partial" at threshold
+
+Example:
+badges-threshold="3"
+badges-threshold-mode="partial"
+- 1-3 selected: Shows pills
+- 4+ selected: Shows partial with "+X more"
+
+BADGE TOOLTIPS
+--------------
+Show tooltips on badge hover:
+
+<web-multiselect
+  enable-badge-tooltips="true"
+  badge-tooltip-placement="top"
+  badge-tooltip-delay="300"
+  badge-tooltip-offset="8">
+</web-multiselect>
+
+Tooltip placements:
+- top, bottom, left, right
+- top-start, top-end
+- bottom-start, bottom-end
+
+Customize tooltip content:
+select.getBadgeTooltipCallback = (option) => {
+  return `${option.label}: ${option.description}`;
+};
+
+Or return HTMLElement:
+select.getBadgeTooltipCallback = (option) => {
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <strong>${option.label}</strong><br>
+    ${option.description}
+  `;
+  return div;
+};
+
+Tooltip for count/compact badge:
+select.getCounterCallback = (count, moreCount) => {
+  if (moreCount) {
+    return `${count} total (${moreCount} more)`;
+  }
+  return `${count} selected`;
+};
+
+BADGE POPOVER
+-------------
+Click badges to see all selections in popover:
+
+Triggers:
+- Click "+X more" badge (partial mode)
+- Click compact badge
+- Click count badge
+
+Popover shows:
+- Full list of selections
+- Individual removal buttons
+- Custom rendering via callback
+
+Customize popover content:
+select.renderSelectedItemContentCallback = (option) => {
+  return `
+    <div class="custom-item">
+      <img src="${option.avatar}" />
+      <span>${option.label}</span>
+    </div>
+  `;
+};
+
+BADGE STYLING
+-------------
+Control badge appearance:
+
+CSS variables:
+<style>
+  web-multiselect {
+    --ml-badge-text-bg: #eff6ff;
+    --ml-badge-text-color: #3b82f6;
+    --ml-badge-gap: 0.25rem;
+    --ml-badge-height: 36px;
+    --ml-badge-font-size: 0.875rem;
+    --ml-badge-padding-h: 0.75rem;
+    --ml-badge-border-radius: 0.375rem;
+  }
+</style>
+
+Counter badge different color:
+<style>
+  web-multiselect {
+    --ml-badge-counter-text-bg: #d1d5db;
+    --ml-badge-counter-text-color: #6b7280;
+  }
+</style>
+
+See styling-theming.txt for all variables
+
+CUSTOM BADGE CLASSES
+--------------------
+Add custom CSS classes to badges:
+
+select.getBadgeClassCallback = (option) => {
+  return `badge-${option.priority}`;
+};
+
+Or multiple classes:
+select.getBadgeClassCallback = (option) => {
+  const classes = ['custom-badge'];
+  if (option.isNew) classes.push('badge-new');
+  if (option.priority === 'high') classes.push('badge-urgent');
+  return classes;
+};
+
+Then style via CSS:
+<style>
+  web-multiselect::part(badge) {
+    /* Not available - use CSS variables instead */
+  }
+</style>
+
+IMPORTANT: Shadow DOM prevents direct styling
+Use --ml-badge-* CSS variables or customStylesCallback
+
+CUSTOM BADGE DISPLAY
+--------------------
+Control badge text (different from dropdown display):
+
+select.getBadgeDisplayCallback = (option) => {
+  return option.shortName || option.label;
+};
+
+Example (initials):
+select.getBadgeDisplayCallback = (option) => {
+  return option.label
+    .split(' ')
+    .map(word => word[0])
+    .join('')
+    .toUpperCase();
+};
+// "John Doe" → "JD"
+
+Example (truncate):
+select.getBadgeDisplayCallback = (option) => {
+  return option.label.length > 20
+    ? option.label.substring(0, 17) + '...'
+    : option.label;
+};
+
+BADGE REMOVAL
+-------------
+Remove badge by clicking X:
+
+Listen to removal:
+select.addEventListener('deselect', (e) => {
+  console.log('Removed:', e.detail.option);
+});
+
+Prevent removal:
+select.deselectCallback = (option) => {
+  if (option.required) {
+    alert('This item cannot be removed');
+    // Re-add (workaround)
+    setTimeout(() => {
+      const values = select.getValue();
+      select.setSelected([...values, option.value]);
+    }, 0);
+  }
+};
+
+BADGE WRAPPING
+--------------
+Control how badges wrap:
+
+Default: Wraps to multiple lines
+
+CSS control:
+<style>
+  web-multiselect {
+    --ml-badge-gap: 0.5rem;  /* Space between badges */
+  }
+</style>
+
+RESPONSIVE BADGES
+-----------------
+Adjust display mode for different screen sizes:
+
+const select = document.querySelector('web-multiselect');
+
+function updateBadgeMode() {
+  if (window.innerWidth < 768) {
+    select.badgesDisplayMode = 'count';  // Mobile
+  } else {
+    select.badgesDisplayMode = 'pills';  // Desktop
+  }
+}
+
+window.addEventListener('resize', updateBadgeMode);
+updateBadgeMode();
+
+BADGE COUNTER
+-------------
+Show counter separately:
+
+<web-multiselect show-counter="true">
+</web-multiselect>
+
+Adds [X] button showing count:
+- Independent of display mode
+- Always visible when selections exist
+- Click to clear all
+
+INTERNATIONALIZATION
+--------------------
+Localize badge text:
+
+select.getCounterCallback = (count) => {
+  const locale = 'es';  // Spanish
+  const translations = {
+    en: (n) => n === 1 ? '1 selected' : `${n} selected`,
+    es: (n) => n === 1 ? '1 seleccionado' : `${n} seleccionados`,
+    fr: (n) => n === 1 ? '1 sélectionné' : `${n} sélectionnés`
+  };
+  return translations[locale](count);
+};
+
+Partial mode "+X more":
+select.getCounterCallback = (count, moreCount) => {
+  if (moreCount) {
+    return `+${moreCount} más`;  // Spanish
+  }
+  return `${count}`;
+};
+
+BADGE ANIMATIONS
+----------------
+Badges have built-in animations:
+- Fade in when added
+- Fade out when removed
+- Smooth transitions
+
+Disable via CSS:
+<style>
+  web-multiselect {
+    --ml-transition-duration: 0ms;
+  }
+</style>
+
+BEST PRACTICES
+--------------
+✅ Use pills for ≤5 selections
+✅ Use count for >10 selections
+✅ Use partial for 6-10 selections
+✅ Use compact for space-constrained layouts
+✅ Enable auto-threshold for dynamic lists
+✅ Provide meaningful badge text
+✅ Use tooltips for additional info
+✅ Test badge wrapping at different widths
+
+❌ Don't use pills for large selection counts
+❌ Don't hide important info in tooltips only
+❌ Don't forget to test mobile layouts
+❌ Don't use count mode if users need to see selections
+
+COMMON PATTERNS
+---------------
+Simple pills:
+<web-multiselect badges-display-mode="pills">
+</web-multiselect>
+
+Auto-switch at 5:
+<web-multiselect
+  badges-threshold="5"
+  badges-threshold-mode="count">
+</web-multiselect>
+
+Compact with custom text:
+<web-multiselect badges-display-mode="compact">
+</web-multiselect>
+select.getBadgeDisplayCallback = (option) => {
+  return option.code;
+};
+
+Partial with tooltips:
+<web-multiselect
+  badges-display-mode="partial"
+  badges-max-visible="3"
+  enable-badge-tooltips="true">
+</web-multiselect>
+
+DEBUGGING
+---------
+Inspect badge state:
+console.log('Display mode:', select.badgesDisplayMode);
+console.log('Position:', select.badgesPosition);
+console.log('Threshold:', select.badgesThreshold);
+console.log('Max visible:', select.badgesMaxVisible);

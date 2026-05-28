@@ -1,0 +1,448 @@
+RTL SUPPORT
+===========
+
+CRITICAL: Full right-to-left language support
+- Auto-detection from dir="rtl" attribute
+- Complete UI mirroring
+- Text alignment and direction
+- Badge positioning adjustment
+- Icon and button placement
+- Logical properties throughout
+
+ENABLING RTL
+------------
+Set dir attribute on component:
+
+<web-multiselect dir="rtl">
+  <option value="1">خيار 1</option>
+  <option value="2">خيار 2</option>
+  <option value="3">خيار 3</option>
+</web-multiselect>
+
+Or on parent element:
+<div dir="rtl">
+  <web-multiselect>
+    <option value="1">אפשרות 1</option>
+    <option value="2">אפשרות 2</option>
+  </web-multiselect>
+</div>
+
+Component auto-detects and mirrors UI
+
+AUTO-DETECTION
+--------------
+Component checks for dir="rtl":
+
+1. On component itself
+2. On parent elements (bubbles up)
+3. On <html> element
+
+Example (page-wide RTL):
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+  <body>
+    <web-multiselect>
+      <!-- Automatically in RTL mode -->
+    </web-multiselect>
+  </body>
+</html>
+
+UI MIRRORING
+------------
+Automatic RTL adjustments:
+
+Text alignment:
+- Right-aligned by default
+- Text flows right-to-left
+- Arabic/Hebrew script rendering
+
+Layout:
+- Icons move to right side
+- Badges flow right-to-left
+- Dropdown opens correctly
+- Chevron/arrows flip
+
+Removal buttons:
+- Badge X button on left
+- Clear all button positioning
+
+BADGE POSITIONING
+-----------------
+Badge position adapts for RTL:
+
+LTR:
+- bottom: Below input
+- top: Above input
+- left: To the left of input
+- right: To the right of input
+
+RTL (mirrored):
+- bottom: Below input (same)
+- top: Above input (same)
+- left: To the RIGHT of input (flipped)
+- right: To the LEFT of input (flipped)
+
+Example:
+<web-multiselect
+  dir="rtl"
+  badges-position="right">
+  <!-- Badges appear on LEFT in RTL -->
+</web-multiselect>
+
+LOGICAL PROPERTIES
+------------------
+Component uses CSS logical properties:
+
+Instead of:
+- margin-left, margin-right
+- padding-left, padding-right
+- left, right
+
+Uses:
+- margin-inline-start, margin-inline-end
+- padding-inline-start, padding-inline-end
+- inset-inline-start, inset-inline-end
+
+This ensures automatic RTL support
+
+TEXT DIRECTION
+--------------
+Text automatically flows correctly:
+
+Arabic example:
+<web-multiselect dir="rtl">
+  <option value="1">اللغة العربية</option>
+  <option value="2">الخيار الثاني</option>
+</web-multiselect>
+
+Hebrew example:
+<web-multiselect dir="rtl">
+  <option value="1">עברית</option>
+  <option value="2">אפשרות שנייה</option>
+</web-multiselect>
+
+MIXED CONTENT
+-------------
+Handle mixed LTR/RTL content:
+
+<web-multiselect dir="rtl">
+  <option value="1">English Option</option>
+  <option value="2">خيار عربي</option>
+  <option value="3">Mixed: English + عربي</option>
+</web-multiselect>
+
+Each option respects its own text direction
+
+Numbers in RTL:
+<web-multiselect dir="rtl">
+  <option value="1">خيار 123</option>
+  <!-- Numbers remain left-to-right -->
+</web-multiselect>
+
+BADGE DISPLAY
+-------------
+Badge layout in RTL:
+
+Pills mode:
+- Badges flow right-to-left
+- Remove button on left side
+- Wrapping adjusts for RTL
+
+Count mode:
+- Counter text right-aligned
+- Clear button on left
+
+Compact mode:
+- Badge content right-aligned
+- Count displayed correctly
+
+SEARCH INPUT
+------------
+Search input in RTL:
+
+Text entry:
+- Right-to-left input
+- Cursor starts on right
+- Text flows right
+
+Placeholder:
+- Right-aligned
+- RTL-appropriate text
+
+Icons:
+- Search icon on right
+- Clear icon on left
+
+DROPDOWN POSITION
+-----------------
+Dropdown positioning adapts:
+
+Floating UI automatically handles RTL:
+- Positions relative to RTL layout
+- Flips appropriately
+- Maintains correct alignment
+
+ICONS
+-----
+Icon positioning in RTL:
+
+Option icons:
+- Appear on right side
+- Properly spaced
+- Mirrored if directional
+
+Badge icons:
+- Positioned correctly
+- Remove buttons on left
+
+Action button icons:
+- Adjusted for RTL flow
+
+KEYBOARD NAVIGATION
+-------------------
+Keyboard shortcuts adapt:
+
+Arrow keys:
+- → (Right): Previous (in RTL context)
+- ← (Left): Next (in RTL context)
+- ↑↓: Same behavior
+
+Tab order:
+- Follows RTL flow
+- Right to left navigation
+
+CHECKBOX ALIGNMENT
+------------------
+Checkboxes mirror correctly:
+
+LTR: Checkbox on left of label
+RTL: Checkbox on right of label
+
+Controlled via CSS logical properties
+
+CSS VARIABLES RTL
+-----------------
+Margins/padding adapt automatically:
+
+LTR variables:
+--ml-option-padding-h: 1rem
+
+Becomes in RTL:
+padding-inline-start: 1rem  /* Right */
+padding-inline-end: 1rem    /* Left */
+
+Custom RTL styling:
+<style>
+  web-multiselect[dir="rtl"] {
+    --ml-custom-rtl-spacing: 0.5rem;
+  }
+</style>
+
+TESTING RTL
+-----------
+Test RTL layout:
+
+1. Set dir="rtl" attribute
+2. Use Arabic/Hebrew text
+3. Check badge positioning
+4. Test dropdown alignment
+5. Verify icon placement
+6. Test keyboard navigation
+7. Check mixed content
+
+Browser DevTools:
+1. Right-click element
+2. Inspect
+3. Toggle dir attribute
+4. Observe changes
+
+COMMON RTL LANGUAGES
+--------------------
+Languages using RTL:
+
+Arabic (ar):
+<web-multiselect dir="rtl" lang="ar">
+
+Hebrew (he):
+<web-multiselect dir="rtl" lang="he">
+
+Persian/Farsi (fa):
+<web-multiselect dir="rtl" lang="fa">
+
+Urdu (ur):
+<web-multiselect dir="rtl" lang="ur">
+
+INTERNATIONALIZATION
+--------------------
+Combine RTL with i18n:
+
+<web-multiselect
+  dir="rtl"
+  lang="ar"
+  search-placeholder="بحث..."
+  empty-message="لا توجد نتائج"
+  loading-message="جاري التحميل...">
+</web-multiselect>
+
+Custom counter for RTL languages:
+select.getCounterCallback = (count) => {
+  const lang = select.getAttribute('lang');
+
+  if (lang === 'ar') {
+    return count === 1 ? 'عنصر واحد' : `${count} عناصر`;
+  }
+
+  return `${count} selected`;
+};
+
+MIXED LTR/RTL PAGES
+-------------------
+Multiple multiselects with different directions:
+
+<div lang="en">
+  <web-multiselect dir="ltr">
+    <option>English</option>
+  </web-multiselect>
+</div>
+
+<div lang="ar">
+  <web-multiselect dir="rtl">
+    <option>عربي</option>
+  </web-multiselect>
+</div>
+
+DYNAMIC RTL SWITCHING
+---------------------
+Change direction at runtime:
+
+const select = document.querySelector('web-multiselect');
+
+// Switch to RTL
+select.setAttribute('dir', 'rtl');
+
+// Switch to LTR
+select.setAttribute('dir', 'ltr');
+
+// Or toggle
+const currentDir = select.getAttribute('dir');
+select.setAttribute('dir', currentDir === 'rtl' ? 'ltr' : 'rtl');
+
+ACCESSIBILITY
+-------------
+RTL accessibility features:
+
+Screen readers:
+- Announce direction correctly
+- Follow RTL reading order
+- ARIA attributes respect direction
+
+Keyboard navigation:
+- Arrow keys work intuitively
+- Tab order follows RTL flow
+
+BROWSER SUPPORT
+---------------
+RTL supported in all modern browsers:
+
+- Chrome/Edge: Full support
+- Firefox: Full support
+- Safari: Full support
+
+No polyfills needed
+
+LIMITATIONS
+-----------
+Known RTL considerations:
+
+Custom CSS:
+- May need adjustment for RTL
+- Use logical properties
+- Test both directions
+
+Third-party styles:
+- External CSS might not respect RTL
+- Component styles always work
+
+Complex layouts:
+- Test thoroughly
+- Some custom rendering may need adjustment
+
+BEST PRACTICES
+--------------
+✅ Set dir="rtl" on component or parent
+✅ Use appropriate lang attribute
+✅ Test with actual RTL text
+✅ Use logical properties in custom CSS
+✅ Translate all text content
+✅ Test keyboard navigation
+✅ Verify badge positioning
+✅ Check mixed content scenarios
+
+❌ Don't forget dir attribute
+❌ Don't use directional CSS properties
+❌ Don't assume left/right mean start/end
+❌ Don't skip RTL testing
+❌ Don't mix directions without testing
+
+COMMON PATTERNS
+---------------
+Basic RTL:
+<web-multiselect dir="rtl">
+  <option value="1">خيار 1</option>
+  <option value="2">خيار 2</option>
+</web-multiselect>
+
+Page-wide RTL:
+<html dir="rtl" lang="ar">
+  <body>
+    <web-multiselect>
+      <!-- Auto-detects RTL -->
+    </web-multiselect>
+  </body>
+</html>
+
+With i18n:
+<web-multiselect
+  dir="rtl"
+  lang="ar"
+  search-placeholder="بحث...">
+</web-multiselect>
+
+Dynamic switching:
+<button onclick="toggleDirection()">
+  Toggle Direction
+</button>
+
+<script>
+  function toggleDirection() {
+    const select = document.querySelector('web-multiselect');
+    const current = select.getAttribute('dir');
+    select.setAttribute('dir', current === 'rtl' ? 'ltr' : 'rtl');
+  }
+</script>
+
+DEBUGGING RTL
+-------------
+Check RTL state:
+
+const select = document.querySelector('web-multiselect');
+console.log('Direction:', select.getAttribute('dir'));
+console.log('Language:', select.getAttribute('lang'));
+
+// Check computed direction
+const styles = getComputedStyle(select);
+console.log('Computed direction:', styles.direction);
+
+Test toggle:
+// Test in browser console
+const select = document.querySelector('web-multiselect');
+select.setAttribute('dir', 'rtl');  // Switch to RTL
+// Observe UI changes
+
+EXAMPLES
+--------
+See examples-theming.html for:
+- RTL demonstrations
+- Arabic/Hebrew examples
+- Badge positioning in RTL
+- Mixed content handling

@@ -1,0 +1,410 @@
+KEYBOARD NAVIGATION
+===================
+
+CRITICAL: Full keyboard accessibility
+- Arrow keys for navigation
+- Enter to select
+- Escape to close
+- PageUp/PageDown for quick jumps
+- Home/End for first/last
+- Type to search/filter
+- Works with screen readers
+
+BASIC NAVIGATION
+----------------
+Arrow keys:
+
+↑ (Up Arrow): Previous option
+- Moves focus up one option
+- Wraps to last option at top
+- Works in open dropdown
+
+↓ (Down Arrow): Next option
+- Moves focus down one option
+- Wraps to first option at bottom
+- Opens dropdown if closed
+
+SELECTION
+---------
+Enter: Select focused option
+- Selects currently focused option
+- In multi-select: Toggles selection
+- In single-select: Selects and closes
+- If dropdown closed: Opens dropdown
+
+Space: Toggle selection (multi-select)
+- Toggles focused option
+- Keeps dropdown open
+- Only in multi-select mode
+
+CLOSING DROPDOWN
+----------------
+Escape: Close dropdown
+- Closes dropdown without selecting
+- Returns focus to input
+- Preserves current selections
+- Clears search if any
+
+Tab: Close and move focus
+- Closes dropdown
+- Moves to next focusable element
+- Preserves selections
+
+QUICK JUMPS
+-----------
+PageDown: Jump 10 options down
+- Moves focus 10 options at once
+- Fast navigation in long lists
+- Wraps to top if at end
+
+PageUp: Jump 10 options up
+- Moves focus 10 options at once
+- Fast navigation in long lists
+- Wraps to bottom if at start
+
+Home: First option
+- Jumps to first option
+- Quick way to reach top
+
+End: Last option
+- Jumps to last option
+- Quick way to reach bottom
+
+SEARCH MODE NAVIGATION
+----------------------
+Filter mode:
+
+Type: Filter options
+- Filters options as you type
+- ↑↓: Navigate filtered results
+- Enter: Select focused option
+- Esc: Clear search and close
+
+Navigate mode:
+
+Type: Highlight matches
+- Highlights first matching option
+- All options remain visible
+- ↑↓: Normal navigation
+- Ctrl+↓: Jump to next match
+- Ctrl+↑: Jump to previous match
+
+CTRL COMBINATIONS
+-----------------
+Ctrl+↓: Next match (navigate mode)
+- Jumps to next search match
+- Cycles through matches
+- Only in navigate mode
+
+Ctrl+↑: Previous match (navigate mode)
+- Jumps to previous search match
+- Cycles through matches
+- Only in navigate mode
+
+Ctrl+A: Select all (custom implementation)
+- Not built-in
+- Can be added via custom handler
+
+FOCUS MANAGEMENT
+----------------
+Focus states:
+
+Closed dropdown:
+- Focus on input field
+- ↓ or Enter: Opens dropdown
+
+Open dropdown:
+- Focus on search input
+- ↑↓: Navigate options
+- Enter: Select
+- Esc: Close
+
+Focus indicators:
+- Visual highlight on focused option
+- CSS variable: --ml-option-focus-bg
+
+ACCESSIBILITY
+-------------
+Screen reader support:
+
+ARIA attributes:
+- role="combobox" on input
+- role="listbox" on dropdown
+- role="option" on options
+- aria-selected for selections
+- aria-disabled for disabled options
+
+Announcements:
+- Selection changes announced
+- Focus changes announced
+- Search results announced
+
+BADGE REMOVAL
+-------------
+Remove badge via keyboard:
+
+In main area:
+- Tab to badge
+- Press Delete or Backspace
+- Badge removed
+- Focus returns to input
+
+Note: Badge keyboard navigation depends on implementation
+
+WITH GROUPS
+-----------
+Navigate grouped options:
+
+↑↓: Skip over group headers
+- Moves to next/previous option
+- Group headers not selectable
+- Visual indication of group
+
+Enter on group:
+- May collapse/expand (if implemented)
+- Or moves to first option in group
+
+DISABLED OPTIONS
+----------------
+Navigate disabled options:
+
+↑↓: Moves through disabled options
+- Disabled options can receive focus
+- Visual indication (grayed out)
+
+Enter on disabled:
+- No action
+- Visual/audio feedback
+- Screen reader announces disabled
+
+VIRTUAL SCROLLING
+-----------------
+Keyboard navigation with virtual scroll:
+
+↑↓: Scroll to show focused item
+- Automatically scrolls into view
+- Smooth scrolling
+- Maintains buffer
+
+PageUp/PageDown: Works normally
+- Calculates correct jump
+- Scrolls to show focus
+
+Home/End: Instant jump
+- Scrolls to top/bottom
+- Shows first/last item
+
+CUSTOM KEYBOARD HANDLERS
+------------------------
+Add custom keyboard shortcuts:
+
+select.addEventListener('keydown', (e) => {
+  // Ctrl+A: Select all
+  if (e.ctrlKey && e.key === 'a') {
+    e.preventDefault();
+    const allValues = select.options.map(o => o.value);
+    select.setSelected(allValues);
+  }
+
+  // Ctrl+D: Deselect all
+  if (e.ctrlKey && e.key === 'd') {
+    e.preventDefault();
+    select.setSelected([]);
+  }
+
+  // Delete: Remove focused badge
+  if (e.key === 'Delete') {
+    // Custom implementation
+  }
+});
+
+PREVENTING DEFAULT
+------------------
+Prevent default behavior:
+
+select.addEventListener('keydown', (e) => {
+  // Prevent form submission on Enter
+  if (e.key === 'Enter' && !select.dropdownOpen) {
+    e.preventDefault();
+    select.openDropdown();
+  }
+
+  // Prevent Tab closing if needed
+  if (e.key === 'Tab') {
+    // Custom logic
+  }
+});
+
+FOCUS TRAPPING
+--------------
+Keep focus within dropdown:
+
+Useful for modal contexts:
+
+select.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab' && select.dropdownOpen) {
+    e.preventDefault();
+    // Keep focus in dropdown
+    // Cycle through options
+  }
+});
+
+KEYBOARD SHORTCUTS REFERENCE
+----------------------------
+Navigation:
+↑           Previous option
+↓           Next option
+PageUp      Jump 10 up
+PageDown    Jump 10 down
+Home        First option
+End         Last option
+
+Selection:
+Enter       Select/toggle focused option
+Space       Toggle (multi-select)
+
+Search (filter mode):
+Type        Filter options
+Esc         Clear and close
+
+Search (navigate mode):
+Type        Highlight first match
+Ctrl+↓      Next match
+Ctrl+↑      Previous match
+
+Control:
+Esc         Close dropdown
+Tab         Close and next focus
+
+MOBILE KEYBOARD
+---------------
+Touch keyboard support:
+
+Enter: Select option
+- On-screen keyboard
+- Works on mobile devices
+
+Arrow navigation:
+- May not be available
+- Touch scrolling preferred
+- Search still works
+
+BROWSER DIFFERENCES
+-------------------
+Key handling varies:
+
+Chrome/Edge:
+- All keys work as expected
+- Smooth scrolling
+
+Firefox:
+- All keys work
+- May need preventDefault in some cases
+
+Safari:
+- Most keys work
+- Some quirks with Meta key
+
+BEST PRACTICES
+--------------
+✅ Test all keyboard shortcuts
+✅ Provide visual focus indicators
+✅ Support screen readers
+✅ Handle disabled options properly
+✅ Test with virtual scrolling
+✅ Document custom shortcuts
+✅ Test on mobile
+✅ Support ARIA attributes
+
+❌ Don't trap focus unintentionally
+❌ Don't prevent essential keys
+❌ Don't forget focus indicators
+❌ Don't ignore accessibility
+❌ Don't assume mouse usage
+
+COMMON PATTERNS
+---------------
+Quick search and select:
+1. Click dropdown or press ↓
+2. Type to filter
+3. ↑↓ to navigate
+4. Enter to select
+5. Esc to close
+
+Jump to section:
+1. PageDown to skip ahead
+2. Or type first letter
+3. Enter to select
+
+Select multiple:
+1. Open dropdown
+2. ↓ to navigate
+3. Space to toggle each
+4. Tab to close
+
+DEBUGGING
+---------
+Log keyboard events:
+
+select.addEventListener('keydown', (e) => {
+  console.log('Key:', e.key);
+  console.log('Ctrl:', e.ctrlKey);
+  console.log('Dropdown open:', select.dropdownOpen);
+  console.log('Focused option:', select.focusedOption);
+});
+
+Check focus:
+console.log('Active element:', document.activeElement);
+console.log('Focus within select:', select.contains(document.activeElement));
+
+ACCESSIBILITY TESTING
+---------------------
+Test with screen readers:
+
+NVDA (Windows):
+- Tab to component
+- Arrow keys navigate
+- Enter selects
+- Announces selections
+
+JAWS (Windows):
+- Similar to NVDA
+- Announces roles and states
+
+VoiceOver (Mac/iOS):
+- Tab or VO+→ to navigate
+- VO+Space to select
+- Announces all changes
+
+Test keyboard only:
+- Unplug mouse
+- Navigate entire interface
+- Verify all actions possible
+
+EXAMPLES
+--------
+Common keyboard workflows:
+
+Quick selection:
+1. Tab to multiselect
+2. ↓ to open
+3. Type "java"
+4. Enter to select JavaScript
+5. Esc to close
+
+Multiple selections:
+1. Tab to multiselect
+2. ↓ to open
+3. ↓ to "JavaScript"
+4. Space to toggle
+5. ↓ to "TypeScript"
+6. Space to toggle
+7. Tab to close
+
+Search and select:
+1. Click or ↓ to open
+2. Type search term
+3. ↓ to navigate results
+4. Enter to select
+5. Clear search with Backspace
+6. Esc to close

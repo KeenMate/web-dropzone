@@ -1,0 +1,75 @@
+/* ==============================================================================
+   FILE LIST CONTAINER
+   ==============================================================================
+   Container for file items in various display modes */
+
+.dz__file-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dz-file-list-gap);
+  margin-top: var(--dz-file-list-margin-top);
+  /* When --dz-file-list-max-height is `none` (default), max-height has no
+     effect and overflow-y:auto does nothing since the box auto-sizes. Set
+     the variable to a length to cap height and enable internal scroll. */
+  max-height: var(--dz-file-list-max-height);
+  overflow-y: auto;
+}
+
+/* Hide when empty (handled by JS, but CSS fallback) */
+.dz__file-list:empty {
+  display: none;
+}
+
+/* Grid mode (for image previews) */
+.dz__file-list--grid {
+  display: grid;
+  grid-template-columns: var(--dz-preview-grid-columns);
+  gap: var(--dz-preview-grid-gap);
+}
+
+/* "Show N more" toggle spans the entire grid row instead of taking one tile */
+.dz__file-list--grid .dz__show-more {
+  grid-column: 1 / -1;
+}
+
+/* Detailed mode - slightly more padding */
+.dz__file-list--detailed {
+  gap: calc(0.6 * var(--dz-rem));
+}
+
+/* Badges mode — composite pills flowing horizontally */
+.dz__file-list--badges {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--dz-badges-gap);
+}
+
+/* Empty state */
+.dz__empty {
+  padding: var(--dz-empty-padding);
+  font-size: var(--dz-empty-font-size);
+  color: var(--dz-empty-color);
+  text-align: center;
+}
+
+/* "Show N more" / "Show less" toggle row that appears at the end of the
+   inline list (and inside the popover body) when `max-visible` is set.
+   Badges mode uses .dz__badge--more instead — see _file-item.css. */
+.dz__show-more {
+  display: block;
+  width: 100%;
+  margin-top: var(--dz-show-more-margin-top);
+  padding: var(--dz-show-more-padding);
+  font-size: var(--dz-show-more-font-size);
+  font-weight: var(--dz-show-more-font-weight);
+  color: var(--dz-show-more-color);
+  background: var(--dz-show-more-bg);
+  border: var(--dz-show-more-border);
+  border-radius: var(--dz-show-more-border-radius);
+  cursor: pointer;
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__show-more:hover {
+  background: var(--dz-show-more-bg-hover);
+}

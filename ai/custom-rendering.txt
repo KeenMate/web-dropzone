@@ -1,0 +1,531 @@
+CUSTOM RENDERING
+================
+
+CRITICAL: Full control over HTML rendering
+- renderOptionContentCallback: Dropdown options
+- renderBadgeContentCallback: Selected badges
+- renderSelectedItemContentCallback: Popover items
+- renderSelectedContentCallback: Single-select input text
+- Returns HTML string or HTMLElement
+- Context provides rendering state
+
+RENDER OPTION CONTENT
+---------------------
+Customize dropdown option appearance:
+
+select.renderOptionContentCallback = (option, context) => {
+  return `
+    <div class="custom-option">
+      ${option.icon || ''} ${option.label}
+      ${context.isSelected ? '✓' : ''}
+    </div>
+  `;
+};
+
+Context object:
+{
+  index: number,          // Option index in list
+  isSelected: boolean,    // Currently selected
+  isFocused: boolean,     // Keyboard focused
+  isMatched: boolean,     // Matches search (navigate mode)
+  isDisabled: boolean     // Option disabled
+}
+
+RETURN TYPES
+------------
+Return HTML string:
+
+✅ select.renderOptionContentCallback = (option) => {
+  return `<span>${option.label}</span>`;
+};
+
+Return HTMLElement:
+
+✅ select.renderOptionContentCallback = (option) => {
+  const div = document.createElement('div');
+  div.textContent = option.label;
+  div.className = 'custom-option';
+  return div;
+};
+
+IMPORTANT: HTMLElement more secure (no XSS), string more flexible
+
+RENDER BADGE CONTENT
+--------------------
+Customize selected badge appearance:
+
+select.renderBadgeContentCallback = (option, context) => {
+  if (context.displayMode === 'compact') {
+    return `${option.label} +${context.remainingCount}`;
+  }
+  return option.label;
+};
+
+Context object:
+{
+  displayMode: string,    // 'pills' | 'count' | 'compact' | 'partial' | 'none'
+  isInPopover: boolean,   // Rendering in popover vs main area
+  remainingCount?: number // Count of remaining items (compact mode)
+}
+
+RENDER SELECTED ITEM
+--------------------
+Customize popover list item appearance:
+
+select.renderSelectedItemContentCallback = (option) => {
+  return `
+    <div class="selected-item">
+      <img src="${option.avatar}" class="avatar" />
+      <div>
+        <div class="name">${option.label}</div>
+        <div class="subtitle">${option.email}</div>
+      </div>
+    </div>
+  `;
+};
+
+Used in:
+- Popover when clicking "+X more" badge
+- Popover when clicking compact badge
+- Full selected list view
+
+RENDER SELECTED CONTENT
+-----------------------
+Customize single-select input text:
+
+select.renderSelectedContentCallback = (option) => {
+  return `${option.icon || ''} ${option.label}`;
+};
+
+IMPORTANT: Returns plain text, not HTML
+- Only for single-select mode (multiple="false")
+- Displayed in main input field
+- No HTML allowed (security)
+
+CONTEXT-AWARE RENDERING
+-----------------------
+Render differently based on context:
+
+select.renderOptionContentCallback = (option, context) => {
+  if (context.isFocused) {
+    return `
+      <div class="option-focused">
+        <strong>${option.label}</strong>
+        ${option.description}
+      </div>
+    `;
+  }
+
+  if (context.isSelected) {
+    return `
+      <div class="option-selected">
+        ✓ ${option.label}
+      </div>
+    `;
+  }
+
+  return `<div>${option.label}</div>`;
+};
+
+CONDITIONAL RENDERING
+---------------------
+Show/hide elements based on data:
+
+select.renderOptionContentCallback = (option, context) => {
+  const badge = option.isNew ? '<span class="badge-new">NEW</span>' : '';
+  const icon = option.icon ? `<img src="${option.icon}" />` : '';
+  const subtitle = option.subtitle ? `<div class="subtitle">${option.subtitle}</div>` : '';
+
+  return `
+    <div class="option">
+      ${icon}
+      <div class="content">
+        <div class="label">${option.label} ${badge}</div>
+        ${subtitle}
+      </div>
+      ${context.isSelected ? '<span class="check">✓</span>' : ''}
+    </div>
+  `;
+};
+
+COMPLEX LAYOUTS
+---------------
+Multi-column or advanced layouts:
+
+select.renderOptionContentCallback = (option, context) => {
+  return `
+    <div class="option-grid">
+      <div class="col-1">
+        <img src="${option.avatar}" class="avatar" />
+      </div>
+      <div class="col-2">
+        <div class="name">${option.name}</div>
+        <div class="role">${option.role}</div>
+      </div>
+      <div class="col-3">
+        <span class="status ${option.status}">${option.status}</span>
+      </div>
+    </div>
+  `;
+};
+
+STYLING CUSTOM CONTENT
+----------------------
+Inject CSS into Shadow DOM:
+
+select.customStylesCallback = () => {
+  return `
+    .custom-option {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .option-focused {
+      background: #f3f4f6;
+    }
+
+    .option-selected {
+      color: #3b82f6;
+      font-weight: 600;
+    }
+
+    .badge-new {
+      background: #10b981;
+      color: white;
+      padding: 0.125rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+    }
+  `;
+};
+
+IMPORTANT: Styles injected into Shadow DOM, scoped to component
+
+HTMLELEMENT RENDERING
+---------------------
+Use DOM API instead of HTML strings:
+
+select.renderOptionContentCallback = (option, context) => {
+  const div = document.createElement('div');
+  div.className = 'custom-option';
+
+  const icon = document.createElement('span');
+  icon.textContent = option.icon || '';
+  div.appendChild(icon);
+
+  const label = document.createElement('span');
+  label.textContent = option.label;
+  div.appendChild(label);
+
+  if (context.isSelected) {
+    const check = document.createElement('span');
+    check.textContent = '✓';
+    check.className = 'check';
+    div.appendChild(check);
+  }
+
+  return div;
+};
+
+Benefits:
+✅ Prevents XSS attacks
+✅ Better performance for complex DOM
+✅ Type safety
+
+Drawbacks:
+❌ More verbose
+❌ Harder to read
+
+ESCAPING USER CONTENT
+---------------------
+Prevent XSS when using HTML strings:
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+select.renderOptionContentCallback = (option) => {
+  const safeLabel = escapeHtml(option.label);
+  const safeDescription = escapeHtml(option.description);
+
+  return `
+    <div>
+      <div>${safeLabel}</div>
+      <div>${safeDescription}</div>
+    </div>
+  `;
+};
+
+Or use HTMLElement (automatic escaping):
+select.renderOptionContentCallback = (option) => {
+  const div = document.createElement('div');
+  div.textContent = option.label;  // Automatically escaped
+  return div;
+};
+
+ICONS AND IMAGES
+----------------
+Render custom icons/images:
+
+select.renderOptionContentCallback = (option) => {
+  return `
+    <div class="option-with-icon">
+      <img src="${option.avatar}" alt="" class="avatar" />
+      <span>${option.label}</span>
+    </div>
+  `;
+};
+
+With fallback:
+select.renderOptionContentCallback = (option) => {
+  const avatar = option.avatar
+    ? `<img src="${option.avatar}" />`
+    : `<div class="avatar-placeholder">${option.label[0]}</div>`;
+
+  return `
+    <div class="option">
+      ${avatar}
+      <span>${option.label}</span>
+    </div>
+  `;
+};
+
+HIGHLIGHTING SEARCH MATCHES
+---------------------------
+Highlight matching text:
+
+select.renderOptionContentCallback = (option, context) => {
+  if (!context.isMatched || !select.searchTerm) {
+    return option.label;
+  }
+
+  const term = select.searchTerm.toLowerCase();
+  const label = option.label;
+  const index = label.toLowerCase().indexOf(term);
+
+  if (index === -1) return label;
+
+  const before = label.substring(0, index);
+  const match = label.substring(index, index + term.length);
+  const after = label.substring(index + term.length);
+
+  return `${before}<mark>${match}</mark>${after}`;
+};
+
+BADGE RENDERING
+---------------
+Different rendering for badges:
+
+select.renderBadgeContentCallback = (option, context) => {
+  // Compact mode: Show first + count
+  if (context.displayMode === 'compact') {
+    return `${option.label} +${context.remainingCount || 0}`;
+  }
+
+  // Popover: Show full details
+  if (context.isInPopover) {
+    return `
+      <div class="badge-popover">
+        ${option.icon} ${option.label}
+      </div>
+    `;
+  }
+
+  // Regular pills: Short form
+  return option.code || option.label.substring(0, 3).toUpperCase();
+};
+
+DYNAMIC CONTENT
+---------------
+Render based on runtime state:
+
+select.renderOptionContentCallback = (option, context) => {
+  const user = getCurrentUser();
+  const isOwner = option.ownerId === user.id;
+  const canEdit = user.permissions.includes('edit');
+
+  return `
+    <div class="option">
+      ${option.label}
+      ${isOwner ? '<span class="badge-owner">Owner</span>' : ''}
+      ${canEdit ? '<span class="icon-edit">✏️</span>' : ''}
+    </div>
+  `;
+};
+
+PERFORMANCE
+-----------
+Optimize rendering for large lists:
+
+// ❌ Slow: Complex rendering for every option
+select.renderOptionContentCallback = (option, context) => {
+  const data = expensiveCalculation(option);
+  return `<div>${data}</div>`;
+};
+
+// ✅ Fast: Pre-calculate or cache
+const cache = new Map();
+select.renderOptionContentCallback = (option, context) => {
+  if (!cache.has(option.value)) {
+    cache.set(option.value, expensiveCalculation(option));
+  }
+  return `<div>${cache.get(option.value)}</div>`;
+};
+
+ACCESSIBILITY
+-------------
+Include ARIA attributes:
+
+select.renderOptionContentCallback = (option, context) => {
+  return `
+    <div role="option"
+         aria-selected="${context.isSelected}"
+         aria-disabled="${context.isDisabled}">
+      ${option.label}
+    </div>
+  `;
+};
+
+COMBINING CALLBACKS
+-------------------
+Use multiple rendering callbacks together:
+
+// Option in dropdown
+select.renderOptionContentCallback = (option, context) => {
+  return `
+    <div class="dropdown-option">
+      ${option.icon} ${option.label}
+    </div>
+  `;
+};
+
+// Badge in main area
+select.renderBadgeContentCallback = (option, context) => {
+  return option.code;  // Short form
+};
+
+// Item in popover
+select.renderSelectedItemContentCallback = (option) => {
+  return `
+    <div class="popover-item">
+      ${option.icon} ${option.label} - ${option.description}
+    </div>
+  `;
+};
+
+// Single-select input
+select.renderSelectedContentCallback = (option) => {
+  return `${option.icon} ${option.label}`;
+};
+
+UPDATING RENDERING
+------------------
+Change rendering at runtime:
+
+function setCompactMode() {
+  select.renderOptionContentCallback = (option) => {
+    return option.label.substring(0, 20);
+  };
+}
+
+function setDetailedMode() {
+  select.renderOptionContentCallback = (option) => {
+    return `
+      <div>
+        <div>${option.label}</div>
+        <div>${option.description}</div>
+      </div>
+    `;
+  };
+}
+
+// Trigger re-render
+select.options = [...select.options];
+
+DEBUGGING RENDERING
+-------------------
+Log rendering calls:
+
+select.renderOptionContentCallback = (option, context) => {
+  console.log('Rendering:', option.label, context);
+
+  return `<div>${option.label}</div>`;
+};
+
+Check context values:
+select.renderOptionContentCallback = (option, context) => {
+  return `
+    <div>
+      ${option.label}
+      <small>
+        S:${context.isSelected}
+        F:${context.isFocused}
+        M:${context.isMatched}
+      </small>
+    </div>
+  `;
+};
+
+BEST PRACTICES
+--------------
+✅ Return HTML string for simple rendering
+✅ Return HTMLElement for complex DOM or security
+✅ Use context for conditional rendering
+✅ Escape user content to prevent XSS
+✅ Cache expensive calculations
+✅ Keep rendering fast (<1ms per option)
+✅ Use customStylesCallback for CSS
+✅ Test with large datasets
+
+❌ Don't do heavy computation in render callback
+❌ Don't forget to escape user content
+❌ Don't manipulate Shadow DOM directly
+❌ Don't use external CSS (won't apply)
+❌ Don't return null/undefined
+
+COMMON PATTERNS
+---------------
+Simple with icon:
+select.renderOptionContentCallback = (option) => {
+  return `${option.icon || ''} ${option.label}`;
+};
+
+With selection indicator:
+select.renderOptionContentCallback = (option, context) => {
+  return `
+    <div>
+      ${context.isSelected ? '✓ ' : ''}${option.label}
+    </div>
+  `;
+};
+
+With subtitle:
+select.renderOptionContentCallback = (option) => {
+  return `
+    <div>
+      <div class="label">${option.label}</div>
+      <div class="subtitle">${option.subtitle}</div>
+    </div>
+  `;
+};
+
+Badge with initials:
+select.renderBadgeContentCallback = (option) => {
+  return option.label
+    .split(' ')
+    .map(w => w[0])
+    .join('')
+    .toUpperCase();
+};
+
+EXAMPLES
+--------
+See examples-templating.html for:
+- Complex layouts
+- Conditional rendering
+- Custom styling
+- HTMLElement vs string
+- All callback combinations

@@ -1,0 +1,38 @@
+/* ==============================================================================
+   RTL (Right-to-Left) SUPPORT
+   ==============================================================================
+   Styles for RTL languages like Arabic, Hebrew, etc. */
+
+:host([dir="rtl"]) .dz__file-item--list,
+:host([dir="rtl"]) .dz__file-item--detailed {
+  flex-direction: row-reverse;
+}
+
+:host([dir="rtl"]) .dz__file-item__info {
+  text-align: right;
+}
+
+:host([dir="rtl"]) .dz__file-item__meta {
+  flex-direction: row-reverse;
+}
+
+:host([dir="rtl"]) .dz__preview-item__remove {
+  right: auto;
+  left: var(--dz-preview-remove-offset);
+}
+
+:host([dir="rtl"]) .dz__popover__header {
+  flex-direction: row-reverse;
+}
+
+:host([dir="rtl"]) .dz__popover__cell--name {
+  text-align: right;
+}
+
+:host([dir="rtl"]) .dz__popover__cell--size {
+  text-align: left;
+}
+
+:host([dir="rtl"]) .dz__summary__line {
+  flex-direction: row-reverse;
+}

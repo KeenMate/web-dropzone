@@ -1,0 +1,530 @@
+SEARCH FEATURES
+===============
+
+CRITICAL: Two search modes with different behaviors
+- Filter mode (default): Hides non-matching options
+- Navigate mode: Jumps to matches, keeps all visible
+- Async search: Load options dynamically from server
+- Hybrid search: Initial options + dynamic search
+
+ENABLING SEARCH
+---------------
+Search is enabled by default:
+
+<web-multiselect enable-search="true">
+  <option value="1">JavaScript</option>
+  <option value="2">TypeScript</option>
+</web-multiselect>
+
+Disable search:
+<web-multiselect enable-search="false">
+</web-multiselect>
+
+Programmatic:
+select.enableSearch = true;  // or false
+
+SEARCH PLACEHOLDER
+------------------
+Customize search input placeholder:
+
+<web-multiselect search-placeholder="Search languages...">
+</web-multiselect>
+
+Programmatic:
+select.searchPlaceholder = 'Type to search...';
+
+FILTER MODE (DEFAULT)
+---------------------
+Hides options that don't match search:
+
+<web-multiselect search-mode="filter">
+  <option value="1">JavaScript</option>
+  <option value="2">TypeScript</option>
+  <option value="3">Python</option>
+</web-multiselect>
+
+Behavior:
+- Type "script" → Shows JavaScript, TypeScript
+- Type "python" → Shows Python only
+- Clear search → Shows all options
+- Non-matching options hidden
+
+Use when:
+- Filtering large lists
+- Finding specific items
+- Reducing visual clutter
+
+NAVIGATE MODE
+--------------
+Jumps to first match, keeps all options visible:
+
+<web-multiselect search-mode="navigate">
+  <option value="1">JavaScript</option>
+  <option value="2">TypeScript</option>
+  <option value="3">Python</option>
+</web-multiselect>
+
+Behavior:
+- Type "script" → Highlights JavaScript
+- Ctrl+↓ → Jumps to next match (TypeScript)
+- All options remain visible
+- Matching items highlighted
+
+Use when:
+- Quick keyboard navigation
+- Users need to see all options
+- Dropdown has contextual grouping
+
+SEARCH INPUT MODES
+------------------
+Control search input behavior:
+
+Normal (default):
+<web-multiselect search-input-mode="normal">
+</web-multiselect>
+- Full search functionality
+- Editable input field
+
+Readonly:
+<web-multiselect search-input-mode="readonly">
+</web-multiselect>
+- Search enabled
+- Input not editable by typing
+- Navigate mode recommended
+
+Hidden:
+<web-multiselect search-input-mode="hidden">
+</web-multiselect>
+- No search input shown
+- Options appear immediately
+- Use for small lists
+
+MINIMUM SEARCH LENGTH
+---------------------
+Require minimum characters before searching:
+
+<web-multiselect min-search-length="3">
+</web-multiselect>
+
+Programmatic:
+select.minSearchLength = 2;
+
+Behavior:
+- Search doesn't activate until threshold met
+- Shows all options below threshold
+- Useful for large datasets
+- Reduces unnecessary filtering
+
+Use cases:
+- Large option lists
+- Async search (reduce API calls)
+- Performance optimization
+
+SEARCH HINT
+-----------
+Show hint text above search input:
+
+<web-multiselect search-hint="Type at least 3 characters">
+</web-multiselect>
+
+Programmatic:
+select.searchHint = 'Start typing to search...';
+
+SEARCH VALUE CUSTOMIZATION
+---------------------------
+Control what text is searched:
+
+Default (searches display value):
+select.options = [
+  { value: 1, label: 'JavaScript' }
+];
+// Searches "JavaScript"
+
+Member property:
+select.searchValueMember = 'searchText';
+select.options = [
+  {
+    value: 1,
+    label: 'JavaScript',
+    searchText: 'javascript js ecmascript'
+  }
+];
+// Searches "javascript js ecmascript"
+
+Callback:
+select.getSearchValueCallback = (option) => {
+  return `${option.name} ${option.aliases.join(' ')} ${option.tags.join(' ')}`;
+};
+// Searches name + aliases + tags
+
+ASYNC SEARCH
+------------
+Load options from server based on search term:
+
+select.searchCallback = async (searchTerm) => {
+  const response = await fetch(`/api/search?q=${searchTerm}`);
+  const results = await response.json();
+  return results;
+};
+
+IMPORTANT: Return array of options or Promise<options[]>
+
+Example with debouncing:
+let debounceTimer;
+select.searchCallback = async (searchTerm) => {
+  clearTimeout(debounceTimer);
+
+  return new Promise((resolve) => {
+    debounceTimer = setTimeout(async () => {
+      const response = await fetch(`/api/search?q=${searchTerm}`);
+      const results = await response.json();
+      resolve(results);
+    }, 300);
+  });
+};
+
+HYBRID SEARCH
+-------------
+Combine static initial options with dynamic search:
+
+<web-multiselect keep-options-on-search="true">
+</web-multiselect>
+
+select.options = [
+  // Top 10 popular items
+  { value: 1, label: 'JavaScript' },
+  { value: 2, label: 'Python' },
+  { value: 3, label: 'TypeScript' }
+];
+
+select.searchCallback = async (searchTerm) => {
+  // Load additional results from server
+  const response = await fetch(`/api/search?q=${searchTerm}`);
+  return await response.json();
+};
+
+Behavior:
+- Shows initial options when dropdown opens
+- When user searches, adds dynamic results
+- Initial options remain visible
+- Perfect for "popular items + search all"
+
+SEARCH PRE-PROCESSING
+---------------------
+Modify search term before searching:
+
+select.beforeSearchCallback = (searchTerm) => {
+  // Remove accents
+  return searchTerm.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+};
+
+Or validate:
+select.beforeSearchCallback = (searchTerm) => {
+  // Only allow alphanumeric
+  const cleaned = searchTerm.replace(/[^a-z0-9]/gi, '');
+  return cleaned || null;  // Return null to cancel search
+};
+
+Or transform:
+select.beforeSearchCallback = (searchTerm) => {
+  return searchTerm.toLowerCase().trim();
+};
+
+LOADING STATE
+-------------
+Show loading indicator during async search:
+
+select.loadingMessage = 'Searching...';
+
+Or customize in HTML:
+<web-multiselect loading-message="Loading results...">
+</web-multiselect>
+
+Component automatically shows loading state when:
+- searchCallback is async
+- Promise is pending
+
+EMPTY SEARCH RESULTS
+--------------------
+Customize no results message:
+
+<web-multiselect empty-message="No results found">
+</web-multiselect>
+
+Programmatic:
+select.emptyMessage = 'No matching items';
+
+SEARCH PERFORMANCE
+------------------
+Optimize search for large datasets:
+
+Option 1: Virtual scrolling
+<web-multiselect enable-virtual-scroll="true">
+</web-multiselect>
+See virtual-scrolling.txt
+
+Option 2: Min search length
+<web-multiselect min-search-length="3">
+</web-multiselect>
+
+Option 3: Async search with pagination
+select.searchCallback = async (searchTerm) => {
+  const response = await fetch(
+    `/api/search?q=${searchTerm}&limit=50`
+  );
+  return await response.json();
+};
+
+SEARCH MATCHING
+---------------
+Default: Case-insensitive substring match
+
+Custom matching (via searchCallback):
+select.searchCallback = async (searchTerm) => {
+  const term = searchTerm.toLowerCase();
+
+  return select.options.filter(option => {
+    const searchValue = option.label.toLowerCase();
+
+    // Fuzzy match
+    return searchValue.includes(term) ||
+           levenshteinDistance(searchValue, term) < 3;
+  });
+};
+
+Or exact match:
+select.searchCallback = async (searchTerm) => {
+  return select.options.filter(option =>
+    option.label.toLowerCase() === searchTerm.toLowerCase()
+  );
+};
+
+KEYBOARD NAVIGATION
+-------------------
+Search-specific keyboard shortcuts:
+
+Filter mode:
+- Type → Filters options
+- ↑↓ → Navigate filtered results
+- Enter → Select highlighted
+- Esc → Clear search and close
+
+Navigate mode:
+- Type → Highlights first match
+- Ctrl+↑ → Previous match
+- Ctrl+↓ → Next match
+- Enter → Select highlighted
+- Esc → Clear search and close
+
+See keyboard-navigation.txt for all shortcuts
+
+ADDING NEW OPTIONS
+------------------
+Allow users to add custom values:
+
+<web-multiselect allow-add-new="true">
+</web-multiselect>
+
+select.addNewCallback = (value) => {
+  // Create new option
+  return {
+    value: value.toLowerCase(),
+    label: value,
+    icon: '➕'
+  };
+};
+
+Or async:
+select.addNewCallback = async (value) => {
+  // Save to server
+  const response = await fetch('/api/items', {
+    method: 'POST',
+    body: JSON.stringify({ name: value })
+  });
+  const newItem = await response.json();
+
+  return {
+    value: newItem.id,
+    label: newItem.name
+  };
+};
+
+SEARCH WITH GROUPS
+------------------
+Search respects option groups:
+
+Filter mode:
+- Searches within groups
+- Hides empty groups
+- Shows group if any option matches
+
+Navigate mode:
+- Jumps between matches in all groups
+- All groups remain visible
+
+REAL-TIME SEARCH
+----------------
+Search as user types (default behavior):
+
+select.options = [...];  // Filters immediately
+
+No debouncing needed for local search
+
+For async search, add debouncing:
+let timeout;
+select.searchCallback = async (searchTerm) => {
+  clearTimeout(timeout);
+
+  return new Promise((resolve) => {
+    timeout = setTimeout(async () => {
+      const results = await fetchFromAPI(searchTerm);
+      resolve(results);
+    }, 300);
+  });
+};
+
+SEARCH CACHING
+--------------
+Cache async search results:
+
+const searchCache = new Map();
+
+select.searchCallback = async (searchTerm) => {
+  // Check cache
+  if (searchCache.has(searchTerm)) {
+    return searchCache.get(searchTerm);
+  }
+
+  // Fetch from API
+  const response = await fetch(`/api/search?q=${searchTerm}`);
+  const results = await response.json();
+
+  // Cache results
+  searchCache.set(searchTerm, results);
+
+  return results;
+};
+
+SEARCH HIGHLIGHTING
+-------------------
+Matching text is automatically highlighted in navigate mode
+
+Custom highlighting (via renderOptionContentCallback):
+select.renderOptionContentCallback = (option, context) => {
+  if (!context.isMatched) {
+    return option.label;
+  }
+
+  const searchTerm = select.currentSearchTerm;  // If exposed
+  const label = option.label;
+  const index = label.toLowerCase().indexOf(searchTerm.toLowerCase());
+
+  if (index === -1) return label;
+
+  const before = label.substring(0, index);
+  const match = label.substring(index, index + searchTerm.length);
+  const after = label.substring(index + searchTerm.length);
+
+  return `${before}<mark>${match}</mark>${after}`;
+};
+
+SEARCH SCOPE
+------------
+Control what fields are searched:
+
+Search label only (default):
+select.options = [
+  { value: 1, label: 'JavaScript' }
+];
+
+Search label + subtitle:
+select.getSearchValueCallback = (option) => {
+  return `${option.label} ${option.subtitle || ''}`;
+};
+
+Search all fields:
+select.getSearchValueCallback = (option) => {
+  return Object.values(option).join(' ');
+};
+
+DISABLING SEARCH TEMPORARILY
+-----------------------------
+Disable search programmatically:
+
+select.enableSearch = false;
+
+Re-enable:
+select.enableSearch = true;
+
+SEARCH ANALYTICS
+----------------
+Track search behavior:
+
+select.searchCallback = async (searchTerm) => {
+  // Log search
+  analytics.track('search', { term: searchTerm });
+
+  const results = await fetchResults(searchTerm);
+
+  // Log results count
+  analytics.track('search_results', {
+    term: searchTerm,
+    count: results.length
+  });
+
+  return results;
+};
+
+BEST PRACTICES
+--------------
+✅ Use filter mode for large lists
+✅ Use navigate mode for keyboard-heavy users
+✅ Set min-search-length for async search
+✅ Debounce async search (300ms)
+✅ Cache frequent searches
+✅ Show loading indicator
+✅ Provide helpful empty message
+✅ Use hybrid search for popular items
+✅ Normalize search terms (accents, case)
+
+❌ Don't search without min length on huge datasets
+❌ Don't forget error handling in async search
+❌ Don't make too many API calls
+❌ Don't block UI during search
+❌ Don't forget to handle empty results
+
+COMMON PATTERNS
+---------------
+Simple filter:
+<web-multiselect search-placeholder="Search...">
+  <option value="1">Option 1</option>
+</web-multiselect>
+
+Async search:
+select.minSearchLength = 3;
+select.searchCallback = async (term) => {
+  const res = await fetch(`/api/search?q=${term}`);
+  return await res.json();
+};
+
+Hybrid (popular + search):
+select.keepOptionsOnSearch = true;
+select.options = [...popularItems];
+select.searchCallback = async (term) => {...};
+
+Navigate mode:
+<web-multiselect
+  search-mode="navigate"
+  search-input-mode="readonly">
+</web-multiselect>
+
+DEBUGGING
+---------
+Enable search logging:
+
+import { setCategoryLevel } from '@keenmate/web-multiselect';
+setCategoryLevel('MULTISELECT:INTERACTION', 'debug');
+
+Test search:
+console.log('Search term:', select.searchTerm);
+console.log('Visible options:', select.visibleOptions);

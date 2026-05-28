@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validation & Rejection - Web Dropzone</title>
+    <link rel="stylesheet" href="examples-shared.css">
+    <style>
+        .rejected-log {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            margin-top: 0.75rem;
+            font-size: 0.875rem;
+            color: #991b1b;
+        }
+        .rejected-log:empty::before {
+            content: '(no rejections yet)';
+            color: #9ca3af;
+            font-style: italic;
+        }
+        .rejected-log .row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: baseline;
+            margin-bottom: 0.25rem;
+        }
+        .rejected-log .row:last-child { margin-bottom: 0; }
+        .rejected-log .name { font-weight: 600; }
+        .rejected-log .reason { color: #b91c1c; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to Examples</a>
+            <h1>✅ Validation & Rejection</h1>
+            <p class="subtitle">Size limits, count limits, MIME/extension filters, and custom validators</p>
+        </header>
+
+        <!-- MAX SIZE -->
+        <div class="card">
+            <h2>Max File Size (<code>max-size</code>)</h2>
+            <p><code>max-size</code> is in bytes. Files larger than the limit are rejected with code <code>'size'</code>.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>Limit: 1 MB</label>
+                    <web-dropzone
+                        id="size-1mb"
+                        max-file-size="1048576"
+                        display-mode="detailed"
+                        prompt-text="Drop files ≤ 1 MB"
+                        hint-text="Larger files will be rejected">
+                    </web-dropzone>
+                    <div class="rejected-log" data-log-for="size-1mb"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Limit: 100 KB</label>
+                    <web-dropzone
+                        id="size-100k"
+                        max-file-size="102400"
+                        display-mode="detailed"
+                        prompt-text="Drop files ≤ 100 KB">
+                    </web-dropzone>
+                    <div class="rejected-log" data-log-for="size-100k"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAX FILES -->
+        <div class="card">
+            <h2>Max File Count (<code>max-files</code>)</h2>
+            <p>Once the count is reached, subsequent files are rejected with code <code>'count'</code>.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>Max 3 files</label>
+                    <web-dropzone
+                        id="count-3"
+                        max-file-count="3"
+                        display-mode="detailed"
+                        prompt-text="Drop up to 3 files">
+                    </web-dropzone>
+                    <div class="rejected-log" data-log-for="count-3"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Max 1 file (paired with <code>multiple="false"</code>)</label>
+                    <web-dropzone
+                        id="count-1-single"
+                        multiple="false"
+                        display-mode="detailed"
+                        prompt-text="Drop a single file (replaces existing)">
+                    </web-dropzone>
+                    <small class="form-text">Single mode replaces rather than rejects — no rejection event fires.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACCEPT FILTER -->
+        <div class="card">
+            <h2>Type Filter (<code>accept</code>)</h2>
+            <p>Files that fail the MIME/extension match are rejected with code <code>'type'</code>.</p>
+
+            <div class="form-group">
+                <label>Images only</label>
+                <web-dropzone
+                    id="type-images"
+                    accept="image/*"
+                    display-mode="detailed"
+                    prompt-text="Drop image files"
+                    hint-text="Non-image files will be rejected">
+                </web-dropzone>
+                <div class="rejected-log" data-log-for="type-images"></div>
+            </div>
+        </div>
+
+        <!-- CUSTOM VALIDATE CALLBACK -->
+        <div class="card">
+            <h2>Custom Validator</h2>
+            <p>Set <code>validateCallback</code> on the element to add custom validation. Return <code>{ valid: false, error: '...' }</code> to reject; the failure surfaces alongside built-in validation errors via the <code>files-rejected</code> event.</p>
+
+            <div class="form-group">
+                <label>Reject filenames containing spaces</label>
+                <web-dropzone
+                    id="custom-validate"
+                    display-mode="detailed"
+                    prompt-text="Drop files (no spaces in names)">
+                </web-dropzone>
+                <div class="rejected-log" data-log-for="custom-validate"></div>
+            </div>
+
+            <div class="code-block">
+                <pre><code>const el = document.getElementById('custom-validate')
+
+el.validateCallback = (file, existingFiles) => {
+    if (file.name.includes(' ')) {
+        return { valid: false, error: 'Filename must not contain spaces' }
+    }
+    return { valid: true }
+}</code></pre>
+            </div>
+        </div>
+
+        <!-- COMBINED -->
+        <div class="card">
+            <h2>Combined Rules</h2>
+            <p>All validation rules apply together. The first failing rule wins.</p>
+
+            <div class="form-group">
+                <label>Images only, ≤ 2 MB, max 3 files, no "logo" in name</label>
+                <web-dropzone
+                    id="combined"
+                    accept="image/*"
+                    max-file-size="2097152"
+                    max-file-count="3"
+                    display-mode="grid"
+                    prompt-text="Drop images"
+                    hint-text="JPG/PNG, ≤ 2 MB, up to 3 files">
+                </web-dropzone>
+                <div class="rejected-log" data-log-for="combined"></div>
+            </div>
+        </div>
+
+        <!-- REJECTION CODES -->
+        <div class="card">
+            <h2>Rejection Codes</h2>
+            <p>Each rejection includes a <code>code</code> so you can branch on it programmatically.</p>
+
+            <div class="code-block">
+                <pre><code>el.addEventListener('files-rejected', (e) => {
+    for (const { file, validation } of e.detail.rejectedFiles) {
+        switch (validation.code) {
+            case 'size':   showError(`${file.name} is too large`);  break
+            case 'type':   showError(`${file.name} type not allowed`); break
+            case 'count':  showError('Too many files');              break
+            case 'custom': showError(validation.error);              break
+        }
+    }
+})</code></pre>
+            </div>
+        </div>
+
+        <footer>
+            <p><a href="index.html">← Back to Examples</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        // Wire rejection logging onto every dropzone that has a [data-log-for] sibling.
+        document.querySelectorAll('.rejected-log[data-log-for]').forEach(log => {
+            const id = log.dataset.logFor
+            const dz = document.getElementById(id)
+            if (!dz) return
+            dz.addEventListener('files-rejected', (e) => {
+                log.innerHTML = e.detail.rejectedFiles.map(r => `
+                    <div class="row">
+                        <span class="name">${escapeHtml(r.file.name)}</span>
+                        <span class="reason">[${r.validation.code}]</span>
+                        <span>${escapeHtml(r.validation.error || '')}</span>
+                    </div>
+                `).join('')
+            })
+        })
+
+        // Custom validator on the no-spaces example.
+        const customEl = document.getElementById('custom-validate')
+        customEl.validateCallback = (file) => {
+            if (file.name.includes(' ')) {
+                return { valid: false, error: 'Filename must not contain spaces', code: 'custom' }
+            }
+            return { valid: true }
+        }
+
+        // Combined rules — add a custom rule on top of the declarative ones.
+        const combinedEl = document.getElementById('combined')
+        combinedEl.validateCallback = (file) => {
+            if (/logo/i.test(file.name)) {
+                return { valid: false, error: 'Filenames containing "logo" are not allowed', code: 'custom' }
+            }
+            return { valid: true }
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div')
+            d.textContent = s
+            return d.innerHTML
+        }
+    </script>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Rendering - Web Dropzone</title>
+    <link rel="stylesheet" href="examples-shared.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to Examples</a>
+            <h1>✨ Custom Rendering</h1>
+            <p class="subtitle">Override file items, prompts, and summaries via render callbacks</p>
+        </header>
+
+        <!-- INTRO -->
+        <div class="card">
+            <h2>Three render callbacks</h2>
+            <p>Each callback can return either an HTML string or a live <code>HTMLElement</code>. They're set as JavaScript properties on the element:</p>
+
+            <div class="code-block">
+                <pre><code>el.renderPromptCallback   = ()        =&gt; '...'  // dropzone prompt content
+el.renderFileItemCallback = (file, ctx) =&gt; '...'  // a single file row
+el.renderSummaryCallback  = (files)    =&gt; '...'  // compact-mode summary line
+
+// To customize the look of your custom HTML inside the shadow root,
+// inject styles via customStylesCallback:
+el.customStylesCallback   = () =&gt; `.my-cls { color: red; }`</code></pre>
+            </div>
+        </div>
+
+        <!-- PROMPT -->
+        <div class="card">
+            <h2>Custom Prompt (<code>renderPromptCallback</code>)</h2>
+            <p>Replaces the inner content of the dropzone prompt area.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>Cloud upload prompt</label>
+                    <web-dropzone id="prompt-cloud" display-mode="detailed"></web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>Two-line marketing prompt</label>
+                    <web-dropzone id="prompt-marketing" display-mode="detailed"></web-dropzone>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <pre><code>document.getElementById('prompt-cloud').renderPromptCallback = () =&gt; `
+    &lt;div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;"&gt;
+        &lt;svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#667eea"
+             stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"&gt;
+            &lt;path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/&gt;
+            &lt;polyline points="17 8 12 3 7 8"/&gt;
+            &lt;line x1="12" y1="3" x2="12" y2="15"/&gt;
+        &lt;/svg&gt;
+        &lt;strong&gt;Upload to cloud&lt;/strong&gt;
+        &lt;small style="color:#6b7280"&gt;Drag and drop or click to browse&lt;/small&gt;
+    &lt;/div&gt;
+`</code></pre>
+            </div>
+        </div>
+
+        <!-- FILE ITEM -->
+        <div class="card">
+            <h2>Custom File Item (<code>renderFileItemCallback</code>)</h2>
+            <p>Each call receives the <code>FileState</code> and a context object describing the render position. Return a string or an <code>HTMLElement</code>.</p>
+
+            <div class="form-group">
+                <label>Receipts list with date + currency formatting</label>
+                <web-dropzone
+                    id="item-receipts"
+                    display-mode="list"
+                    accept=".pdf,image/*"
+                    prompt-text="Drop receipts">
+                </web-dropzone>
+            </div>
+
+            <div class="code-block">
+                <pre><code>el.renderFileItemCallback = (file, ctx) =&gt; `
+    &lt;div class="receipt-row" data-file-id="${file.id}"&gt;
+        &lt;span class="receipt-icon"&gt;🧾&lt;/span&gt;
+        &lt;span class="receipt-name"&gt;${file.name}&lt;/span&gt;
+        &lt;span class="receipt-date"&gt;${new Date(file.file.lastModified).toLocaleDateString()}&lt;/span&gt;
+        &lt;span class="receipt-size"&gt;${(file.size/1024).toFixed(1)} KB&lt;/span&gt;
+        &lt;button data-action="remove" data-file-id="${file.id}"&gt;×&lt;/button&gt;
+    &lt;/div&gt;
+`</code></pre>
+            </div>
+
+            <div class="note">
+                <div class="note-title">Required hooks</div>
+                <ul>
+                    <li>Keep <code>data-file-id="${file.id}"</code> on the root element so internal patching can target the row.</li>
+                    <li>For remove buttons, set <code>data-action="remove"</code> and <code>data-file-id="${file.id}"</code> — click handlers are auto-attached.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- DOM ELEMENT RETURN -->
+        <div class="card">
+            <h2>Returning a live <code>HTMLElement</code></h2>
+            <p>If you'd rather build with the DOM API than concatenate strings, return an element directly. Useful for binding event listeners or attaching data.</p>
+
+            <div class="form-group">
+                <label>Files with click-to-preview links</label>
+                <web-dropzone
+                    id="item-dom"
+                    display-mode="list"
+                    accept="*/*"
+                    prompt-text="Drop files (click row to preview in new tab)">
+                </web-dropzone>
+            </div>
+
+            <div class="code-block">
+                <pre><code>el.renderFileItemCallback = (file) =&gt; {
+    const row = document.createElement('div')
+    row.className = 'dz__file-item dz__file-item--list'
+    row.dataset.fileId = file.id
+
+    const name = document.createElement('a')
+    name.textContent = file.name
+    name.href = URL.createObjectURL(file.file)
+    name.target = '_blank'
+    name.style.flex = '1'
+    name.style.color = '#667eea'
+    name.style.textDecoration = 'underline'
+    row.appendChild(name)
+
+    const btn = document.createElement('button')
+    btn.textContent = '×'
+    btn.dataset.action = 'remove'
+    btn.dataset.fileId = file.id
+    btn.className = 'dz__file-item__remove'
+    row.appendChild(btn)
+
+    return row
+}</code></pre>
+            </div>
+        </div>
+
+        <!-- SUMMARY -->
+        <div class="card">
+            <h2>Custom Compact Summary (<code>renderSummaryCallback</code>)</h2>
+            <p>Replaces the inline summary line that triggers the compact-mode popover. Required: include an element with class <code>dz__summary__line</code> so the popover click handler still binds correctly.</p>
+
+            <div class="form-group">
+                <label>Counter pill with total size</label>
+                <web-dropzone
+                    id="summary-custom"
+                    display-mode="compact"
+                    accept="*/*"
+                    prompt-text="Drop files">
+                </web-dropzone>
+                <small class="form-text">Click the summary to open the file popover.</small>
+            </div>
+
+            <div class="code-block">
+                <pre><code>el.renderSummaryCallback = (files) =&gt; {
+    const total = files.reduce((s, f) =&gt; s + f.size, 0)
+    return `
+        &lt;div class="dz__summary__line" tabindex="0" role="button"&gt;
+            &lt;span class="pill"&gt;${files.length}&lt;/span&gt;
+            &lt;span&gt;files · ${(total/1024).toFixed(1)} KB&lt;/span&gt;
+        &lt;/div&gt;
+    `
+}
+
+el.customStylesCallback = () =&gt; `
+    .pill {
+        display: inline-block;
+        background: #667eea; color: white;
+        border-radius: 999px;
+        padding: 0.1rem 0.55rem;
+        font-weight: 600; font-size: 0.85em;
+    }
+`</code></pre>
+            </div>
+        </div>
+
+        <footer>
+            <p><a href="index.html">← Back to Examples</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        // ---------------------------------------------------------------- prompts
+
+        document.getElementById('prompt-cloud').renderPromptCallback = () => `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#667eea"
+                     stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <strong>Upload to cloud</strong>
+                <small style="color:#6b7280">Drag and drop or click to browse</small>
+            </div>
+        `
+
+        document.getElementById('prompt-marketing').renderPromptCallback = () => `
+            <div style="text-align:center;line-height:1.4">
+                <div style="font-size:2.5rem">🎯</div>
+                <div style="font-size:1.15rem;font-weight:600;color:#111827">Get your free analysis</div>
+                <div style="color:#6b7280;font-size:0.9rem">Upload your report (PDF or image) and we'll do the rest</div>
+            </div>
+        `
+
+        // ---------------------------------------------------------------- receipt rows
+
+        const receipts = document.getElementById('item-receipts')
+        receipts.customStylesCallback = () => `
+            .receipt-row {
+                display: grid;
+                grid-template-columns: auto 1fr auto auto auto;
+                gap: 0.75rem;
+                align-items: center;
+                padding: 0.6rem 0.9rem;
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                background: white;
+                font-size: 0.9rem;
+            }
+            .receipt-icon { font-size: 1.2rem; }
+            .receipt-name { font-weight: 600; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .receipt-date { color: #6b7280; font-size: 0.8rem; }
+            .receipt-size { color: #6b7280; font-size: 0.8rem; }
+            .receipt-row button {
+                background: transparent; border: none; cursor: pointer;
+                font-size: 1.2rem; color: #9ca3af; padding: 0 0.4rem;
+            }
+            .receipt-row button:hover { color: #dc2626; }
+        `
+        receipts.renderFileItemCallback = (file) => `
+            <div class="receipt-row" data-file-id="${file.id}">
+                <span class="receipt-icon">🧾</span>
+                <span class="receipt-name">${escapeHtml(file.name)}</span>
+                <span class="receipt-date">${new Date(file.file.lastModified).toLocaleDateString()}</span>
+                <span class="receipt-size">${(file.size/1024).toFixed(1)} KB</span>
+                <button data-action="remove" data-file-id="${file.id}" title="Remove">×</button>
+            </div>
+        `
+
+        // ---------------------------------------------------------------- DOM-element returns
+
+        const itemDom = document.getElementById('item-dom')
+        itemDom.renderFileItemCallback = (file) => {
+            const row = document.createElement('div')
+            row.className = 'dz__file-item dz__file-item--list'
+            row.dataset.fileId = file.id
+            row.style.display = 'flex'
+            row.style.alignItems = 'center'
+            row.style.gap = '0.5rem'
+            row.style.padding = '0.5rem 0.75rem'
+            row.style.border = '1px solid #e5e7eb'
+            row.style.borderRadius = '6px'
+            row.style.background = 'white'
+
+            const link = document.createElement('a')
+            link.textContent = file.name
+            link.href = URL.createObjectURL(file.file)
+            link.target = '_blank'
+            link.style.flex = '1'
+            link.style.color = '#667eea'
+            link.style.textDecoration = 'underline'
+            row.appendChild(link)
+
+            const btn = document.createElement('button')
+            btn.textContent = '×'
+            btn.dataset.action = 'remove'
+            btn.dataset.fileId = file.id
+            btn.style.background = 'transparent'
+            btn.style.border = 'none'
+            btn.style.cursor = 'pointer'
+            btn.style.fontSize = '1.1rem'
+            btn.style.color = '#9ca3af'
+            row.appendChild(btn)
+
+            return row
+        }
+
+        // ---------------------------------------------------------------- compact summary
+
+        const summary = document.getElementById('summary-custom')
+        summary.customStylesCallback = () => `
+            .pill {
+                display: inline-block;
+                background: #667eea; color: white;
+                border-radius: 999px;
+                padding: 0.1rem 0.55rem;
+                font-weight: 600; font-size: 0.85em;
+                margin-right: 0.3rem;
+            }
+        `
+        summary.renderSummaryCallback = (files) => {
+            const total = files.reduce((s, f) => s + f.size, 0)
+            return `
+                <div class="dz__summary__line" tabindex="0" role="button" aria-label="View files">
+                    <span class="pill">${files.length}</span>
+                    <span>files · ${(total/1024).toFixed(1)} KB</span>
+                </div>
+            `
+        }
+
+        // ---------------------------------------------------------------- helpers
+
+        function escapeHtml(s) {
+            const d = document.createElement('div')
+            d.textContent = s
+            return d.innerHTML
+        }
+    </script>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>

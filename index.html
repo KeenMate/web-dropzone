@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Dropzone - Examples</title>
+    <link rel="stylesheet" href="examples-shared.css">
+    <style>
+        body {
+            background: #f0f2f5;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .page-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 2.5rem 3rem;
+            margin-bottom: 2rem;
+            color: white;
+        }
+
+        .header-card h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0 0 0.5rem 0;
+            color: white;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .header-card .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin: 0 0 1rem 0;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.35rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card-link {
+            background: white;
+            border-radius: 12px;
+            padding: 1.75rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .card-link:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            text-decoration: none;
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+        }
+
+        .card-link h2.card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem 0;
+            color: #1a202c;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .card-description {
+            color: #64748b;
+            line-height: 1.6;
+            margin: 0;
+            font-size: 0.95rem;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #f56565;
+            color: white;
+            padding: 0.15rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+            text-transform: uppercase;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+
+        footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <header class="header-card">
+            <h1>Web Dropzone</h1>
+            <p class="subtitle">File upload web component with drag-drop, previews, validation, and multiple display modes</p>
+            <span class="version-badge">v1.0.0</span>
+        </header>
+
+        <div class="cards" id="cards"></div>
+
+        <footer>
+            <p>Created by <a href="https://github.com/keenmate" target="_blank">KeenMate</a> &nbsp;|&nbsp; <a href="https://github.com/keenmate/web-dropzone" target="_blank">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // =====================================================
+        // Demo Page Registry
+        // Add new pages here - they'll appear automatically
+        // =====================================================
+        const pages = [
+            {
+                href: 'examples-classic.html',
+                icon: '📦',
+                title: 'Classic Examples',
+                description: 'Display modes (list, detailed, grid, compact), single vs multiple selection, and accept patterns.'
+            },
+            {
+                href: 'examples-validation.html',
+                icon: '✅',
+                title: 'Validation & Rejection',
+                description: 'maxSize, maxFiles, MIME/extension filters, custom validators, and files-rejected handling.'
+            },
+            {
+                href: 'examples-form-integration.html',
+                icon: '📝',
+                title: 'Form Integration',
+                description: 'Form-associated submission with real FormData, automatic form reset, and field naming.'
+            },
+            {
+                href: 'examples-templating.html',
+                icon: '✨',
+                title: 'Custom Rendering',
+                description: 'Customize file items, prompts, and summaries via render callbacks returning HTML or DOM elements.'
+            },
+            {
+                href: 'examples-drag-overlay.html',
+                icon: '🎯',
+                title: 'Drag Overlay',
+                description: 'Trigger a full-element drop overlay when files are dragged over an existing input or form area.'
+            },
+            {
+                href: 'examples-compact.html',
+                icon: '📎',
+                title: 'Compact & Popover',
+                description: 'Compact summary line with click-to-expand popover, custom templates, files-inside layout.'
+            },
+            {
+                href: 'examples-sizes.html',
+                icon: '📏',
+                title: 'Sizes & Fonts',
+                description: 'Control dimensions and typography with --dz-rem scaling and Google Fonts integration.'
+            },
+            {
+                href: 'examples-base-variables.html',
+                icon: '🎨',
+                title: 'Base Variables',
+                description: 'Theme-designer typography and color integration with --base-* variables.'
+            },
+            {
+                href: 'examples-theming.html',
+                icon: '🎭',
+                title: 'Theming',
+                description: 'Customize appearance with CSS custom properties. Dark mode, neon, corporate, and more.'
+            },
+            {
+                href: 'examples-logging.html',
+                icon: '🐛',
+                title: 'Logging & Debugging',
+                description: 'Built-in logging system with categorized debug output for development and troubleshooting.'
+            }
+        ]
+
+        function renderCards() {
+            const container = document.getElementById('cards')
+            container.innerHTML = pages.map(page => `
+                <a href="${page.href}" class="card-link">
+                    <div class="card-icon">${page.icon}</div>
+                    <h2 class="card-title">
+                        ${page.title}${page.badge ? `<span class="badge">${page.badge}</span>` : ''}
+                    </h2>
+                    <p class="card-description">${page.description}</p>
+                </a>
+            `).join('')
+        }
+
+        renderCards()
+    </script>
+</body>
+</html>

@@ -1,0 +1,569 @@
+ACTION BUTTONS
+==============
+
+CRITICAL: Buttons in dropdown footer for bulk actions
+- Built-in: select-all, clear-all
+- Custom: Define onClick handlers
+- Static or dynamic properties
+- Layout modes: nowrap, wrap
+- Visibility, disabled state, tooltips
+
+BUILT-IN ACTIONS
+----------------
+Select All and Clear All buttons:
+
+select.actionButtons = [
+  {
+    id: 'select-all',
+    text: 'Select All',
+    onClick: () => {
+      const allValues = select.options.map(opt => opt.value);
+      select.setSelected(allValues);
+    }
+  },
+  {
+    id: 'clear-all',
+    text: 'Clear All',
+    onClick: () => {
+      select.setSelected([]);
+    }
+  }
+];
+
+BASIC CUSTOM ACTION
+-------------------
+Add custom action button:
+
+select.actionButtons = [
+  {
+    id: 'custom-action',
+    text: 'My Action',
+    onClick: () => {
+      console.log('Action clicked');
+    }
+  }
+];
+
+ACTION PROPERTIES
+-----------------
+Static properties:
+
+{
+  id: string,                 // Unique identifier
+  text: string,               // Button text
+  onClick: () => void,        // Click handler
+  icon?: string,              // Icon or emoji
+  cssClass?: string,          // CSS class
+  tooltip?: string,           // Hover tooltip
+  isVisible?: boolean,        // Show/hide (default: true)
+  isDisabled?: boolean        // Enable/disable (default: false)
+}
+
+Example with all properties:
+select.actionButtons = [
+  {
+    id: 'export',
+    text: 'Export',
+    icon: '⬇️',
+    cssClass: 'export-button',
+    tooltip: 'Export selected items',
+    isVisible: true,
+    isDisabled: false,
+    onClick: () => exportSelected()
+  }
+];
+
+DYNAMIC CALLBACKS
+-----------------
+Make properties dynamic with callbacks:
+
+select.actionButtons = [
+  {
+    id: 'select-all',
+    getTextCallback: () => {
+      const selected = select.getSelected();
+      return selected.length === select.options.length
+        ? 'Deselect All'
+        : 'Select All';
+    },
+    isVisibleCallback: () => {
+      return select.options.length > 0;
+    },
+    isDisabledCallback: () => {
+      return select.options.length === 0;
+    },
+    onClick: () => {
+      const selected = select.getSelected();
+      if (selected.length === select.options.length) {
+        select.setSelected([]);
+      } else {
+        select.setSelected(select.options.map(o => o.value));
+      }
+    }
+  }
+];
+
+VISIBILITY CONTROL
+------------------
+Show/hide actions dynamically:
+
+Static:
+{
+  id: 'export',
+  text: 'Export',
+  isVisible: false,  // Hidden
+  onClick: () => {}
+}
+
+Dynamic (callback):
+{
+  id: 'export',
+  text: 'Export',
+  isVisibleCallback: () => {
+    return select.getSelected().length > 0;
+  },
+  onClick: () => {}
+}
+
+Use cases:
+- Show "Export" only when items selected
+- Show "Clear" only when selections exist
+- Conditional actions based on state
+
+DISABLED STATE
+--------------
+Enable/disable actions:
+
+Static:
+{
+  id: 'save',
+  text: 'Save',
+  isDisabled: true,
+  onClick: () => {}
+}
+
+Dynamic (callback):
+{
+  id: 'save',
+  text: 'Save',
+  isDisabledCallback: () => {
+    const selected = select.getSelected();
+    return selected.length === 0 || selected.length > 10;
+  },
+  onClick: () => {}
+}
+
+Use cases:
+- Disable when no selection
+- Disable when limit exceeded
+- Disable during async operations
+
+ICONS
+-----
+Add icons to actions:
+
+Emoji:
+{
+  id: 'export',
+  text: 'Export',
+  icon: '⬇️',
+  onClick: () => {}
+}
+
+Font Awesome:
+{
+  id: 'export',
+  text: 'Export',
+  icon: 'fa fa-download',
+  onClick: () => {}
+}
+
+Unicode:
+{
+  id: 'clear',
+  text: 'Clear',
+  icon: '\u2715',  // ✕
+  onClick: () => {}
+}
+
+TOOLTIPS
+--------
+Show helpful hints:
+
+{
+  id: 'export',
+  text: 'Export',
+  tooltip: 'Export selected items to CSV',
+  onClick: () => {}
+}
+
+Dynamic tooltip:
+{
+  id: 'save',
+  text: 'Save',
+  tooltip: () => {
+    const count = select.getSelected().length;
+    return `Save ${count} selected item${count !== 1 ? 's' : ''}`;
+  },
+  onClick: () => {}
+}
+
+CSS CLASSES
+-----------
+Style actions with custom classes:
+
+{
+  id: 'delete',
+  text: 'Delete',
+  cssClass: 'danger-button',
+  onClick: () => {}
+}
+
+Multiple classes:
+{
+  id: 'export',
+  text: 'Export',
+  cssClass: 'primary-button large-button',
+  onClick: () => {}
+}
+
+Dynamic classes:
+{
+  id: 'save',
+  text: 'Save',
+  getClassCallback: () => {
+    const hasChanges = checkForChanges();
+    return hasChanges ? 'primary-button' : 'secondary-button';
+  },
+  onClick: () => {}
+}
+
+LAYOUT MODES
+------------
+Control action button layout:
+
+Nowrap (default):
+<web-multiselect actions-layout="nowrap">
+</web-multiselect>
+- Single row
+- Buttons may overflow
+- Horizontal scroll if needed
+
+Wrap:
+<web-multiselect actions-layout="wrap">
+</web-multiselect>
+- Multiple rows if needed
+- Better for many actions
+- Mobile-friendly
+
+STICKY ACTIONS
+--------------
+Keep actions visible when scrolling:
+
+<web-multiselect sticky-actions="true">
+</web-multiselect>
+
+Behavior:
+- Actions fixed at bottom
+- Visible while scrolling options
+- Better UX for long lists
+
+Disable:
+<web-multiselect sticky-actions="false">
+</web-multiselect>
+
+ASYNC ACTIONS
+-------------
+Handle async operations:
+
+{
+  id: 'save',
+  text: 'Save',
+  onClick: async () => {
+    const selected = select.getSelected();
+
+    try {
+      const response = await fetch('/api/save', {
+        method: 'POST',
+        body: JSON.stringify(selected)
+      });
+
+      if (response.ok) {
+        alert('Saved successfully');
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+    }
+  }
+}
+
+With loading state:
+let isSaving = false;
+
+{
+  id: 'save',
+  getTextCallback: () => isSaving ? 'Saving...' : 'Save',
+  isDisabledCallback: () => isSaving,
+  onClick: async () => {
+    isSaving = true;
+    await saveData();
+    isSaving = false;
+  }
+}
+
+MULTIPLE ACTIONS
+----------------
+Common action combinations:
+
+Select All + Clear All:
+select.actionButtons = [
+  {
+    id: 'select-all',
+    text: 'Select All',
+    onClick: () => {
+      select.setSelected(select.options.map(o => o.value));
+    }
+  },
+  {
+    id: 'clear-all',
+    text: 'Clear All',
+    isVisibleCallback: () => select.getSelected().length > 0,
+    onClick: () => select.setSelected([])
+  }
+];
+
+CRUD operations:
+select.actionButtons = [
+  {
+    id: 'add',
+    text: 'Add New',
+    icon: '➕',
+    onClick: () => openAddDialog()
+  },
+  {
+    id: 'edit',
+    text: 'Edit',
+    isDisabledCallback: () => select.getSelected().length !== 1,
+    onClick: () => editSelected()
+  },
+  {
+    id: 'delete',
+    text: 'Delete',
+    cssClass: 'danger',
+    isDisabledCallback: () => select.getSelected().length === 0,
+    onClick: () => deleteSelected()
+  }
+];
+
+CONDITIONAL ACTIONS
+-------------------
+Show different actions based on state:
+
+select.actionButtons = [
+  {
+    id: 'select-all',
+    getTextCallback: () => {
+      return select.getSelected().length === select.options.length
+        ? 'Deselect All'
+        : 'Select All';
+    },
+    onClick: () => {
+      if (select.getSelected().length === select.options.length) {
+        select.setSelected([]);
+      } else {
+        select.setSelected(select.options.map(o => o.value));
+      }
+    }
+  }
+];
+
+CONFIRMATION DIALOGS
+--------------------
+Confirm dangerous actions:
+
+{
+  id: 'delete',
+  text: 'Delete Selected',
+  cssClass: 'danger',
+  onClick: () => {
+    const selected = select.getSelected();
+    const confirmed = confirm(
+      `Delete ${selected.length} item(s)?`
+    );
+
+    if (confirmed) {
+      deleteItems(selected);
+      select.setSelected([]);
+    }
+  }
+}
+
+ACTION CONTEXT
+--------------
+Access component state in actions:
+
+{
+  id: 'export',
+  text: 'Export',
+  onClick: () => {
+    const selected = select.getSelected();
+    const allOptions = select.options;
+    const searchTerm = select.searchTerm;
+
+    exportData({
+      selected,
+      total: allOptions.length,
+      filter: searchTerm
+    });
+  }
+}
+
+UPDATING ACTIONS
+----------------
+Change actions at runtime:
+
+// Add actions
+select.actionButtons = [
+  { id: 'action1', text: 'Action 1', onClick: () => {} }
+];
+
+// Update actions
+select.actionButtons = [
+  ...select.actionButtons,
+  { id: 'action2', text: 'Action 2', onClick: () => {} }
+];
+
+// Remove actions
+select.actionButtons = select.actionButtons.filter(
+  action => action.id !== 'action1'
+);
+
+// Clear all actions
+select.actionButtons = [];
+
+STYLING ACTIONS
+---------------
+Style action buttons with CSS variables:
+
+<style>
+  web-multiselect {
+    --ml-action-button-bg: #f3f4f6;
+    --ml-action-button-color: #374151;
+    --ml-action-button-hover-bg: #e5e7eb;
+    --ml-action-button-border: 1px solid #d1d5db;
+  }
+</style>
+
+Or inject styles:
+select.customStylesCallback = () => {
+  return `
+    .action-button {
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+    }
+
+    .danger-button {
+      color: #dc2626;
+    }
+  `;
+};
+
+DISABLING ALL ACTIONS
+---------------------
+Temporarily disable all actions:
+
+select.actionButtons = select.actionButtons.map(action => ({
+  ...action,
+  isDisabled: true
+}));
+
+Re-enable:
+select.actionButtons = select.actionButtons.map(action => ({
+  ...action,
+  isDisabled: false
+}));
+
+BEST PRACTICES
+--------------
+✅ Use clear, action-oriented text
+✅ Provide tooltips for clarity
+✅ Disable actions when not applicable
+✅ Hide actions that don't make sense
+✅ Confirm destructive actions
+✅ Handle async operations properly
+✅ Use icons for better recognition
+✅ Test on mobile (wrap mode)
+
+❌ Don't have too many actions (3-5 max)
+❌ Don't forget error handling
+❌ Don't block UI during async operations
+❌ Don't use confusing labels
+❌ Don't forget to update dynamic state
+
+COMMON PATTERNS
+---------------
+Select/Deselect All:
+{
+  id: 'toggle-all',
+  getTextCallback: () => {
+    return select.getSelected().length === select.options.length
+      ? 'Deselect All' : 'Select All';
+  },
+  onClick: () => {
+    if (select.getSelected().length === select.options.length) {
+      select.setSelected([]);
+    } else {
+      select.setSelected(select.options.map(o => o.value));
+    }
+  }
+}
+
+Export selected:
+{
+  id: 'export',
+  text: 'Export',
+  icon: '⬇️',
+  isDisabledCallback: () => select.getSelected().length === 0,
+  onClick: () => {
+    const data = select.getSelected();
+    const csv = convertToCSV(data);
+    downloadFile(csv, 'export.csv');
+  }
+}
+
+Clear with confirmation:
+{
+  id: 'clear',
+  text: 'Clear All',
+  isVisibleCallback: () => select.getSelected().length > 0,
+  onClick: () => {
+    if (confirm('Clear all selections?')) {
+      select.setSelected([]);
+    }
+  }
+}
+
+DEBUGGING
+---------
+Log action clicks:
+
+select.actionButtons = [
+  {
+    id: 'debug',
+    text: 'Debug',
+    onClick: () => {
+      console.log('Selected:', select.getSelected());
+      console.log('Options:', select.options);
+      console.log('Actions:', select.actionButtons);
+    }
+  }
+];
+
+EXAMPLES
+--------
+See examples-action-buttons.html for:
+- Built-in actions
+- Custom actions
+- Dynamic callbacks
+- Async operations
+- All action patterns

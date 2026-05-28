@@ -1,0 +1,399 @@
+/* ==============================================================================
+   CSS CUSTOM PROPERTIES (:host level)
+   ==============================================================================
+   This file defines all CSS custom properties at the :host level, making them:
+   - Inspectable in browser DevTools
+   - Overridable from outside Shadow DOM
+   - Self-documenting in compiled CSS
+
+   Usage from outside Shadow DOM:
+     web-dropzone {
+       --dz-accent-color: #10b981;
+       --dz-dropzone-border-radius: 1rem;
+     }
+   ============================================================================== */
+
+:host {
+  /* ==========================================================================
+     BASE SIZING UNIT
+     ==========================================================================
+     All sizing values are based on this unit for consistent scaling.
+     Default: 10px produces standard pixel values
+     Pure Admin: Set to 1rem (inherits from html { font-size: 10px })
+     Custom: Set to any value to scale all sizes proportionally */
+  --dz-rem: 10px;
+
+  /* ==========================================================================
+     FONT FAMILY (set at :host so all shadow DOM content inherits)
+     ========================================================================== */
+  font-family: var(--dz-font-family, var(--base-font-family, inherit));
+
+  /* ==========================================================================
+     HOST ELEMENT SIZING
+     ========================================================================== */
+  display: block;
+
+  /* ==========================================================================
+     COLORS & THEME
+     ========================================================================== */
+
+  /* Accent Colors */
+  --dz-accent-color: var(--base-accent-color, #3b82f6);
+  --dz-accent-color-hover: var(--base-accent-color-hover, #2563eb);
+  --dz-accent-color-active: var(--base-accent-color-active, #1d4ed8);
+
+  /* Accent Color Light Variants (for backgrounds) */
+  --dz-accent-color-light: var(--base-accent-color-light, #eff6ff);
+  --dz-accent-color-light-hover: var(--base-accent-color-light-hover, #e0f2fe);
+
+  /* Text Color Levels (FluentUI-style hierarchy) */
+  --dz-text-color-1: var(--base-text-color-1, #111827);
+  --dz-text-color-2: var(--base-text-color-2, #353b47);
+  --dz-text-color-3: var(--base-text-color-3, #6b7280);
+  --dz-text-color-4: var(--base-text-color-4, #a0a3a9);
+  --dz-text-on-accent: var(--base-text-on-accent, #ffffff);
+
+  /* Background Colors */
+  --dz-primary-bg: var(--base-primary-bg, #f3f4f6);
+  --dz-primary-bg-hover: var(--base-primary-bg-hover, #e5e7eb);
+  --dz-border-color: var(--base-border-color, #e5e7eb);
+  --dz-background: var(--base-input-background, #ffffff);
+
+  /* Semantic Colors */
+  --dz-success-color: var(--base-success-color, #10b981);
+  --dz-error-color: var(--base-danger-color, #ef4444);
+  --dz-warning-color: var(--base-warning-color, #f59e0b);
+
+  /* ==========================================================================
+     DROPZONE
+     ========================================================================== */
+  --dz-dropzone-border: 2px dashed var(--dz-border-color);
+  --dz-dropzone-border-active: 2px solid var(--dz-accent-color);
+  --dz-dropzone-border-radius: calc(var(--base-border-radius-lg, 0.8) * var(--dz-rem));
+  --dz-dropzone-bg: var(--dz-background);
+  --dz-dropzone-bg-hover: var(--dz-primary-bg);
+  --dz-dropzone-bg-active: color-mix(in srgb, var(--dz-accent-color) 5%, transparent);
+  --dz-dropzone-padding: calc(3.2 * var(--dz-rem));
+  --dz-dropzone-min-height: calc(12 * var(--dz-rem));
+
+  /* Dropzone Icon */
+  --dz-dropzone-icon-size: calc(4 * var(--dz-rem));
+  --dz-dropzone-icon-color: var(--dz-text-color-3);
+
+  /* Dropzone Text */
+  --dz-dropzone-text-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-dropzone-text-color: var(--dz-text-color-1);
+
+  /* Dropzone Hint */
+  --dz-dropzone-hint-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
+  --dz-dropzone-hint-color: var(--dz-text-color-3);
+
+  /* ==========================================================================
+     CARD SIZE VARIANTS
+     ========================================================================== */
+  /* minimal — single thin horizontal row */
+  --dz-dropzone-card-minimal-min-height: calc(5 * var(--dz-rem));
+  --dz-dropzone-card-minimal-padding: calc(1 * var(--dz-rem)) calc(1.4 * var(--dz-rem));
+  --dz-dropzone-card-minimal-icon-size: calc(2 * var(--dz-rem));
+  --dz-dropzone-card-minimal-text-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+
+  /* big — tall vertical showcase */
+  --dz-dropzone-card-big-min-height: calc(20 * var(--dz-rem));
+  --dz-dropzone-card-big-padding: calc(4 * var(--dz-rem));
+  --dz-dropzone-card-big-icon-size: calc(6 * var(--dz-rem));
+  --dz-dropzone-card-big-text-font-size: calc(var(--base-font-size-lg, 1.8) * var(--dz-rem));
+
+  /* ==========================================================================
+     BUTTON SELECTOR
+     ========================================================================== */
+  --dz-button-padding: calc(0.8 * var(--dz-rem)) calc(1.6 * var(--dz-rem));
+  --dz-button-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+
+  /* ==========================================================================
+     MINIMAL SELECTOR
+     ========================================================================== */
+  --dz-minimal-size: calc(3.6 * var(--dz-rem));
+  --dz-minimal-icon-size: calc(2 * var(--dz-rem));
+
+  /* ==========================================================================
+     BADGES LIST — composite badge (text half + remove half share radius)
+     ==========================================================================
+     Mirrors --ms-badge-* in web-multiselect so a theme written against
+     multiselect's badges can be re-applied to web-dropzone's. Default radius
+     follows --dz-dropzone-border-radius (so the badge and the card share a
+     visual language); override --dz-badge-border-radius to break the tie:
+        web-dropzone { --dz-badge-border-radius: 999px; }   // pill
+        web-dropzone { --dz-badge-border-radius: 0; }        // square
+     Colors, padding, and width of each half are independently overridable. */
+  --dz-badges-gap: calc(0.6 * var(--dz-rem));
+
+  /* Shape & sizing — badges share the dropzone card's radius by default so
+     the whole component reads as one rounded surface. Override either knob to
+     break the tie (e.g. `999px` for a pill, `0` for square). */
+  --dz-badge-height: calc(2.7 * var(--dz-rem));
+  --dz-badge-border-radius: var(--dz-dropzone-border-radius);
+  --dz-badge-max-width: calc(28 * var(--dz-rem));
+  /* Sized to match --ms-badge-font-size / font-weight: smaller, tighter glyphs
+     read as "control chrome" rather than body text. */
+  --dz-badge-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
+  --dz-badge-font-weight: var(--base-font-weight-semibold, 600);
+
+  /* Icon / thumbnail slot — fixed square box. Set --dz-badge-icon-size to 0 to
+     remove the slot entirely (no icon, no thumbnail). */
+  --dz-badge-icon-size: calc(1.4 * var(--dz-rem));
+  --dz-badge-icon-font-size: calc(1.2 * var(--dz-rem));
+  --dz-badge-icon-bg: transparent;
+  --dz-badge-icon-border-radius: calc(0.3 * var(--dz-rem));
+
+  /* Text half */
+  --dz-badge-text-padding: 0 calc(0.8 * var(--dz-rem));
+  --dz-badge-text-bg: var(--dz-accent-color-light);
+  --dz-badge-text-color: var(--dz-accent-color);
+  --dz-badge-text-border: 1px solid transparent;
+  --dz-badge-text-bg-hover: var(--dz-accent-color-light-hover);
+  --dz-badge-text-color-hover: var(--dz-badge-text-color);
+
+  /* Remove half — square pill end, equal width to badge height. */
+  --dz-badge-remove-width: calc(2.7 * var(--dz-rem));
+  --dz-badge-remove-bg: var(--dz-accent-color);
+  --dz-badge-remove-color: var(--dz-text-on-accent);
+  --dz-badge-remove-border: 1px solid transparent;
+  --dz-badge-remove-bg-hover: var(--dz-accent-color-hover);
+  --dz-badge-remove-color-hover: var(--dz-badge-remove-color);
+  --dz-badge-remove-icon-size: calc(1 * var(--dz-rem));
+  --dz-badge-remove-box-shadow-focus: 0 0 0 2px color-mix(in srgb, var(--dz-accent-color) 50%, transparent);
+
+  /* SVG X glyph rendered via -webkit-mask / mask so the X inherits whatever
+     color you set via --dz-badge-remove-color. Same trick web-multiselect
+     uses for --ms-icon-remove. */
+  --dz-icon-remove: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' d='M2.5 2.5 L9.5 9.5 M9.5 2.5 L2.5 9.5'/></svg>");
+
+  /* ==========================================================================
+     FILE LIST
+     ========================================================================== */
+  --dz-file-list-gap: calc(0.8 * var(--dz-rem));
+  --dz-file-list-margin-top: calc(1.2 * var(--dz-rem));
+  /* Cap the inline file-list container height. Default `none` = grow with
+     content. Set a length (e.g. `30rem`) and the list becomes scrollable
+     internally. The popover keeps its own knob — `--dz-popover-max-height`. */
+  --dz-file-list-max-height: none;
+
+  /* "Show N more" / "Show less" toggle row that appears at the end of the
+     inline list when `max-visible` caps the rendered items. The compact
+     "+N" badge variant for badges mode is themed via the existing
+     --dz-badge-* surface (with a few muted overrides below). */
+  --dz-show-more-padding: calc(0.6 * var(--dz-rem)) calc(1.2 * var(--dz-rem));
+  --dz-show-more-margin-top: calc(0.4 * var(--dz-rem));
+  --dz-show-more-font-size: var(--dz-font-size-xs);
+  --dz-show-more-font-weight: var(--base-font-weight-semibold, 600);
+  --dz-show-more-color: var(--dz-accent-color);
+  --dz-show-more-bg: transparent;
+  --dz-show-more-bg-hover: color-mix(in srgb, var(--dz-accent-color) 10%, transparent);
+  --dz-show-more-border: 1px dashed var(--dz-border-color);
+  --dz-show-more-border-radius: var(--dz-border-radius-md);
+
+  /* Counter badge variant (badges-list "+5" / "−" pill) — neutral colors
+     so it reads as a meta control rather than a regular file badge. */
+  --dz-badge-more-bg: var(--dz-primary-bg);
+  --dz-badge-more-color: var(--dz-text-color-2);
+  --dz-badge-more-bg-hover: var(--dz-primary-bg-hover);
+
+  /* ==========================================================================
+     FILE ITEM (List Mode)
+     ========================================================================== */
+  --dz-item-padding: calc(0.8 * var(--dz-rem)) calc(1.2 * var(--dz-rem));
+  --dz-item-border: 1px solid var(--dz-border-color);
+  --dz-item-border-radius: calc(var(--base-border-radius-sm, 0.4) * var(--dz-rem));
+  --dz-item-bg: var(--dz-background);
+  --dz-item-bg-hover: var(--dz-primary-bg);
+
+  /* File Item Icon */
+  --dz-item-icon-size: calc(3.2 * var(--dz-rem));
+  --dz-item-icon-font-size: calc(2 * var(--dz-rem));
+  --dz-item-icon-bg: color-mix(in srgb, var(--dz-accent-color) 10%, transparent);
+  --dz-item-icon-color: var(--dz-accent-color);
+
+  /* File Item Name */
+  --dz-item-name-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-item-name-font-weight: var(--base-font-weight-semibold, 600);
+  --dz-item-name-color: var(--dz-text-color-1);
+
+  /* File Item Meta */
+  --dz-item-meta-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
+  --dz-item-meta-color: var(--dz-text-color-3);
+
+  /* File Item Remove Button — empty button with × glyph painted via CSS
+     mask of --dz-icon-remove on the ::before (matches .dz__badge-remove
+     and .ms__badge-remove). */
+  --dz-item-remove-size: calc(2.4 * var(--dz-rem));
+  --dz-item-remove-bg: transparent;
+  --dz-item-remove-bg-hover: color-mix(in srgb, var(--dz-error-color) 10%, transparent);
+  --dz-item-remove-color: var(--dz-text-color-3);
+  --dz-item-remove-color-hover: var(--dz-error-color);
+  --dz-item-remove-icon-size: calc(1.2 * var(--dz-rem));
+
+  /* ==========================================================================
+     PREVIEW (Grid Mode)
+     ========================================================================== */
+  --dz-preview-grid-columns: repeat(auto-fill, minmax(calc(12 * var(--dz-rem)), 1fr));
+  --dz-preview-grid-gap: calc(1.2 * var(--dz-rem));
+  --dz-preview-item-aspect-ratio: 1;
+  --dz-preview-item-border: 1px solid var(--dz-border-color);
+  --dz-preview-item-border-radius: calc(var(--base-border-radius-md, 0.6) * var(--dz-rem));
+  --dz-preview-item-bg: var(--dz-primary-bg);
+
+  /* Preview Overlay */
+  --dz-preview-overlay-bg: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  --dz-preview-overlay-padding: calc(0.8 * var(--dz-rem));
+  --dz-preview-overlay-color: #ffffff;
+  --dz-preview-overlay-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
+
+  /* Preview Remove Button — same mask glyph as the shared remove button. */
+  --dz-preview-remove-size: calc(2.4 * var(--dz-rem));
+  --dz-preview-remove-bg: rgba(0, 0, 0, 0.5);
+  --dz-preview-remove-bg-hover: var(--dz-error-color);
+  --dz-preview-remove-color: #ffffff;
+  --dz-preview-remove-icon-size: calc(1 * var(--dz-rem));
+  --dz-preview-remove-offset: calc(0.6 * var(--dz-rem));
+
+  /* ==========================================================================
+     COMPACT MODE SUMMARY
+     ========================================================================== */
+  --dz-summary-padding: calc(0.8 * var(--dz-rem)) calc(1.2 * var(--dz-rem));
+  --dz-summary-bg: transparent;
+  --dz-summary-bg-hover: var(--dz-primary-bg);
+  --dz-summary-border-radius: calc(var(--base-border-radius-sm, 0.4) * var(--dz-rem));
+  --dz-summary-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-summary-color: var(--dz-text-color-1);
+
+  /* ==========================================================================
+     POPOVER
+     ========================================================================== */
+  --dz-popover-width: calc(48 * var(--dz-rem));
+  --dz-popover-max-width: 90vw;
+  --dz-popover-max-height: calc(40 * var(--dz-rem));
+  --dz-popover-bg: var(--dz-background);
+  --dz-popover-border: 1px solid var(--dz-border-color);
+  --dz-popover-border-radius: calc(var(--base-border-radius-lg, 0.8) * var(--dz-rem));
+  --dz-popover-box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --dz-popover-z-index: 10000;
+
+  /* Popover Header */
+  --dz-popover-header-padding: calc(1 * var(--dz-rem)) calc(1.2 * var(--dz-rem));
+  --dz-popover-header-bg: color-mix(in srgb, var(--dz-accent-color) 5%, transparent);
+  --dz-popover-header-border-bottom: 1px solid var(--dz-border-color);
+  --dz-popover-header-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-popover-header-font-weight: var(--base-font-weight-semibold, 600);
+  --dz-popover-header-color: var(--dz-text-color-1);
+  --dz-popover-header-gap: calc(0.8 * var(--dz-rem));
+
+  /* Popover Limits Hint — one-liner under the header that restates
+     accept/max-size/max-files (the card's hint isn't visible in the popover). */
+  --dz-popover-limits-padding: 0 calc(1.2 * var(--dz-rem)) calc(0.8 * var(--dz-rem));
+  --dz-popover-limits-font-size: var(--dz-font-size-xs);
+  --dz-popover-limits-color: var(--dz-text-color-3);
+  --dz-popover-limits-line-height: 1.35;
+
+  /* Popover Action Buttons (Add more / Clear all) — flat text buttons in
+     header (mirrors FluentUI's popover action buttons). */
+  --dz-popover-action-padding: calc(0.4 * var(--dz-rem)) calc(0.8 * var(--dz-rem));
+  --dz-popover-action-font-size: var(--dz-font-size-xs);
+  --dz-popover-action-font-weight: var(--base-font-weight-medium, 500);
+  --dz-popover-action-color: var(--dz-accent-color);
+  --dz-popover-action-bg-hover: color-mix(in srgb, var(--dz-accent-color) 10%, transparent);
+  --dz-popover-action-border-radius: var(--dz-border-radius-sm);
+  --dz-popover-actions-gap: calc(0.4 * var(--dz-rem));
+
+  /* Popover Body */
+  --dz-popover-body-padding: calc(0.8 * var(--dz-rem));
+
+  /* Popover Footer — overall totals (file count + total size). */
+  --dz-popover-footer-padding: calc(0.8 * var(--dz-rem)) calc(1.2 * var(--dz-rem));
+  --dz-popover-footer-bg: var(--dz-popover-bg);
+  --dz-popover-footer-border-top: 1px solid var(--dz-border-color);
+  --dz-popover-footer-font-size: var(--dz-font-size-xs);
+  --dz-popover-footer-color: var(--dz-text-color-3);
+
+  /* Popover Table */
+  --dz-popover-table-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-popover-cell-padding: calc(0.6 * var(--dz-rem)) calc(0.8 * var(--dz-rem));
+  --dz-popover-row-hover-bg: var(--dz-primary-bg);
+
+  /* Popover row icon / thumbnail slot — set --dz-popover-icon-size to 0 to
+     collapse the icon cell entirely. */
+  --dz-popover-icon-size: calc(2.4 * var(--dz-rem));
+  --dz-popover-icon-font-size: calc(1.6 * var(--dz-rem));
+  --dz-popover-icon-bg: transparent;
+  --dz-popover-icon-border-radius: calc(0.3 * var(--dz-rem));
+
+  /* Popover row remove button — same mask glyph as .dz__file-item__remove. */
+  --dz-popover-remove-size: calc(2 * var(--dz-rem));
+  --dz-popover-remove-icon-size: calc(1 * var(--dz-rem));
+  --dz-popover-remove-bg: transparent;
+  --dz-popover-remove-bg-hover: color-mix(in srgb, var(--dz-error-color) 10%, transparent);
+  --dz-popover-remove-color: var(--dz-text-color-3);
+  --dz-popover-remove-color-hover: var(--dz-error-color);
+
+  /* ==========================================================================
+     PROGRESS BAR
+     ========================================================================== */
+  --dz-progress-height: calc(0.6 * var(--dz-rem));
+  --dz-progress-bg: color-mix(in srgb, var(--dz-accent-color) 20%, transparent);
+  --dz-progress-fill-bg: var(--dz-accent-color);
+  --dz-progress-border-radius: calc(0.3 * var(--dz-rem));
+  --dz-progress-transition: width 0.3s ease;
+
+  /* ==========================================================================
+     EMPTY STATE
+     ========================================================================== */
+  --dz-empty-padding: calc(1.6 * var(--dz-rem));
+  --dz-empty-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-empty-color: var(--dz-text-color-3);
+
+  /* ==========================================================================
+     TYPOGRAPHY
+     ========================================================================== */
+  --dz-font-size-xs: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
+  --dz-font-size-sm: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-font-size-base: calc(var(--base-font-size-base, 1.6) * var(--dz-rem));
+  --dz-font-size-lg: calc(var(--base-font-size-lg, 1.8) * var(--dz-rem));
+
+  --dz-font-weight-normal: var(--base-font-weight-normal, 400);
+  --dz-font-weight-medium: var(--base-font-weight-medium, 500);
+  --dz-font-weight-semibold: var(--base-font-weight-semibold, 600);
+
+  --dz-line-height-tight: var(--base-line-height-tight, 1.25);
+  --dz-line-height-normal: var(--base-line-height-normal, 1.5);
+
+  /* ==========================================================================
+     BORDER RADIUS
+     ========================================================================== */
+  --dz-border-radius-sm: calc(var(--base-border-radius-sm, 0.4) * var(--dz-rem));
+  --dz-border-radius-md: calc(var(--base-border-radius-md, 0.6) * var(--dz-rem));
+  --dz-border-radius-lg: calc(var(--base-border-radius-lg, 0.8) * var(--dz-rem));
+
+  /* ==========================================================================
+     TRANSITIONS
+     ========================================================================== */
+  --dz-transition-fast: 150ms;
+  --dz-transition-normal: 200ms;
+  --dz-easing-snappy: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ==========================================================================
+     DISABLED STATE
+     ========================================================================== */
+  --dz-disabled-opacity: 0.5;
+
+  /* ==========================================================================
+     DRAG OVERLAY (Ultra-Compact Mode)
+     ========================================================================== */
+  --dz-overlay-bg: color-mix(in srgb, var(--dz-accent-color) 92%, transparent);
+  --dz-overlay-border: 3px dashed var(--dz-text-on-accent);
+  --dz-overlay-border-radius: var(--dz-dropzone-border-radius);
+  --dz-overlay-color: var(--dz-text-on-accent);
+  --dz-overlay-icon-size: calc(4.8 * var(--dz-rem));
+  --dz-overlay-text-font-size: calc(var(--base-font-size-lg, 1.8) * var(--dz-rem));
+  --dz-overlay-text-font-weight: var(--base-font-weight-medium, 500);
+  --dz-overlay-gap: calc(1.2 * var(--dz-rem));
+  --dz-overlay-z-index: 9999;
+}

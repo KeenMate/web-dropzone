@@ -1,0 +1,314 @@
+/* ==============================================================================
+   DROPZONE AREA
+   ==============================================================================
+   Drag-drop zone with states and prompt content */
+
+/* Base dropzone wrapper styles, scoped to the card variant. The wrapper
+   (.dz__dropzone) is still emitted for button/minimal selectors so it can
+   host the hidden <input> and serve as the bubble-up click target — but the
+   visual treatment (padding, border, background, min-height) only applies
+   when the wrapper is actually the card. Without this scoping, button and
+   minimal selectors would inherit the card's drop-zone styling and look
+   like miniature cards. */
+.dz__dropzone {
+  position: relative;
+  cursor: pointer;
+}
+
+.dz__dropzone--card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--dz-dropzone-min-height);
+  padding: var(--dz-dropzone-padding);
+  border: var(--dz-dropzone-border);
+  border-radius: var(--dz-dropzone-border-radius);
+  background: var(--dz-dropzone-bg);
+  transition: border-color var(--dz-transition-fast) var(--dz-easing-snappy),
+              background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+  text-align: center;
+}
+
+/* Hover state — card only */
+.dz__dropzone--card:hover:not(.dz__dropzone--disabled) {
+  border-color: var(--dz-accent-color);
+  background: var(--dz-dropzone-bg-hover);
+}
+
+/* Active (dragging) state — card only */
+.dz__dropzone--card.dz__dropzone--active {
+  border: var(--dz-dropzone-border-active);
+  background: var(--dz-dropzone-bg-active);
+}
+
+/* Has files state */
+.dz__dropzone--has-files {
+  /* Optional: could shrink dropzone when files are added */
+}
+
+/* Hidden file input */
+.dz__dropzone__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Dropzone content wrapper */
+.dz__dropzone__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(0.8 * var(--dz-rem));
+  pointer-events: none;
+}
+
+/* Dropzone icon */
+.dz__dropzone__icon {
+  font-size: var(--dz-dropzone-icon-size);
+  line-height: 1;
+  color: var(--dz-dropzone-icon-color);
+}
+
+/* Dropzone text */
+.dz__dropzone__text {
+  font-size: var(--dz-dropzone-text-font-size);
+  color: var(--dz-dropzone-text-color);
+  line-height: var(--dz-line-height-normal);
+}
+
+.dz__dropzone__text strong {
+  font-weight: var(--dz-font-weight-semibold);
+}
+
+/* Dropzone hint */
+.dz__dropzone__hint {
+  font-size: var(--dz-dropzone-hint-font-size);
+  color: var(--dz-dropzone-hint-color);
+  line-height: var(--dz-line-height-tight);
+}
+
+/* ==========================================================================
+   CARD SIZES (selectorAppearance='card')
+   ==========================================================================
+   The card variants tweak padding, icon size, and content layout. The default
+   `compact` matches the historical look; `minimal` shrinks the card to a
+   single horizontal row; `big` is the tall vertical showcase. */
+
+/* minimal — thin horizontal row, no centered icon stack */
+.dz__dropzone--card-minimal {
+  min-height: var(--dz-dropzone-card-minimal-min-height);
+  padding: var(--dz-dropzone-card-minimal-padding);
+}
+.dz__dropzone--card-minimal .dz__dropzone__content {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: calc(0.6 * var(--dz-rem)) calc(1 * var(--dz-rem));
+  justify-content: center;
+}
+.dz__dropzone--card-minimal .dz__dropzone__icon {
+  font-size: var(--dz-dropzone-card-minimal-icon-size);
+}
+.dz__dropzone--card-minimal .dz__dropzone__text {
+  font-size: var(--dz-dropzone-card-minimal-text-font-size);
+}
+
+/* compact — default, no override needed (rules at top of file already match) */
+
+/* big — tall vertical showcase with optional Browse button */
+.dz__dropzone--card-big {
+  min-height: var(--dz-dropzone-card-big-min-height);
+  padding: var(--dz-dropzone-card-big-padding);
+}
+.dz__dropzone--card-big .dz__dropzone__content {
+  gap: calc(1.2 * var(--dz-rem));
+}
+.dz__dropzone--card-big .dz__dropzone__icon {
+  font-size: var(--dz-dropzone-card-big-icon-size);
+}
+.dz__dropzone--card-big .dz__dropzone__text {
+  font-size: var(--dz-dropzone-card-big-text-font-size);
+  font-weight: var(--dz-font-weight-semibold);
+}
+
+/* Explicit Browse button shown only at card-size=big */
+.dz__card__action {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  padding: calc(0.7 * var(--dz-rem)) calc(1.6 * var(--dz-rem));
+  background: var(--dz-accent-color);
+  color: var(--dz-text-on-accent);
+  border-radius: var(--dz-border-radius-md);
+  font-size: var(--dz-font-size-sm);
+  font-weight: var(--dz-font-weight-medium);
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+.dz__card__action:hover {
+  background: var(--dz-accent-color-hover);
+}
+
+/* ==========================================================================
+   BUTTON SELECTOR (selectorAppearance='button')
+   ==========================================================================
+   A single accent-styled "Select files" button. No drop zone visual, no drag
+   handling — file selection is via the picker dialog only. The wrapper is
+   kept as .dz__dropzone (positioning context for the hidden input) but is
+   reduced to display: contents so the button alone determines layout. */
+.dz__dropzone--button {
+  display: inline-block;
+  align-self: start;
+  cursor: default;
+}
+.dz__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--dz-button-padding);
+  background: var(--dz-accent-color);
+  color: var(--dz-text-on-accent);
+  border: none;
+  border-radius: var(--dz-border-radius-md);
+  font-size: var(--dz-button-font-size);
+  font-weight: var(--dz-font-weight-medium);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+.dz__button:hover:not(:disabled) {
+  background: var(--dz-accent-color-hover);
+}
+.dz__button:disabled {
+  opacity: var(--dz-disabled-opacity);
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   MINIMAL SELECTOR (selectorAppearance='minimal')
+   ==========================================================================
+   Compact icon-only button with an optional file-count badge. Matches
+   FluentUI InputFile's minimal selector. */
+.dz__dropzone--minimal {
+  display: inline-block;
+  align-self: start;
+  cursor: default;
+}
+.dz__minimal {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dz-minimal-size);
+  height: var(--dz-minimal-size);
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--dz-border-color);
+  border-radius: var(--dz-border-radius-md);
+  color: var(--dz-text-color-2);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+.dz__minimal:hover:not(:disabled) {
+  background: var(--dz-primary-bg-hover);
+  border-color: var(--dz-accent-color);
+}
+.dz__minimal:disabled {
+  opacity: var(--dz-disabled-opacity);
+  cursor: not-allowed;
+}
+.dz__minimal__icon {
+  font-size: var(--dz-minimal-icon-size);
+  line-height: 1;
+}
+.dz__minimal__badge {
+  position: absolute;
+  top: calc(-0.4 * var(--dz-rem));
+  right: calc(-0.4 * var(--dz-rem));
+  min-width: calc(1.8 * var(--dz-rem));
+  height: calc(1.8 * var(--dz-rem));
+  padding: 0 calc(0.4 * var(--dz-rem));
+  background: var(--dz-accent-color);
+  color: var(--dz-text-on-accent);
+  border: 2px solid var(--dz-background);
+  border-radius: 999px;
+  font-size: calc(1.1 * var(--dz-rem));
+  font-weight: var(--dz-font-weight-semibold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ==========================================================================
+   FILES-INSIDE MODE
+   ========================================================================== */
+.dz__dropzone--files-inside {
+  min-height: var(--dz-dropzone-min-height);
+  padding-bottom: calc(1.6 * var(--dz-rem));
+}
+
+.dz__dropzone--files-inside.dz__dropzone--has-files .dz__dropzone__content {
+  margin-bottom: calc(1.2 * var(--dz-rem));
+}
+
+/* Files inside container */
+.dz__files-inside {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(0.8 * var(--dz-rem));
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  pointer-events: auto;
+}
+
+.dz__files-inside:empty {
+  display: none;
+}
+
+/* List mode inside dropzone */
+.dz__files-inside--list {
+  flex-direction: column;
+  align-items: center;
+  max-width: calc(40 * var(--dz-rem));
+}
+
+.dz__files-inside--list .dz__file-item--list {
+  width: 100%;
+  background: var(--dz-background);
+  border: 1px solid var(--dz-border-color);
+  border-radius: var(--dz-item-border-radius);
+  padding: calc(0.6 * var(--dz-rem)) calc(1 * var(--dz-rem));
+}
+
+/* Detailed mode inside dropzone */
+.dz__files-inside--detailed {
+  flex-direction: column;
+  align-items: stretch;
+  max-width: calc(40 * var(--dz-rem));
+}
+
+.dz__files-inside--detailed .dz__file-item--detailed {
+  background: var(--dz-background);
+  border: 1px solid var(--dz-border-color);
+  border-radius: var(--dz-item-border-radius);
+  padding: calc(0.8 * var(--dz-rem));
+}
+
+/* Grid mode inside dropzone */
+.dz__files-inside--grid {
+  justify-content: center;
+}
+
+.dz__files-inside--grid .dz__preview-item {
+  width: var(--dz-preview-item-size);
+  height: var(--dz-preview-item-size);
+}

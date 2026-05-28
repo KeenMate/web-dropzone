@@ -1,0 +1,501 @@
+TYPESCRIPT TYPES
+================
+
+CRITICAL: Full TypeScript support included
+- No @types package needed
+- Generic type support for custom objects
+- All interfaces exported
+- Type-safe callbacks
+- Strict typing throughout
+
+IMPORTING TYPES
+---------------
+Import type definitions:
+
+import type {
+  MultiSelectOption,
+  MultiSelectConfig,
+  MultiSelectEventDetail,
+  BadgesDisplayMode,
+  SearchMode,
+  ActionButton
+} from '@keenmate/web-multiselect';
+
+MULTISELECTOPTION INTERFACE
+---------------------------
+Standard option interface:
+
+interface MultiSelectOption {
+  value: string | number;         // Unique identifier
+  label: string;                  // Display text
+  icon?: string;                  // Icon or emoji
+  subtitle?: string;              // Secondary text
+  group?: string;                 // Group name
+  disabled?: boolean;             // Disabled state
+  selected?: boolean;             // Initial selection
+}
+
+Usage:
+const options: MultiSelectOption[] = [
+  { value: 1, label: 'JavaScript', icon: '🟨' },
+  { value: 2, label: 'TypeScript', icon: '🔷' }
+];
+
+GENERIC TYPE SUPPORT
+--------------------
+Use generics for custom objects:
+
+interface User {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+const users: User[] = [...];
+
+// Type-safe callbacks
+select.getValueCallback = (user: User): number => user.id;
+select.getDisplayValueCallback = (user: User): string =>
+  `${user.firstName} ${user.lastName}`;
+
+Or extend MultiSelectOption:
+interface UserOption extends Partial<MultiSelectOption> {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+MULTISELECTCONFIG INTERFACE
+---------------------------
+Configuration interface:
+
+interface MultiSelectConfig<T = any> {
+  multiple?: boolean;
+  enableSearch?: boolean;
+  searchPlaceholder?: string;
+  searchMode?: SearchMode;
+  closeOnSelect?: boolean;
+  showCheckboxes?: boolean;
+  allowGroups?: boolean;
+  badgesDisplayMode?: BadgesDisplayMode;
+  badgesPosition?: BadgesPosition;
+  // ... all config properties
+}
+
+Usage:
+const config: MultiSelectConfig = {
+  multiple: true,
+  enableSearch: true,
+  badgesDisplayMode: 'pills'
+};
+
+MULTISELECTEVENTDETAIL INTERFACE
+--------------------------------
+Event detail types:
+
+interface SelectEventDetail<T = any> {
+  option: T;                      // Selected option
+  selectedOptions: T[];           // All selected options
+}
+
+interface DeselectEventDetail<T = any> {
+  option: T;                      // Deselected option
+  selectedOptions: T[];           // Remaining options
+}
+
+interface ChangeEventDetail<T = any> {
+  selectedOptions: T[];           // All selected options
+  selectedValues: (string | number)[]; // Values only
+}
+
+Usage:
+select.addEventListener('change', (e: CustomEvent<ChangeEventDetail>) => {
+  console.log(e.detail.selectedOptions);
+  console.log(e.detail.selectedValues);
+});
+
+STRING LITERAL TYPES
+--------------------
+Enum-like string types:
+
+type BadgesDisplayMode = 'pills' | 'count' | 'compact' | 'partial' | 'none';
+type SearchMode = 'filter' | 'navigate';
+type BadgesPosition = 'top' | 'bottom' | 'left' | 'right';
+type BadgesThresholdMode = 'count' | 'partial';
+type SearchInputMode = 'normal' | 'readonly' | 'hidden';
+type CheckboxAlign = 'top' | 'center' | 'bottom';
+type ActionsLayout = 'nowrap' | 'wrap';
+
+Usage:
+const displayMode: BadgesDisplayMode = 'pills';
+const searchMode: SearchMode = 'filter';
+
+ACTIONBUTTON INTERFACE
+----------------------
+Action button type:
+
+interface ActionButton {
+  id: string;
+  text?: string;
+  icon?: string;
+  cssClass?: string | string[];
+  tooltip?: string | TooltipFunction;
+  isVisible?: boolean;
+  isDisabled?: boolean;
+  getTextCallback?: () => string;
+  getClassCallback?: () => string | string[];
+  isVisibleCallback?: () => boolean;
+  isDisabledCallback?: () => boolean;
+  onClick: () => void | Promise<void>;
+}
+
+type TooltipFunction = () => string | HTMLElement;
+
+Usage:
+const actions: ActionButton[] = [
+  {
+    id: 'select-all',
+    text: 'Select All',
+    onClick: () => selectAll()
+  }
+];
+
+CALLBACK FUNCTION TYPES
+-----------------------
+All callback signatures:
+
+type GetValueCallback<T> = (item: T) => string | number;
+type GetDisplayValueCallback<T> = (item: T) => string;
+type GetSearchValueCallback<T> = (item: T) => string;
+type GetIconCallback<T> = (item: T) => string;
+type GetSubtitleCallback<T> = (item: T) => string;
+type GetGroupCallback<T> = (item: T) => string;
+type GetDisabledCallback<T> = (item: T) => boolean;
+
+type SelectCallback<T> = (option: T) => void;
+type DeselectCallback<T> = (option: T) => void;
+type ChangeCallback<T> = (selectedOptions: T[]) => void;
+
+type SearchCallback<T> = (searchTerm: string) => Promise<T[]> | T[];
+type BeforeSearchCallback = (searchTerm: string) => string | null;
+type AddNewCallback<T> = (value: string) => T | Promise<T>;
+
+RENDER CALLBACK TYPES
+---------------------
+Rendering function signatures:
+
+interface RenderContext {
+  index: number;
+  isSelected: boolean;
+  isFocused: boolean;
+  isMatched: boolean;
+  isDisabled: boolean;
+}
+
+interface BadgeRenderContext {
+  displayMode: BadgesDisplayMode;
+  isInPopover: boolean;
+  remainingCount?: number;
+}
+
+type RenderOptionContentCallback<T> = (
+  option: T,
+  context: RenderContext
+) => string | HTMLElement;
+
+type RenderBadgeContentCallback<T> = (
+  option: T,
+  context: BadgeRenderContext
+) => string | HTMLElement;
+
+type RenderSelectedItemContentCallback<T> = (
+  option: T
+) => string | HTMLElement;
+
+type RenderSelectedContentCallback<T> = (
+  option: T
+) => string;
+
+ELEMENT TYPE DEFINITION
+-----------------------
+Extend HTMLElement for component:
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'web-multiselect': MultiSelectElement;
+  }
+}
+
+interface MultiSelectElement extends HTMLElement {
+  // Properties
+  options: any[];
+  multiple: boolean;
+  enableSearch: boolean;
+  searchPlaceholder: string;
+  // ... all properties
+
+  // Methods
+  getSelected(): any[];
+  getValue(): any | any[];
+  setSelected(values: (string | number)[]): void;
+  destroy(): void;
+
+  // Callbacks
+  getValueCallback?: GetValueCallback<any>;
+  changeCallback?: ChangeCallback<any>;
+  // ... all callbacks
+}
+
+Usage:
+const select = document.querySelector('web-multiselect') as MultiSelectElement;
+select.options = [...];
+
+Or with proper typing:
+const select = document.querySelector('web-multiselect');
+if (select) {
+  (select as MultiSelectElement).options = [...];
+}
+
+GENERIC COMPONENT TYPE
+----------------------
+Type-safe component reference:
+
+function setupMultiSelect<T extends MultiSelectOption>(
+  selector: string,
+  options: T[]
+): MultiSelectElement {
+  const select = document.querySelector(selector) as MultiSelectElement;
+
+  select.options = options;
+
+  select.changeCallback = (selected: T[]) => {
+    console.log('Selected:', selected);
+  };
+
+  return select;
+}
+
+// Usage
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+}
+
+const select = setupMultiSelect<Product>('web-multiselect', products);
+
+TYPE GUARDS
+-----------
+Check types at runtime:
+
+function isMultiSelectOption(obj: any): obj is MultiSelectOption {
+  return (
+    obj &&
+    typeof obj === 'object' &&
+    ('value' in obj) &&
+    ('label' in obj)
+  );
+}
+
+if (isMultiSelectOption(data)) {
+  // TypeScript knows data is MultiSelectOption
+  console.log(data.value, data.label);
+}
+
+UNION TYPES
+-----------
+Handle multiple value types:
+
+type OptionValue = string | number;
+
+interface FlexibleOption {
+  value: OptionValue;
+  label: string;
+}
+
+function processValue(value: OptionValue): void {
+  if (typeof value === 'string') {
+    // Handle string
+  } else {
+    // Handle number
+  }
+}
+
+PARTIAL TYPES
+-------------
+Optional configuration:
+
+type PartialConfig = Partial<MultiSelectConfig>;
+
+const config: PartialConfig = {
+  multiple: true,
+  enableSearch: true
+  // Other properties optional
+};
+
+UTILITY TYPES
+-------------
+Extract specific properties:
+
+type OptionData = Pick<MultiSelectOption, 'value' | 'label'>;
+
+type ReadonlyOption = Readonly<MultiSelectOption>;
+
+type RequiredOption = Required<MultiSelectOption>;
+
+FRAMEWORK INTEGRATION
+---------------------
+React with TypeScript:
+
+import { useRef, useEffect } from 'react';
+import type { MultiSelectElement, MultiSelectOption } from '@keenmate/web-multiselect';
+
+interface Props {
+  options: MultiSelectOption[];
+  onChange: (selected: MultiSelectOption[]) => void;
+}
+
+function MyComponent({ options, onChange }: Props) {
+  const selectRef = useRef<MultiSelectElement>(null);
+
+  useEffect(() => {
+    const select = selectRef.current;
+    if (!select) return;
+
+    select.options = options;
+
+    const handleChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      onChange(detail.selectedOptions);
+    };
+
+    select.addEventListener('change', handleChange);
+
+    return () => {
+      select.removeEventListener('change', handleChange);
+    };
+  }, [options, onChange]);
+
+  return <web-multiselect ref={selectRef} />;
+}
+
+Vue 3 with TypeScript:
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import type { MultiSelectElement, MultiSelectOption } from '@keenmate/web-multiselect';
+
+interface Props {
+  options: MultiSelectOption[];
+}
+
+const props = defineProps<Props>();
+const select = ref<MultiSelectElement | null>(null);
+
+onMounted(() => {
+  if (select.value) {
+    select.value.options = props.options;
+  }
+});
+</script>
+
+<template>
+  <web-multiselect ref="select"></web-multiselect>
+</template>
+
+STRICT NULL CHECKS
+------------------
+Handle nullable types:
+
+function getSelectValue(select: MultiSelectElement | null): (string | number)[] {
+  if (!select) return [];
+
+  const value = select.getValue();
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  return [value];
+}
+
+ASYNC TYPES
+-----------
+Async callback types:
+
+const searchCallback: SearchCallback<MultiSelectOption> = async (
+  searchTerm: string
+): Promise<MultiSelectOption[]> => {
+  const response = await fetch(`/api/search?q=${searchTerm}`);
+  return await response.json();
+};
+
+TYPE INFERENCE
+--------------
+Let TypeScript infer types:
+
+const options = [
+  { value: 1, label: 'JavaScript' },
+  { value: 2, label: 'TypeScript' }
+];  // Type inferred as { value: number; label: string; }[]
+
+select.getValueCallback = (item) => item.value;  // Type inferred
+
+BEST PRACTICES
+--------------
+✅ Import types explicitly
+✅ Use generics for custom objects
+✅ Define interfaces for your data
+✅ Use type guards for runtime checks
+✅ Leverage type inference
+✅ Use strict TypeScript settings
+✅ Document complex types
+✅ Test types with type-only tests
+
+❌ Don't use `any` unnecessarily
+❌ Don't skip type annotations for public APIs
+❌ Don't ignore TypeScript errors
+❌ Don't use `as any` to bypass types
+
+COMMON PATTERNS
+---------------
+Basic typed usage:
+import type { MultiSelectOption } from '@keenmate/web-multiselect';
+
+const options: MultiSelectOption[] = [
+  { value: 1, label: 'Option 1' }
+];
+
+Generic usage:
+interface Product {
+  id: number;
+  name: string;
+}
+
+select.getValueCallback = (product: Product) => product.id;
+select.getDisplayValueCallback = (product: Product) => product.name;
+
+Event handling:
+select.addEventListener('change', (e: Event) => {
+  const detail = (e as CustomEvent).detail;
+  console.log(detail.selectedOptions);
+});
+
+TSCONFIG RECOMMENDATIONS
+------------------------
+Recommended TypeScript config:
+
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM"],
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true
+  }
+}

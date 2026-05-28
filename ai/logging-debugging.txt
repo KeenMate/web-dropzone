@@ -1,0 +1,459 @@
+LOGGING & DEBUGGING
+===================
+
+CRITICAL: Categorized logging system for debugging
+- 4 categories: INIT, DATA, UI, INTERACTION
+- Runtime enable/disable
+- Log level control (error, warn, info, debug, trace)
+- Color-coded console output
+- No performance impact when disabled
+
+ENABLING LOGGING
+----------------
+Enable all logging:
+
+import { enableLogging } from '@keenmate/web-multiselect';
+enableLogging();
+
+Or via global API:
+window.components['web-multiselect'].logging.enableLogging();
+
+DISABLING LOGGING
+-----------------
+Disable all logging:
+
+import { disableLogging } from '@keenmate/web-multiselect';
+disableLogging();
+
+Or:
+window.components['web-multiselect'].logging.disableLogging();
+
+LOG CATEGORIES
+--------------
+Four logging categories:
+
+MULTISELECT:INIT
+- Component initialization
+- Configuration setup
+- DOM mounting
+- Shadow DOM creation
+
+MULTISELECT:DATA
+- Option processing
+- Data transformation
+- Selection changes
+- Value updates
+
+MULTISELECT:UI
+- Rendering
+- Dropdown positioning
+- Virtual scrolling
+- UI updates
+
+MULTISELECT:INTERACTION
+- User interactions
+- Keyboard events
+- Mouse events
+- Search operations
+
+LOG LEVELS
+----------
+Five log levels (lowest to highest):
+
+trace: Verbose debugging
+- Every function call
+- Internal state changes
+- Performance markers
+
+debug: Detailed debugging
+- Key operations
+- Decision points
+- Data structures
+
+info: General information
+- Important events
+- State transitions
+- User actions
+
+warn: Warnings
+- Non-critical issues
+- Deprecations
+- Best practice violations
+
+error: Errors
+- Critical failures
+- Exceptions
+- Invalid states
+
+SETTING LOG LEVEL
+-----------------
+Global log level:
+
+import { setLogLevel } from '@keenmate/web-multiselect';
+setLogLevel('debug');
+
+Levels: 'error', 'warn', 'info', 'debug', 'trace'
+
+Or via global API:
+window.components['web-multiselect'].logging.setLogLevel('debug');
+
+CATEGORY-SPECIFIC LEVELS
+------------------------
+Set level for specific category:
+
+import { setCategoryLevel } from '@keenmate/web-multiselect';
+
+setCategoryLevel('MULTISELECT:DATA', 'debug');
+setCategoryLevel('MULTISELECT:UI', 'warn');
+setCategoryLevel('MULTISELECT:INIT', 'info');
+setCategoryLevel('MULTISELECT:INTERACTION', 'debug');
+
+This allows fine-grained control
+
+CONSOLE OUTPUT
+--------------
+Logging produces color-coded output:
+
+[MULTISELECT:INIT] Component initialized
+- Blue/cyan colors
+- Timestamps
+- Category labels
+- Clear hierarchy
+
+[MULTISELECT:DATA] Options updated: 150 items
+[MULTISELECT:UI] Dropdown opened
+[MULTISELECT:INTERACTION] Option selected: JavaScript
+
+DEBUGGING INITIALIZATION
+------------------------
+Debug component setup:
+
+import { setCategoryLevel } from '@keenmate/web-multiselect';
+setCategoryLevel('MULTISELECT:INIT', 'debug');
+
+Logs show:
+- Component creation
+- Config parsing
+- Attribute processing
+- Initial state
+
+DEBUGGING DATA
+--------------
+Debug data handling:
+
+setCategoryLevel('MULTISELECT:DATA', 'debug');
+
+Logs show:
+- Options array updates
+- Selection changes
+- Value transformations
+- Callback executions
+
+DEBUGGING UI
+------------
+Debug rendering and layout:
+
+setCategoryLevel('MULTISELECT:UI', 'debug');
+
+Logs show:
+- Render cycles
+- Dropdown positioning
+- Virtual scroll updates
+- Style applications
+
+DEBUGGING INTERACTIONS
+----------------------
+Debug user interactions:
+
+setCategoryLevel('MULTISELECT:INTERACTION', 'debug');
+
+Logs show:
+- Click events
+- Keyboard input
+- Search operations
+- Focus changes
+
+PRODUCTION BUILDS
+-----------------
+Disable logging in production:
+
+// main.js
+if (import.meta.env.PROD) {
+  import { disableLogging } from '@keenmate/web-multiselect';
+  disableLogging();
+}
+
+Or check NODE_ENV:
+if (process.env.NODE_ENV === 'production') {
+  disableLogging();
+}
+
+PERFORMANCE IMPACT
+------------------
+When disabled: Zero overhead
+- No log statements executed
+- No string formatting
+- No console calls
+
+When enabled:
+- Minimal impact
+- Only active categories log
+- Console.log is async
+
+CUSTOM LOGGING
+--------------
+Log from your code:
+
+// Get logger instance (if exposed)
+const logger = window.components['web-multiselect'].logging.getLogger();
+
+// Or just use console
+console.log('[APP] Custom log');
+
+DEBUGGING COMMON ISSUES
+-----------------------
+Issue: Options not showing
+
+Enable logging:
+setCategoryLevel('MULTISELECT:DATA', 'debug');
+
+Check logs for:
+- Options array received
+- Data transformation
+- Filter/search state
+
+Issue: Dropdown positioning wrong
+
+Enable logging:
+setCategoryLevel('MULTISELECT:UI', 'debug');
+
+Check logs for:
+- Dropdown position calculations
+- Floating UI calls
+- Viewport boundaries
+
+Issue: Selection not working
+
+Enable logging:
+setCategoryLevel('MULTISELECT:INTERACTION', 'debug');
+
+Check logs for:
+- Click events
+- Selection callbacks
+- State updates
+
+Issue: Performance problems
+
+Enable logging:
+setCategoryLevel('MULTISELECT:UI', 'debug');
+
+Check logs for:
+- Render frequency
+- Virtual scroll status
+- Option count
+
+BROWSER DEVTOOLS
+----------------
+Additional debugging tools:
+
+Elements panel:
+1. Inspect <web-multiselect>
+2. Expand #shadow-root
+3. View internal DOM
+4. Check applied styles
+
+Console:
+- Enable logging
+- Run commands
+- Inspect state
+
+Breakpoints:
+- Set in source code
+- Debug callbacks
+- Step through execution
+
+INSPECTING STATE
+----------------
+Check component state:
+
+const select = document.querySelector('web-multiselect');
+
+console.log('Options:', select.options);
+console.log('Selected:', select.getSelected());
+console.log('Values:', select.getValue());
+console.log('Search term:', select.searchTerm);
+console.log('Multiple:', select.multiple);
+console.log('Dropdown open:', select.dropdownOpen);
+
+DEBUGGING CALLBACKS
+-------------------
+Log callback execution:
+
+select.changeCallback = (selectedOptions) => {
+  console.log('Change callback:', selectedOptions);
+  // Your logic
+};
+
+select.searchCallback = async (searchTerm) => {
+  console.log('Search callback:', searchTerm);
+  const results = await fetchResults(searchTerm);
+  console.log('Search results:', results.length);
+  return results;
+};
+
+DEBUGGING EVENTS
+----------------
+Log all events:
+
+['select', 'deselect', 'change'].forEach(eventName => {
+  select.addEventListener(eventName, (e) => {
+    console.log(`Event: ${eventName}`, e.detail);
+  });
+});
+
+PERFORMANCE PROFILING
+---------------------
+Measure performance:
+
+console.time('options-update');
+select.options = largeArray;
+console.timeEnd('options-update');
+
+console.time('dropdown-open');
+// Click to open dropdown
+console.timeEnd('dropdown-open');
+
+Or use Performance API:
+const start = performance.now();
+select.options = largeArray;
+const end = performance.now();
+console.log(`Update took ${end - start}ms`);
+
+MEMORY DEBUGGING
+----------------
+Check memory usage:
+
+// Before
+const before = performance.memory?.usedJSHeapSize;
+
+// Create multiselect
+const select = document.createElement('web-multiselect');
+select.options = largeArray;
+document.body.appendChild(select);
+
+// After
+const after = performance.memory?.usedJSHeapSize;
+console.log(`Memory increase: ${(after - before) / 1024 / 1024}MB`);
+
+NETWORK DEBUGGING
+-----------------
+Debug async search:
+
+select.searchCallback = async (searchTerm) => {
+  console.log('Fetching results for:', searchTerm);
+
+  const start = performance.now();
+  const response = await fetch(`/api/search?q=${searchTerm}`);
+  const end = performance.now();
+
+  console.log(`Fetch took ${end - start}ms`);
+
+  const results = await response.json();
+  console.log(`Returned ${results.length} results`);
+
+  return results;
+};
+
+ERROR HANDLING
+--------------
+Log errors:
+
+select.searchCallback = async (searchTerm) => {
+  try {
+    const response = await fetch(`/api/search?q=${searchTerm}`);
+    return await response.json();
+  } catch (error) {
+    console.error('Search failed:', error);
+    return [];
+  }
+};
+
+Catch render errors:
+select.renderOptionContentCallback = (option, context) => {
+  try {
+    return customRender(option, context);
+  } catch (error) {
+    console.error('Render error:', error);
+    return option.label;  // Fallback
+  }
+};
+
+VERSION CHECKING
+----------------
+Check component version:
+
+import { version } from '@keenmate/web-multiselect';
+console.log('Version:', version);
+
+Or:
+console.log('Version:', window.components['web-multiselect'].version());
+
+DEBUGGING CHECKLIST
+-------------------
+When debugging issues:
+
+1. Enable appropriate logging category
+2. Check browser console for errors
+3. Inspect component state
+4. Verify data structure
+5. Check event listeners
+6. Test in isolation
+7. Check browser compatibility
+8. Review documentation
+
+BEST PRACTICES
+--------------
+✅ Enable logging in development
+✅ Disable logging in production
+✅ Use category-specific levels
+✅ Log important state changes
+✅ Handle errors gracefully
+✅ Use browser DevTools
+✅ Profile performance issues
+✅ Test with various data sizes
+
+❌ Don't leave logging enabled in production
+❌ Don't log sensitive data
+❌ Don't spam console
+❌ Don't ignore error logs
+❌ Don't skip browser tools
+
+COMMON DEBUG SCENARIOS
+----------------------
+Debug data not updating:
+setCategoryLevel('MULTISELECT:DATA', 'debug');
+select.options = newData;
+// Check console for data processing
+
+Debug render issues:
+setCategoryLevel('MULTISELECT:UI', 'debug');
+// Open dropdown
+// Check console for render calls
+
+Debug selection issues:
+setCategoryLevel('MULTISELECT:INTERACTION', 'debug');
+// Try selecting options
+// Check console for events
+
+Debug performance:
+console.time('operation');
+// Perform operation
+console.timeEnd('operation');
+
+EXAMPLES
+--------
+See examples-logging.html for:
+- Logging demonstrations
+- Category examples
+- Debug workflows
+- Common issue resolutions

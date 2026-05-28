@@ -1,0 +1,484 @@
+SELECTION MODES
+===============
+
+CRITICAL: Two distinct modes with different behaviors
+- Multi-select (default): multiple="true", returns array
+- Single-select: multiple="false", returns single value, auto-closes
+
+MULTI-SELECT MODE (DEFAULT)
+---------------------------
+Allows selecting multiple options:
+
+<web-multiselect multiple="true">
+  <option value="1">Option 1</option>
+  <option value="2">Option 2</option>
+  <option value="3">Option 3</option>
+</web-multiselect>
+
+Or omit (true is default):
+<web-multiselect>
+  <option value="1">Option 1</option>
+</web-multiselect>
+
+Programmatic:
+const select = document.querySelector('web-multiselect');
+select.multiple = true;
+
+Behavior:
+- Checkboxes shown (configurable)
+- Dropdown stays open after selection
+- Returns array of values
+- Multiple badges displayed
+
+SINGLE-SELECT MODE
+------------------
+Allows selecting only one option:
+
+<web-multiselect multiple="false">
+  <option value="1">Option 1</option>
+  <option value="2">Option 2</option>
+  <option value="3">Option 3</option>
+</web-multiselect>
+
+Programmatic:
+select.multiple = false;
+
+Behavior:
+- No checkboxes
+- Dropdown closes after selection
+- Returns single value (not array)
+- Shows selected value in input field
+
+GETTING SELECTED VALUES
+------------------------
+Multiple ways to retrieve selection:
+
+Method 1: getValue() - Returns value(s)
+const value = select.getValue();
+
+Multi-select returns array:
+// [1, 2, 3]
+
+Single-select returns single value:
+// 1
+
+Method 2: getSelected() - Returns full option objects
+const selected = select.getSelected();
+
+Multi-select returns array of objects:
+// [
+//   { value: 1, label: 'Option 1' },
+//   { value: 2, label: 'Option 2' }
+// ]
+
+Single-select returns array with one object:
+// [{ value: 1, label: 'Option 1' }]
+
+IMPORTANT: getSelected() always returns array, even in single-select mode
+
+Method 3: Event detail
+select.addEventListener('change', (e) => {
+  console.log(e.detail.selectedValues);   // Value(s)
+  console.log(e.detail.selectedOptions);  // Full objects
+});
+
+SETTING SELECTED VALUES
+------------------------
+Set selection programmatically:
+
+setSelected() method:
+select.setSelected([1, 2, 3]);  // Multi-select
+select.setSelected([1]);        // Single-select
+
+IMPORTANT: Always pass array, even for single-select
+
+Or set during initialization:
+select.options = [
+  { value: 1, label: 'Option 1', selected: true },
+  { value: 2, label: 'Option 2', selected: true },
+  { value: 3, label: 'Option 3' }
+];
+
+Or with initial-values attribute:
+<web-multiselect initial-values='[1, 2]'>
+
+CLOSE-ON-SELECT
+---------------
+Control dropdown behavior after selection:
+
+Multi-select with auto-close:
+<web-multiselect close-on-select="true">
+  <option value="1">Option 1</option>
+</web-multiselect>
+
+Programmatic:
+select.closeOnSelect = true;
+
+Default behavior:
+- Multi-select: false (stays open)
+- Single-select: true (always closes, not configurable)
+
+Use case:
+- Quick single selection from multi-select
+- "Add tags" type interfaces
+- Mobile-friendly interfaces
+
+CLEARING SELECTION
+------------------
+Clear all selected options:
+
+select.setSelected([]);
+
+Or use clear-all action button:
+<web-multiselect>
+  <!-- Built-in clear button available -->
+</web-multiselect>
+
+Listen to change event:
+select.addEventListener('change', (e) => {
+  if (e.detail.selectedValues.length === 0) {
+    console.log('Selection cleared');
+  }
+});
+
+SELECTING ALL
+-------------
+Select all options programmatically:
+
+const allValues = select.options.map(opt => opt.value);
+select.setSelected(allValues);
+
+Or use select-all action button:
+See action-buttons.txt for details
+
+CHECKING IF SELECTED
+--------------------
+Check if specific value is selected:
+
+const selected = select.getValue();
+
+// Multi-select
+if (Array.isArray(selected) && selected.includes(1)) {
+  console.log('Option 1 is selected');
+}
+
+// Single-select
+if (selected === 1) {
+  console.log('Option 1 is selected');
+}
+
+Or check selected property:
+const option = select.options.find(opt => opt.value === 1);
+if (option?.selected) {
+  console.log('Option 1 is selected');
+}
+
+SELECTION EVENTS
+----------------
+Listen to selection changes:
+
+select event (single option):
+select.addEventListener('select', (e) => {
+  console.log('Selected:', e.detail.option);
+  console.log('All selected:', e.detail.selectedOptions);
+});
+
+deselect event (single option):
+select.addEventListener('deselect', (e) => {
+  console.log('Deselected:', e.detail.option);
+  console.log('Remaining:', e.detail.selectedOptions);
+});
+
+change event (all selections):
+select.addEventListener('change', (e) => {
+  console.log('Selected options:', e.detail.selectedOptions);
+  console.log('Selected values:', e.detail.selectedValues);
+});
+
+SELECTION LIMITS
+----------------
+Limit number of selections (custom implementation):
+
+select.addEventListener('select', (e) => {
+  const maxSelections = 3;
+  if (e.detail.selectedOptions.length > maxSelections) {
+    // Prevent selection
+    const currentValues = e.detail.selectedOptions
+      .slice(0, maxSelections)
+      .map(opt => opt.value);
+    select.setSelected(currentValues);
+    alert(`Maximum ${maxSelections} selections allowed`);
+  }
+});
+
+Or use callback:
+select.selectCallback = (option) => {
+  const current = select.getSelected();
+  if (current.length >= 3) {
+    alert('Maximum 3 selections');
+    return; // Don't select
+  }
+};
+
+MINIMUM SELECTIONS
+------------------
+Enforce minimum selections (custom implementation):
+
+select.addEventListener('deselect', (e) => {
+  const minSelections = 1;
+  if (e.detail.selectedOptions.length < minSelections) {
+    // Prevent deselection
+    select.setSelected([e.detail.option.value]);
+    alert(`Minimum ${minSelections} selection required`);
+  }
+});
+
+SINGLE-SELECT DISPLAY
+---------------------
+Customize single-select input display:
+
+select.renderSelectedContentCallback = (option) => {
+  return `${option.icon || ''} ${option.label}`;
+};
+
+IMPORTANT: Returns plain text, not HTML
+
+Or use display value callback:
+select.getDisplayValueCallback = (option) => {
+  return option.label.toUpperCase();
+};
+
+MULTI-SELECT DISPLAY
+--------------------
+Control how badges are displayed:
+
+Set display mode:
+<web-multiselect badges-display-mode="pills">
+  <!-- pills, count, compact, partial, none -->
+</web-multiselect>
+
+See display-modes.txt for details
+
+CONDITIONAL SELECTION
+---------------------
+Validate before selection:
+
+select.selectCallback = (option) => {
+  // Check if already has item from same group
+  const selected = select.getSelected();
+  const sameGroup = selected.some(s =>
+    s.group === option.group && s.value !== option.value
+  );
+
+  if (sameGroup) {
+    alert('Only one per group allowed');
+    return; // Cancel selection
+  }
+
+  // Selection proceeds
+};
+
+DESELECTION HANDLING
+--------------------
+Handle deselection:
+
+select.deselectCallback = (option) => {
+  console.log('Removing:', option);
+
+  // Confirm before removal
+  if (option.important) {
+    if (!confirm(`Remove ${option.label}?`)) {
+      // Re-select (can't prevent directly)
+      setTimeout(() => {
+        const values = select.getValue();
+        select.setSelected([...values, option.value]);
+      }, 0);
+    }
+  }
+};
+
+PROGRAMMATIC SELECTION
+----------------------
+Select/deselect in code:
+
+Select additional:
+const current = select.getValue();
+select.setSelected([...current, newValue]);
+
+Deselect specific:
+const current = select.getValue();
+const filtered = current.filter(v => v !== valueToRemove);
+select.setSelected(filtered);
+
+Toggle selection:
+const current = select.getValue();
+const newValues = current.includes(value)
+  ? current.filter(v => v !== value)
+  : [...current, value];
+select.setSelected(newValues);
+
+INITIAL SELECTION
+-----------------
+Set selection on page load:
+
+Declarative:
+<web-multiselect initial-values='[1, 2]'>
+  <option value="1">Option 1</option>
+  <option value="2">Option 2</option>
+</web-multiselect>
+
+Or with selected attribute:
+<option value="1" selected>Option 1</option>
+
+Programmatic:
+const select = document.querySelector('web-multiselect');
+select.options = [
+  { value: 1, label: 'Option 1', selected: true },
+  { value: 2, label: 'Option 2' }
+];
+
+Or after initialization:
+window.addEventListener('DOMContentLoaded', () => {
+  const select = document.querySelector('web-multiselect');
+  select.setSelected([1, 2]);
+});
+
+SELECTION STATE
+---------------
+Track selection state:
+
+let lastSelection = [];
+
+select.addEventListener('change', (e) => {
+  const current = e.detail.selectedValues;
+
+  // Find what changed
+  const added = current.filter(v => !lastSelection.includes(v));
+  const removed = lastSelection.filter(v => !current.includes(v));
+
+  console.log('Added:', added);
+  console.log('Removed:', removed);
+
+  lastSelection = current;
+});
+
+SELECTION CALLBACKS
+-------------------
+Use callbacks for side effects:
+
+select.selectCallback = (option) => {
+  console.log('Selected:', option);
+  // Analytics, logging, etc.
+};
+
+select.deselectCallback = (option) => {
+  console.log('Deselected:', option);
+};
+
+select.changeCallback = (selectedOptions) => {
+  console.log('Changed:', selectedOptions);
+  // Update related UI, validate, etc.
+};
+
+FORM INTEGRATION
+----------------
+Selection syncs with hidden input:
+
+<form id="myForm">
+  <web-multiselect name="languages">
+    <option value="js">JavaScript</option>
+    <option value="ts">TypeScript</option>
+  </web-multiselect>
+</form>
+
+Form submission includes selection:
+const form = document.getElementById('myForm');
+const formData = new FormData(form);
+console.log(formData.get('languages')); // JSON array string
+
+See form-integration.txt for details
+
+DISABLED OPTIONS
+----------------
+Options can be selected but later disabled:
+
+select.options = [
+  { value: 1, label: 'Option 1', selected: true },
+  { value: 2, label: 'Option 2', disabled: true, selected: true }
+];
+
+Disabled but selected options:
+- Remain selected
+- Cannot be deselected via UI
+- Can be deselected programmatically
+- Still included in getValue()
+
+COMPARING MODES
+---------------
+Multi-select:
+✅ Multiple selections
+✅ Checkboxes
+✅ Stays open
+✅ Returns array
+✅ Badges displayed
+
+Single-select:
+✅ One selection only
+✅ No checkboxes
+✅ Auto-closes
+✅ Returns single value
+✅ Shows value in input
+
+BEST PRACTICES
+--------------
+✅ Use single-select for exclusive choices (country, status)
+✅ Use multi-select for tags, categories, filters
+✅ Set close-on-select for mobile-friendly multi-select
+✅ Validate selections in callbacks
+✅ Always handle both select and deselect events
+✅ Use getValue() for form submission
+✅ Use getSelected() for full object access
+
+❌ Don't mix selection modes during runtime
+❌ Don't forget single-select returns single value
+❌ Don't manipulate selection outside setSelected()
+❌ Don't rely on selected property in options array
+
+COMMON PATTERNS
+---------------
+Single choice (like dropdown):
+<web-multiselect multiple="false">
+  <option value="en">English</option>
+  <option value="es">Spanish</option>
+</web-multiselect>
+
+Multiple tags:
+<web-multiselect multiple="true">
+  <option value="tag1">Tag 1</option>
+  <option value="tag2">Tag 2</option>
+</web-multiselect>
+
+Quick multi-select:
+<web-multiselect
+  multiple="true"
+  close-on-select="true">
+</web-multiselect>
+
+Selection with validation:
+select.changeCallback = (selected) => {
+  if (selected.length === 0) {
+    alert('Please select at least one option');
+  }
+};
+
+DEBUGGING
+---------
+Log selection state:
+
+import { enableLogging, setCategoryLevel } from '@keenmate/web-multiselect';
+setCategoryLevel('MULTISELECT:INTERACTION', 'debug');
+
+Check current selection:
+console.log('Values:', select.getValue());
+console.log('Options:', select.getSelected());
+console.log('Count:', select.getSelected().length);

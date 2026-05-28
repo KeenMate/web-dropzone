@@ -1,0 +1,503 @@
+EVENTS & CALLBACKS
+==================
+
+CRITICAL: Two ways to handle component interactions
+- DOM Events: select, deselect, change (CustomEvent)
+- Callback Functions: All get*/render*/before* callbacks
+- Events for listening, callbacks for side effects
+- Both provide access to component state
+
+DOM EVENTS
+----------
+Three main selection events:
+
+select event:
+Fired when option is selected
+
+select.addEventListener('select', (e) => {
+  console.log('Selected:', e.detail.option);
+  console.log('All selected:', e.detail.selectedOptions);
+});
+
+Event detail:
+{
+  option: { value, label, ... },        // Newly selected option
+  selectedOptions: [{ value, label }]   // All selected options
+}
+
+deselect event:
+Fired when option is deselected
+
+select.addEventListener('deselect', (e) => {
+  console.log('Deselected:', e.detail.option);
+  console.log('Remaining:', e.detail.selectedOptions);
+});
+
+Event detail:
+{
+  option: { value, label, ... },        // Deselected option
+  selectedOptions: [{ value, label }]   // Remaining selected options
+}
+
+change event:
+Fired when selection changes (any select/deselect)
+
+select.addEventListener('change', (e) => {
+  console.log('Selected options:', e.detail.selectedOptions);
+  console.log('Selected values:', e.detail.selectedValues);
+});
+
+Event detail:
+{
+  selectedOptions: [{ value, label }],  // All selected option objects
+  selectedValues: [value1, value2]      // All selected values
+}
+
+CALLBACK FUNCTIONS
+------------------
+All available callbacks:
+
+Data extraction:
+- getValueCallback(item): Extract value
+- getDisplayValueCallback(item): Display text
+- getBadgeDisplayCallback(item): Badge text
+- getSearchValueCallback(item): Search text
+- getIconCallback(item): Icon
+- getSubtitleCallback(item): Subtitle
+- getGroupCallback(item): Group name
+- getDisabledCallback(item): Disabled state
+
+Custom rendering:
+- renderOptionContentCallback(item, context): Dropdown option HTML
+- renderBadgeContentCallback(item, context): Badge HTML
+- renderSelectedItemContentCallback(item): Popover item HTML
+- renderSelectedContentCallback(item): Single-select text
+- getBadgeClassCallback(item): Badge CSS classes
+- getSelectedItemClassCallback(item): Popover item classes
+- customStylesCallback(): Inject CSS
+
+Interaction:
+- searchCallback(searchTerm): Async search
+- beforeSearchCallback(searchTerm): Pre-process search
+- addNewCallback(value): Handle new option
+- selectCallback(option): Before select
+- deselectCallback(option): Before deselect
+- changeCallback(selectedOptions): After change
+
+Formatting:
+- getCounterCallback(count, moreCount): Counter text
+- getBadgeTooltipCallback(item): Badge tooltip
+- getValueFormatCallback(values): Form value format
+
+SELECTION CALLBACKS
+-------------------
+React to selection changes:
+
+selectCallback:
+Called before option is selected
+
+select.selectCallback = (option) => {
+  console.log('About to select:', option);
+  // Can cancel selection by not proceeding
+  // No return value
+};
+
+deselectCallback:
+Called before option is deselected
+
+select.deselectCallback = (option) => {
+  console.log('About to deselect:', option);
+};
+
+changeCallback:
+Called after selection changes
+
+select.changeCallback = (selectedOptions) => {
+  console.log('Selection changed:', selectedOptions);
+
+  // Update UI
+  updateRelatedFields(selectedOptions);
+
+  // Analytics
+  trackSelection(selectedOptions);
+};
+
+SEARCH CALLBACKS
+----------------
+Handle search interactions:
+
+searchCallback:
+Load options dynamically
+
+select.searchCallback = async (searchTerm) => {
+  if (searchTerm.length < 3) return [];
+
+  const response = await fetch(`/api/search?q=${searchTerm}`);
+  const results = await response.json();
+
+  return results;  // Must return array of options
+};
+
+beforeSearchCallback:
+Pre-process search term
+
+select.beforeSearchCallback = (searchTerm) => {
+  // Remove accents
+  const normalized = searchTerm.normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  // Return processed term or null to cancel
+  return normalized.toLowerCase();
+};
+
+ADD NEW CALLBACK
+----------------
+Handle custom option creation:
+
+select.addNewCallback = (value) => {
+  console.log('Adding new:', value);
+
+  // Create new option
+  return {
+    value: value.toLowerCase(),
+    label: value,
+    icon: '➕',
+    isNew: true
+  };
+};
+
+Or async:
+select.addNewCallback = async (value) => {
+  // Save to server
+  const response = await fetch('/api/items', {
+    method: 'POST',
+    body: JSON.stringify({ name: value })
+  });
+
+  const item = await response.json();
+
+  return {
+    value: item.id,
+    label: item.name
+  };
+};
+
+DISPLAY CALLBACKS
+-----------------
+Control text display:
+
+getDisplayValueCallback:
+Dropdown display text
+
+select.getDisplayValueCallback = (option) => {
+  return `${option.firstName} ${option.lastName}`;
+};
+
+getBadgeDisplayCallback:
+Badge display text (can differ from dropdown)
+
+select.getBadgeDisplayCallback = (option) => {
+  // Show initials in badges
+  return option.firstName[0] + option.lastName[0];
+};
+
+COUNTER CALLBACK
+----------------
+Customize counter text:
+
+select.getCounterCallback = (count, moreCount) => {
+  // Count mode
+  if (!moreCount) {
+    return count === 1 ? '1 selected' : `${count} selected`;
+  }
+
+  // Compact/partial mode
+  return `+${moreCount} more`;
+};
+
+Internationalization:
+select.getCounterCallback = (count, moreCount) => {
+  const locale = 'es';  // Spanish
+
+  const translations = {
+    en: {
+      single: '1 selected',
+      multiple: (n) => `${n} selected`,
+      more: (n) => `+${n} more`
+    },
+    es: {
+      single: '1 seleccionado',
+      multiple: (n) => `${n} seleccionados`,
+      more: (n) => `+${n} más`
+    }
+  };
+
+  const t = translations[locale];
+
+  if (moreCount) {
+    return t.more(moreCount);
+  }
+
+  return count === 1 ? t.single : t.multiple(count);
+};
+
+TOOLTIP CALLBACK
+----------------
+Customize badge tooltips:
+
+select.getBadgeTooltipCallback = (option) => {
+  return `${option.label}\n${option.description}`;
+};
+
+Or return HTMLElement:
+select.getBadgeTooltipCallback = (option) => {
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <strong>${option.label}</strong><br>
+    <small>${option.description}</small>
+  `;
+  return div;
+};
+
+VALUE FORMAT CALLBACK
+---------------------
+Custom form value serialization:
+
+select.getValueFormatCallback = (values) => {
+  // Pipe-separated
+  return values.join('|');
+};
+
+Or with metadata:
+select.getValueFormatCallback = (values) => {
+  return JSON.stringify({
+    values: values,
+    count: values.length,
+    timestamp: Date.now()
+  });
+};
+
+EVENT VS CALLBACK
+-----------------
+When to use each:
+
+Use DOM Events when:
+✅ Listening from outside component
+✅ Multiple listeners needed
+✅ Framework event binding
+✅ Bubbling/capturing needed
+
+Use Callbacks when:
+✅ Side effects during operation
+✅ Modifying behavior
+✅ Single handler sufficient
+✅ Performance critical
+
+Example - Both together:
+// Callback: Update dependent field
+select.changeCallback = (selected) => {
+  updateDependentField(selected);
+};
+
+// Event: Update multiple parts of UI
+select.addEventListener('change', (e) => {
+  updateChart(e.detail.selectedOptions);
+  updateSummary(e.detail.selectedOptions);
+});
+
+EVENT BUBBLING
+--------------
+Events bubble up the DOM:
+
+<div id="container">
+  <web-multiselect></web-multiselect>
+</div>
+
+<script>
+  const container = document.getElementById('container');
+
+  // Listen on parent
+  container.addEventListener('change', (e) => {
+    if (e.target.tagName === 'WEB-MULTISELECT') {
+      console.log('Multiselect changed:', e.detail);
+    }
+  });
+</script>
+
+PREVENTING ACTIONS
+------------------
+Callbacks can't prevent actions directly
+
+Workaround for preventing deselection:
+select.deselectCallback = (option) => {
+  if (option.required) {
+    alert('Cannot remove required item');
+
+    // Re-add after a tick
+    setTimeout(() => {
+      const values = select.getValue();
+      select.setSelected([...values, option.value]);
+    }, 0);
+  }
+};
+
+ASYNC CALLBACKS
+---------------
+Handle async operations:
+
+select.changeCallback = async (selectedOptions) => {
+  // Save to server
+  await fetch('/api/save', {
+    method: 'POST',
+    body: JSON.stringify({
+      selections: selectedOptions.map(o => o.value)
+    })
+  });
+
+  console.log('Saved');
+};
+
+ERROR HANDLING
+--------------
+Handle errors in callbacks:
+
+select.searchCallback = async (searchTerm) => {
+  try {
+    const response = await fetch(`/api/search?q=${searchTerm}`);
+
+    if (!response.ok) {
+      throw new Error('Search failed');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Search error:', error);
+    return [];  // Return empty array on error
+  }
+};
+
+CALLBACK CONTEXT
+----------------
+Access component in callbacks:
+
+select.changeCallback = (selectedOptions) => {
+  // Access component properties
+  const allOptions = select.options;
+  const searchTerm = select.searchTerm;
+  const isMultiple = select.multiple;
+
+  console.log('Selected:', selectedOptions.length);
+  console.log('Total:', allOptions.length);
+  console.log('Search:', searchTerm);
+  console.log('Multiple:', isMultiple);
+};
+
+MULTIPLE CALLBACKS
+------------------
+Set multiple callbacks:
+
+// Data callbacks
+select.getValueCallback = (item) => item.id;
+select.getDisplayValueCallback = (item) => item.name;
+select.getSearchValueCallback = (item) => `${item.name} ${item.email}`;
+
+// Interaction callbacks
+select.selectCallback = (option) => console.log('Select:', option);
+select.changeCallback = (selected) => updateUI(selected);
+
+// Rendering callbacks
+select.renderOptionContentCallback = (item, ctx) => `${item.name}`;
+select.getBadgeDisplayCallback = (item) => item.code;
+
+CALLBACK PERFORMANCE
+--------------------
+Optimize callbacks for performance:
+
+❌ Slow: Expensive operation every render
+select.renderOptionContentCallback = (option) => {
+  const data = expensiveCalculation(option);  // Called many times!
+  return `<div>${data}</div>`;
+};
+
+✅ Fast: Cache results
+const cache = new Map();
+select.renderOptionContentCallback = (option) => {
+  if (!cache.has(option.value)) {
+    cache.set(option.value, expensiveCalculation(option));
+  }
+  return `<div>${cache.get(option.value)}</div>`;
+};
+
+REMOVING CALLBACKS
+------------------
+Clear callbacks:
+
+select.selectCallback = null;
+select.deselectCallback = null;
+select.changeCallback = null;
+
+DEBUGGING
+---------
+Log all events and callbacks:
+
+// Log all events
+['select', 'deselect', 'change'].forEach(eventName => {
+  select.addEventListener(eventName, (e) => {
+    console.log(`Event: ${eventName}`, e.detail);
+  });
+});
+
+// Log callbacks
+select.changeCallback = (selected) => {
+  console.log('Callback: change', selected);
+};
+
+BEST PRACTICES
+--------------
+✅ Use events for UI updates
+✅ Use callbacks for data transformation
+✅ Handle async errors gracefully
+✅ Keep callbacks fast
+✅ Cache expensive calculations
+✅ Use both events and callbacks when needed
+✅ Clean up event listeners when done
+
+❌ Don't do heavy computation in callbacks
+❌ Don't forget error handling
+❌ Don't rely on callback execution order
+❌ Don't mutate data in callbacks
+❌ Don't forget to remove event listeners
+
+COMMON PATTERNS
+---------------
+Track changes:
+select.addEventListener('change', (e) => {
+  console.log('Changed:', e.detail.selectedValues);
+});
+
+Update dependent field:
+select.changeCallback = (selected) => {
+  dependentSelect.options = getFilteredOptions(selected);
+};
+
+Analytics tracking:
+select.selectCallback = (option) => {
+  analytics.track('option_selected', {
+    value: option.value,
+    label: option.label
+  });
+};
+
+Async search:
+select.searchCallback = async (term) => {
+  const res = await fetch(`/api/search?q=${term}`);
+  return await res.json();
+};
+
+EXAMPLES
+--------
+See examples files for:
+- Event handling patterns
+- Callback combinations
+- Async operations
+- Error handling

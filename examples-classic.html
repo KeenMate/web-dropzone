@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classic Examples - Web Dropzone</title>
+    <link rel="stylesheet" href="examples-shared.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to Examples</a>
+            <h1>📦 Classic Examples</h1>
+            <p class="subtitle">Display modes, single vs multiple selection, and accept patterns</p>
+        </header>
+
+        <!-- DISPLAY: THREE ORTHOGONAL AXES -->
+        <div class="card">
+            <h2>Display: three orthogonal axes</h2>
+            <p>The visual surface is split into three independent attributes you can combine freely:</p>
+            <ul style="margin: 0 0 1rem 1.5rem; line-height: 1.8;">
+                <li><code>selector-appearance</code> — <strong>card</strong> · button · minimal · <em>(what the user clicks/drops onto)</em></li>
+                <li><code>list-appearance</code> — <strong>list</strong> · detailed · grid · badges · popover · none · <em>(where picked files appear)</em></li>
+                <li><code>card-size</code> — minimal · <strong>compact</strong> · big · <em>(density of the card selector)</em></li>
+            </ul>
+            <p>The legacy single-axis <code>display-mode</code> attribute is still supported as a shorthand — see the bottom of this section.</p>
+        </div>
+
+        <!-- SELECTOR APPEARANCE -->
+        <div class="card">
+            <h2>Selector Appearance (<code>selector-appearance</code>)</h2>
+            <p>Three visual entry points for picking files.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>card (default) — bordered drop zone</label>
+                    <web-dropzone selector-appearance="card" list-appearance="list" accept="*/*" max-file-count="5"></web-dropzone>
+                    <small class="form-text">Click anywhere on the card to browse, or drag-and-drop files.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>button — accent button, no drag zone</label>
+                    <web-dropzone selector-appearance="button" list-appearance="list" accept="*/*" max-file-count="5"></web-dropzone>
+                    <small class="form-text">Use when the picker should sit inline (toolbars, dense forms). No drag-and-drop on the button itself.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>minimal — icon-only with count badge</label>
+                    <web-dropzone selector-appearance="minimal" list-appearance="list" accept="*/*" icon="📎" max-file-count="5"></web-dropzone>
+                    <small class="form-text">Compact 36×36 button. The badge appears when files are picked.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- LIST APPEARANCE -->
+        <div class="card">
+            <h2>List Appearance (<code>list-appearance</code>)</h2>
+            <p>How the picked files are presented. Six options ranging from a simple vertical list to badge-style pills or a hidden popover.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>list (default) — simple rows</label>
+                    <web-dropzone list-appearance="list" accept="*/*" max-file-count="5"></web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>detailed — icon + size + MIME</label>
+                    <web-dropzone list-appearance="detailed" accept="*/*" max-file-count="5"></web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>grid — image preview thumbnails</label>
+                    <web-dropzone list-appearance="grid" accept="image/*" max-file-count="6" prompt-text="Drop images"></web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>badges — inline composite pills</label>
+                    <web-dropzone list-appearance="badges" accept="*/*" max-file-count="6" prompt-text="Drop files (badges appear inline)"></web-dropzone>
+                    <small class="form-text">Same surface as <code>web-multiselect</code> badges. Default: file-type icons in the pill. Set <code>show-thumbnails</code> for image previews, or override <code>--dz-badge-icon-size: 0</code> to hide the slot entirely.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>badges with thumbnails — <code>show-thumbnails</code></label>
+                    <web-dropzone list-appearance="badges" show-thumbnails accept="image/*" max-file-count="6" prompt-text="Drop images for badge thumbnails"></web-dropzone>
+                    <small class="form-text">Same badge shell, but image files render their thumbnail in the placeholder slot.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>popover — list hidden, click summary to open</label>
+                    <web-dropzone list-appearance="popover" accept="image/*,.pdf" max-file-size="5242880" max-file-count="10"></web-dropzone>
+                    <small class="form-text">Popover header shows file count + Add more / Clear all, with a limits hint underneath. Footer pins total size.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>none — list not rendered (caller handles it)</label>
+                    <web-dropzone id="list-none" list-appearance="none" accept="*/*" max-file-count="5"></web-dropzone>
+                    <small class="form-text">Picked: <span id="list-none-out">(none)</span></small>
+                </div>
+
+                <div class="form-group">
+                    <label><code>max-visible-files="3"</code> — caps the rendered rows, "Show N more" reveals the rest</label>
+                    <web-dropzone list-appearance="detailed" max-visible-files="3" accept="*/*" max-file-count="20"></web-dropzone>
+                    <small class="form-text">Drop more than 3 files to see the toggle button.</small>
+                </div>
+
+                <div class="form-group">
+                    <label><code>max-visible-files="4"</code> + badges — compact "+N" pill toggle</label>
+                    <web-dropzone list-appearance="badges" max-visible-files="4" accept="*/*" max-file-count="20"></web-dropzone>
+                    <small class="form-text">Excess badges collapse behind a counter pill. Click "+N" to expand, "−" to collapse.</small>
+                </div>
+
+                <div class="form-group">
+                    <label><code>--dz-file-list-max-height</code> — CSS-only height cap with internal scroll</label>
+                    <web-dropzone list-appearance="detailed" accept="*/*" max-file-count="20" style="--dz-file-list-max-height: 18rem;"></web-dropzone>
+                    <small class="form-text">Drop several files — the list caps at 18rem and scrolls internally. Combine with <code>max-visible-files</code> for the best of both.</small>
+                </div>
+
+                <div class="form-group">
+                    <label><code>max-total-size="5242880"</code> — aggregate cap with "X left" hint</label>
+                    <web-dropzone list-appearance="popover" accept="*/*" max-total-size="5242880"></web-dropzone>
+                    <small class="form-text">Selection capped at 5 MB total across all files. Popover limits line shows remaining headroom.</small>
+                </div>
+
+                <div class="form-group">
+                    <label><code>min-file-size="1024"</code> + <code>min-file-count="2"</code> — both caps + form validity</label>
+                    <form onsubmit="event.preventDefault(); alert('Form submitted (valid).');">
+                        <web-dropzone name="docs" list-appearance="detailed" accept="*/*" min-file-size="1024" min-file-count="2" max-file-count="5"></web-dropzone>
+                        <button type="submit" style="margin-top: 0.8rem;">Submit</button>
+                    </form>
+                    <small class="form-text">Zero-byte files are rejected (min size 1 KB). Submit is blocked by native form validity until at least 2 files are selected.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARD SIZE -->
+        <div class="card">
+            <h2>Card Size (<code>card-size</code>)</h2>
+            <p>Density variants for the card selector. Only meaningful when <code>selector-appearance="card"</code>.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>minimal — thin horizontal row</label>
+                    <web-dropzone card-size="minimal" list-appearance="list" accept="*/*" max-file-count="5"></web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>compact (default)</label>
+                    <web-dropzone card-size="compact" list-appearance="list" accept="*/*" max-file-count="5"></web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>big — tall showcase with Browse button</label>
+                    <web-dropzone
+                        card-size="big"
+                        list-appearance="list"
+                        accept="*/*"
+                        max-file-count="5"
+                        prompt-text="Drop your files here"
+                        hint-text="PNG, JPG, PDF — up to 5 MB each"
+                        select-files-text="Browse files">
+                    </web-dropzone>
+                </div>
+            </div>
+        </div>
+
+        <!-- COMMON COMBOS -->
+        <div class="card">
+            <h2>Common combinations</h2>
+            <p>Mixing the three axes covers the patterns users actually want — toolbars, attachment fields, marketing landings, and more.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>Inline attachments — button + badges</label>
+                    <web-dropzone selector-appearance="button" list-appearance="badges" accept="*/*" max-file-count="5" select-files-text="📎 Attach"></web-dropzone>
+                    <small class="form-text">Slack/Gmail-style attachment pattern.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Toolbar icon — minimal + popover</label>
+                    <web-dropzone selector-appearance="minimal" list-appearance="popover" accept="image/*,.pdf" max-file-size="5242880" max-file-count="10" icon="📎"></web-dropzone>
+                    <small class="form-text">Click icon → opens picker. After files exist → click toggles popover.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Card + badges below</label>
+                    <web-dropzone selector-appearance="card" list-appearance="badges" accept="*/*" max-file-count="5" card-size="minimal"></web-dropzone>
+                    <small class="form-text">Thin card with badge pills underneath.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Landing page hero — big card</label>
+                    <web-dropzone
+                        selector-appearance="card"
+                        card-size="big"
+                        list-appearance="detailed"
+                        accept="*/*"
+                        max-file-count="3"
+                        icon="☁️"
+                        prompt-text="Upload your portfolio"
+                        hint-text="Drag & drop or click below"
+                        select-files-text="Choose files">
+                    </web-dropzone>
+                </div>
+            </div>
+        </div>
+
+        <!-- LEGACY SHORTHAND -->
+        <div class="card">
+            <h2>Legacy <code>display-mode</code> shorthand</h2>
+            <p>The original single-axis attribute still works as a shorthand. Explicit orthogonal attributes override the shorthand when both are present.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>display-mode="list" → card + list</label>
+                    <web-dropzone display-mode="list" accept="*/*" max-file-count="5"></web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>display-mode="detailed" → card + detailed</label>
+                    <web-dropzone display-mode="detailed" accept="*/*" max-file-count="5"></web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>display-mode="grid" → card + grid</label>
+                    <web-dropzone display-mode="grid" accept="image/*"></web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>display-mode="compact" → card + popover</label>
+                    <web-dropzone display-mode="compact" accept="image/*,.pdf" max-file-size="5242880" max-file-count="10"></web-dropzone>
+                </div>
+            </div>
+
+            <div class="note">
+                <div class="note-title">Precedence</div>
+                <p>When both are set, the orthogonal attribute wins. For example, <code>display-mode="grid" list-appearance="badges"</code> renders badges, not a grid.</p>
+            </div>
+        </div>
+
+        <!-- SINGLE vs MULTIPLE -->
+        <div class="card">
+            <h2>Single vs Multiple</h2>
+            <p>The <code>multiple</code> attribute defaults to <code>true</code>. Set <code>multiple="false"</code> to lock to a single file (subsequent drops replace the existing selection).</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>Multiple (default)</label>
+                    <web-dropzone
+                        display-mode="detailed"
+                        prompt-text="Drop one or more files">
+                    </web-dropzone>
+                    <small class="form-text">Each dropped file is appended to the list.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Single only</label>
+                    <web-dropzone
+                        multiple="false"
+                        display-mode="detailed"
+                        prompt-text="Drop a single file"
+                        hint-text="Replaces any existing selection">
+                    </web-dropzone>
+                    <small class="form-text">New drops replace the previous file.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACCEPT PATTERNS -->
+        <div class="card">
+            <h2>Accept Patterns</h2>
+            <p>The <code>accept</code> attribute uses the same syntax as the native <code>&lt;input type="file"&gt;</code>: comma-separated MIME types, MIME wildcards, or file extensions.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>Images only (<code>image/*</code>)</label>
+                    <web-dropzone
+                        accept="image/*"
+                        display-mode="grid"
+                        prompt-text="Drop images">
+                    </web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>PDF or Word (<code>.pdf,.doc,.docx</code>)</label>
+                    <web-dropzone
+                        accept=".pdf,.doc,.docx"
+                        display-mode="detailed"
+                        prompt-text="Drop documents">
+                    </web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>Specific MIME (<code>application/json</code>)</label>
+                    <web-dropzone
+                        accept="application/json"
+                        display-mode="detailed"
+                        prompt-text="Drop JSON files">
+                    </web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>Mixed (<code>image/*,.pdf,video/*</code>)</label>
+                    <web-dropzone
+                        accept="image/*,.pdf,video/*"
+                        display-mode="detailed"
+                        prompt-text="Drop images, PDFs, or videos">
+                    </web-dropzone>
+                </div>
+            </div>
+
+            <div class="note">
+                <div class="note-title">Tip</div>
+                <p>Files that don't match <code>accept</code> are rejected at validation time and surface via the <code>files-rejected</code> event — see the <a href="examples-validation.html">Validation page</a> for handling.</p>
+            </div>
+        </div>
+
+        <!-- DISABLED -->
+        <div class="card">
+            <h2>Disabled State</h2>
+            <p>The <code>disabled</code> attribute follows HTML convention: presence enables it, <code>="false"</code> overrides.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>Disabled dropzone</label>
+                    <web-dropzone
+                        disabled
+                        display-mode="detailed"
+                        prompt-text="This dropzone is disabled">
+                    </web-dropzone>
+                    <small class="form-text">Pointer events blocked; visually dimmed.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Toggle via JS</label>
+                    <web-dropzone id="toggle-disabled" display-mode="detailed"></web-dropzone>
+                    <div class="controls" style="margin-top: 0.5rem;">
+                        <button onclick="document.getElementById('toggle-disabled').disabled = !document.getElementById('toggle-disabled').disabled">
+                            Toggle disabled
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROGRAMMATIC API -->
+        <div class="card">
+            <h2>Programmatic API</h2>
+            <p>Methods and events let you drive the dropzone from your own code.</p>
+
+            <div class="form-group">
+                <label>Live event log</label>
+                <web-dropzone id="api-demo" display-mode="detailed" accept="*/*"></web-dropzone>
+                <div class="controls" style="margin-top: 0.75rem;">
+                    <button onclick="document.getElementById('api-demo').clear()">clear()</button>
+                    <button onclick="logFiles()">getFiles()</button>
+                </div>
+                <div class="output">
+                    <div class="output-label">Events:</div>
+                    <pre id="api-log">(none yet — drop or pick a file)</pre>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <pre><code>const el = document.getElementById('api-demo')
+
+el.addEventListener('file-added',     e => console.log('added',    e.detail))
+el.addEventListener('file-removed',   e => console.log('removed',  e.detail))
+el.addEventListener('files-rejected', e => console.log('rejected', e.detail))
+el.addEventListener('change',         e => console.log('change',   e.detail))
+
+el.addFiles(fileList)        // programmatic add (FileList or File[])
+el.removeFile(id)            // remove by FileState.id
+el.clear()                   // remove all
+const files = el.files       // current FileState[]</code></pre>
+            </div>
+        </div>
+
+        <footer>
+            <p><a href="index.html">← Back to Examples</a></p>
+        </footer>
+    </div>
+
+    <script src="examples-shared-toast.js"></script>
+    <script type="module">
+        // Toast rejections from every dropzone on the page so the user can
+        // see what falls out of validation. Groups by rejection code so a
+        // 5-over-cap drop shows as one toast, not five.
+        const REJECTION_LABEL = {
+            count:     'Too many files',
+            size:      'Size limit',
+            type:      'Type not accepted',
+            duplicate: 'Duplicate filename',
+            custom:    'Rejected'
+        };
+        for (const dz of document.querySelectorAll('web-dropzone')) {
+            dz.addEventListener('files-rejected', (e) => {
+                const groups = new Map();
+                for (const r of e.detail.rejectedFiles) {
+                    const code = r.validation.code || 'custom';
+                    if (!groups.has(code)) groups.set(code, []);
+                    groups.get(code).push(r);
+                }
+                for (const [code, items] of groups) {
+                    const title = REJECTION_LABEL[code] || 'Rejected';
+                    const sample = items[0].validation.error || items[0].file.name;
+                    const more = items.length > 1 ? ` (+${items.length - 1} more)` : '';
+                    toast.warn(`${sample}${more}`, { title });
+                }
+            });
+        }
+
+        // list-appearance="none" demo — caller reads .files themselves
+        const listNoneEl = document.getElementById('list-none')
+        const listNoneOut = document.getElementById('list-none-out')
+        listNoneEl.addEventListener('change', () => {
+            const files = listNoneEl.files
+            listNoneOut.textContent = files.length
+                ? `${files.length} file(s): ${files.map(f => f.name).join(', ')}`
+                : '(none)'
+        })
+
+        const apiEl = document.getElementById('api-demo')
+        const apiLog = document.getElementById('api-log')
+        const logLines = []
+        const append = (line) => {
+            logLines.push(line)
+            if (logLines.length > 10) logLines.shift()
+            apiLog.textContent = logLines.join('\n')
+        }
+        apiEl.addEventListener('file-added',     e => append(`+ added    ${e.detail.file.name}`))
+        apiEl.addEventListener('file-removed',   e => append(`- removed  ${e.detail.file.name}`))
+        apiEl.addEventListener('files-rejected', e => append(`! rejected ${e.detail.rejectedFiles.length} file(s)`))
+        apiEl.addEventListener('change',         e => append(`~ change   now ${e.detail.files.length} file(s)`))
+
+        window.logFiles = () => {
+            const files = apiEl.files
+            append(`getFiles() -> ${files.length} file(s): ${files.map(f => f.name).join(', ') || '(none)'}`)
+        }
+    </script>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>

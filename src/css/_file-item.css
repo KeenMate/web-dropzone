@@ -1,0 +1,378 @@
+/* ==============================================================================
+   FILE ITEM
+   ==============================================================================
+   Individual file items for list, detailed, and grid modes */
+
+/* ==========================================================================
+   LIST MODE (Simple)
+   ========================================================================== */
+.dz__file-item--list {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(0.8 * var(--dz-rem));
+  padding: var(--dz-item-padding);
+  border: var(--dz-item-border);
+  border-radius: var(--dz-item-border-radius);
+  background: var(--dz-item-bg);
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__file-item--list:hover {
+  background: var(--dz-item-bg-hover);
+}
+
+.dz__file-item--list .dz__file-item__name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--dz-item-name-font-size);
+  color: var(--dz-item-name-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   DETAILED MODE
+   ========================================================================== */
+.dz__file-item--detailed {
+  display: flex;
+  align-items: center;
+  gap: calc(1.2 * var(--dz-rem));
+  padding: var(--dz-item-padding);
+  border: var(--dz-item-border);
+  border-radius: var(--dz-item-border-radius);
+  background: var(--dz-item-bg);
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__file-item--detailed:hover {
+  background: var(--dz-item-bg-hover);
+}
+
+/* File icon / thumbnail slot — single fixed-size box that hosts either the
+   file-type emoji or an <img> thumbnail. Drop --dz-item-icon-size to 0 (and
+   --dz-item-icon-font-size to 0) to hide the slot entirely. */
+.dz__file-item__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dz-item-icon-size);
+  height: var(--dz-item-icon-size);
+  border-radius: var(--dz-border-radius-sm);
+  background: var(--dz-item-icon-bg);
+  font-size: var(--dz-item-icon-font-size);
+  color: var(--dz-item-icon-color);
+  overflow: hidden;
+}
+
+.dz__file-item__icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* File info container */
+.dz__file-item__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(0.2 * var(--dz-rem));
+}
+
+.dz__file-item--detailed .dz__file-item__name {
+  font-size: var(--dz-item-name-font-size);
+  font-weight: var(--dz-item-name-font-weight);
+  color: var(--dz-item-name-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* File meta (size, type) */
+.dz__file-item__meta {
+  display: flex;
+  gap: calc(0.8 * var(--dz-rem));
+  font-size: var(--dz-item-meta-font-size);
+  color: var(--dz-item-meta-color);
+}
+
+.dz__file-item__size,
+.dz__file-item__type {
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   REMOVE BUTTON (Shared) — empty <button>; the × glyph is painted by
+   ::before via CSS mask of --dz-icon-remove. Same pattern as
+   .dz__badge-remove and .ms__badge-remove in web-multiselect, so the icon
+   inherits the button's color and the SVG can be themed in one place.
+   ========================================================================== */
+.dz__file-item__remove {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dz-item-remove-size);
+  height: var(--dz-item-remove-size);
+  border-radius: var(--dz-border-radius-sm);
+  background: var(--dz-item-remove-bg);
+  color: var(--dz-item-remove-color);
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy),
+              color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__file-item__remove::before {
+  content: "";
+  display: block;
+  width: var(--dz-item-remove-icon-size);
+  height: var(--dz-item-remove-icon-size);
+  background-color: currentColor;
+  -webkit-mask: var(--dz-icon-remove) center / contain no-repeat;
+          mask: var(--dz-icon-remove) center / contain no-repeat;
+}
+
+.dz__file-item__remove:hover {
+  background: var(--dz-item-remove-bg-hover);
+  color: var(--dz-item-remove-color-hover);
+}
+
+/* ==========================================================================
+   BADGES MODE — composite badge (text + remove button share a frame)
+   ==========================================================================
+   Mirrors web-multiselect's .ms__badge surface (same class names, same hyphen
+   sub-element convention) so a theme written against multiselect's badges
+   can be re-applied here. The text and remove halves are independently
+   themable but share --dz-badge-border-radius so callers can pick any shape
+   from square (0) through rounded to pill (999px). Default tracks the
+   dropzone card's radius (--dz-dropzone-border-radius) so both surfaces read
+   as one rounded language; override to break the tie. */
+.dz__badge {
+  display: inline-flex;
+  align-items: center;
+  height: var(--dz-badge-height);
+  font-size: var(--dz-badge-font-size);
+  font-weight: var(--dz-badge-font-weight);
+  line-height: 1;
+  border-radius: var(--dz-badge-border-radius);
+  overflow: hidden;
+  max-width: var(--dz-badge-max-width);
+}
+
+/* Text half — icon + filename, shares left side of the radius */
+.dz__badge-text {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(0.4 * var(--dz-rem));
+  box-sizing: border-box;
+  height: 100%;
+  padding: var(--dz-badge-text-padding);
+  background: var(--dz-badge-text-bg);
+  color: var(--dz-badge-text-color);
+  border: var(--dz-badge-text-border);
+  border-right: none;
+  border-radius: var(--dz-badge-border-radius) 0 0 var(--dz-badge-border-radius);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy),
+              color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__badge:hover .dz__badge-text {
+  background: var(--dz-badge-text-bg-hover);
+  color: var(--dz-badge-text-color-hover);
+}
+
+/* Badge's icon / thumbnail slot. Same slot semantics as detailed mode — a
+   fixed square box that hosts either the emoji or an <img>. To hide the
+   slot for badges entirely, set --dz-badge-icon-size to 0. */
+.dz__badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dz-badge-icon-size);
+  height: var(--dz-badge-icon-size);
+  flex-shrink: 0;
+  font-size: var(--dz-badge-icon-font-size);
+  line-height: 1;
+  background: var(--dz-badge-icon-bg);
+  border-radius: var(--dz-badge-icon-border-radius);
+  overflow: hidden;
+}
+
+.dz__badge-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* When the slot collapses to 0×0 it also collapses any flex gap it might
+   have produced — hide it for safety so callers can disable both icon and
+   thumbnail without any chrome leaking through. */
+.dz__badge-icon:empty {
+  display: none;
+}
+
+.dz__badge-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Remove half — square pill end with X glyph rendered via mask so it inherits
+   the configured remove color via currentColor. */
+.dz__badge-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  font-family: inherit;
+  width: var(--dz-badge-remove-width);
+  height: 100%;
+  flex-shrink: 0;
+  background: var(--dz-badge-remove-bg);
+  color: var(--dz-badge-remove-color);
+  border: var(--dz-badge-remove-border);
+  border-left: none;
+  border-radius: 0 var(--dz-badge-border-radius) var(--dz-badge-border-radius) 0;
+  cursor: pointer;
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__badge-remove:hover {
+  background: var(--dz-badge-remove-bg-hover);
+  color: var(--dz-badge-remove-color-hover);
+}
+
+.dz__badge-remove:focus { outline: none; }
+.dz__badge-remove:focus-visible {
+  outline: none;
+  box-shadow: var(--dz-badge-remove-box-shadow-focus);
+}
+
+.dz__badge-remove::before {
+  content: "";
+  display: block;
+  width: var(--dz-badge-remove-icon-size);
+  height: var(--dz-badge-remove-icon-size);
+  background-color: currentColor;
+  -webkit-mask: var(--dz-icon-remove) center / contain no-repeat;
+          mask: var(--dz-icon-remove) center / contain no-repeat;
+}
+
+/* Status modifiers — recolor the text half's border to mark upload state. */
+.dz__badge--complete .dz__badge-text { border-color: var(--dz-success-color); }
+.dz__badge--error    .dz__badge-text { border-color: var(--dz-error-color); color: var(--dz-error-color); }
+.dz__badge--uploading .dz__badge-text { border-color: var(--dz-accent-color); }
+
+/* Counter badge — single-half "+N" / "−" pill used by the maxVisible toggle
+   in badges mode. No text/remove split, just the badge shell with muted
+   neutral colors so it reads as a control rather than a file. */
+.dz__badge--more {
+  justify-content: center;
+  padding: var(--dz-badge-text-padding);
+  background: var(--dz-badge-more-bg);
+  color: var(--dz-badge-more-color);
+  cursor: pointer;
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__badge--more:hover {
+  background: var(--dz-badge-more-bg-hover);
+}
+
+/* ==========================================================================
+   GRID MODE (Preview Items)
+   ========================================================================== */
+.dz__preview-item {
+  position: relative;
+  aspect-ratio: var(--dz-preview-item-aspect-ratio);
+  border: var(--dz-preview-item-border);
+  border-radius: var(--dz-preview-item-border-radius);
+  background: var(--dz-preview-item-bg);
+  overflow: hidden;
+}
+
+/* Image preview */
+.dz__preview-item__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Non-image placeholder */
+.dz__preview-item__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: calc(3.2 * var(--dz-rem));
+  color: var(--dz-text-color-3);
+}
+
+/* Overlay with filename */
+.dz__preview-item__overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--dz-preview-overlay-padding);
+  background: var(--dz-preview-overlay-bg);
+  color: var(--dz-preview-overlay-color);
+  font-size: var(--dz-preview-overlay-font-size);
+  opacity: 0;
+  transition: opacity var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__preview-item:hover .dz__preview-item__overlay {
+  opacity: 1;
+}
+
+.dz__preview-item__name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Preview remove button — circular floating × over the thumbnail. Same mask
+   glyph pattern as the shared file-item remove (see .dz__file-item__remove). */
+.dz__preview-item__remove {
+  position: absolute;
+  top: var(--dz-preview-remove-offset);
+  right: var(--dz-preview-remove-offset);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dz-preview-remove-size);
+  height: var(--dz-preview-remove-size);
+  border-radius: 50%;
+  background: var(--dz-preview-remove-bg);
+  color: var(--dz-preview-remove-color);
+  opacity: 0;
+  transition: opacity var(--dz-transition-fast) var(--dz-easing-snappy),
+              background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__preview-item__remove::before {
+  content: "";
+  display: block;
+  width: var(--dz-preview-remove-icon-size);
+  height: var(--dz-preview-remove-icon-size);
+  background-color: currentColor;
+  -webkit-mask: var(--dz-icon-remove) center / contain no-repeat;
+          mask: var(--dz-icon-remove) center / contain no-repeat;
+}
+
+.dz__preview-item:hover .dz__preview-item__remove {
+  opacity: 1;
+}
+
+.dz__preview-item__remove:hover {
+  background: var(--dz-preview-remove-bg-hover);
+}

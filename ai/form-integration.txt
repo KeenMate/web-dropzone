@@ -1,0 +1,510 @@
+FORM INTEGRATION
+================
+
+CRITICAL: Seamless HTML form integration
+- Creates hidden input in light DOM
+- Syncs with selection automatically
+- Value formats: json, csv, array
+- Custom formatting via callback
+- Works with FormData, form submission
+
+BASIC FORM USAGE
+----------------
+Add name attribute for form integration:
+
+<form id="myForm">
+  <web-multiselect name="languages">
+    <option value="js">JavaScript</option>
+    <option value="ts">TypeScript</option>
+    <option value="py">Python</option>
+  </web-multiselect>
+
+  <button type="submit">Submit</button>
+</form>
+
+Hidden input created automatically:
+<input type="hidden" name="languages" value='["js","ts"]' />
+
+VALUE FORMATS
+-------------
+Control how values are serialized:
+
+JSON (default):
+<web-multiselect name="items" value-format="json">
+</web-multiselect>
+
+Hidden input value:
+["item1", "item2", "item3"]
+
+CSV:
+<web-multiselect name="items" value-format="csv">
+</web-multiselect>
+
+Hidden input value:
+item1,item2,item3
+
+Array (multiple hidden inputs):
+<web-multiselect name="items" value-format="array">
+</web-multiselect>
+
+Creates multiple inputs:
+<input type="hidden" name="items" value="item1" />
+<input type="hidden" name="items" value="item2" />
+<input type="hidden" name="items" value="item3" />
+
+FORM SUBMISSION
+---------------
+Standard form submission:
+
+<form action="/api/submit" method="POST">
+  <web-multiselect name="skills" value-format="json">
+    <option value="1">JavaScript</option>
+    <option value="2">Python</option>
+  </web-multiselect>
+
+  <button type="submit">Submit</button>
+</form>
+
+Server receives:
+skills: ["1", "2"]
+
+FORMDATA API
+------------
+Use with FormData:
+
+const form = document.getElementById('myForm');
+const formData = new FormData(form);
+
+// JSON format (default)
+const skills = formData.get('skills');
+console.log(JSON.parse(skills));  // ["1", "2"]
+
+// CSV format
+const skills = formData.get('skills');
+console.log(skills);  // "1,2"
+
+// Array format
+const skills = formData.getAll('skills');
+console.log(skills);  // ["1", "2"]
+
+JAVASCRIPT SUBMISSION
+---------------------
+Submit via fetch API:
+
+const form = document.getElementById('myForm');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData);
+
+  // Parse JSON format
+  data.languages = JSON.parse(data.languages);
+
+  const response = await fetch('/api/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+});
+
+GETVALUE() METHOD
+-----------------
+Get value programmatically:
+
+const select = document.querySelector('web-multiselect');
+const value = select.getValue();
+
+Multi-select returns array:
+// [1, 2, 3]
+
+Single-select returns single value:
+// 1
+
+Use for:
+- JavaScript form submissions
+- AJAX requests
+- Real-time validation
+- Custom form handling
+
+NUMERIC VALUES
+--------------
+Preserve numeric types:
+
+select.options = [
+  { value: 1, label: 'Option 1' },
+  { value: 2, label: 'Option 2' }
+];
+
+getValue() returns numbers:
+[1, 2]  // Not ["1", "2"]
+
+Form hidden input (JSON):
+[1, 2]  // Numbers preserved
+
+Form hidden input (CSV):
+"1,2"   // Strings (parse if needed)
+
+CUSTOM VALUE FORMAT
+-------------------
+Define custom serialization:
+
+select.getValueFormatCallback = (values) => {
+  return values.join('|');  // Pipe-separated
+};
+
+Hidden input value:
+"value1|value2|value3"
+
+Or JSON with metadata:
+select.getValueFormatCallback = (values) => {
+  return JSON.stringify({
+    values: values,
+    count: values.length,
+    timestamp: Date.now()
+  });
+};
+
+Hidden input value:
+{"values":["1","2"],"count":2,"timestamp":1234567890}
+
+VALIDATION
+----------
+Validate before submission:
+
+const form = document.getElementById('myForm');
+
+form.addEventListener('submit', (e) => {
+  const select = form.querySelector('web-multiselect');
+  const selected = select.getValue();
+
+  if (selected.length === 0) {
+    e.preventDefault();
+    alert('Please select at least one option');
+    return;
+  }
+
+  if (selected.length > 5) {
+    e.preventDefault();
+    alert('Maximum 5 selections allowed');
+    return;
+  }
+});
+
+REQUIRED FIELD
+--------------
+Mark as required:
+
+<web-multiselect name="skills" required>
+  <option value="js">JavaScript</option>
+</web-multiselect>
+
+Browser validation:
+- Prevents submission if empty
+- Shows validation message
+
+Custom validation:
+select.addEventListener('change', (e) => {
+  if (e.detail.selectedValues.length === 0) {
+    select.setCustomValidity('Please select at least one');
+  } else {
+    select.setCustomValidity('');
+  }
+});
+
+INITIAL VALUES
+--------------
+Set initial values from server:
+
+<web-multiselect
+  name="languages"
+  initial-values='["js", "ts"]'>
+  <option value="js">JavaScript</option>
+  <option value="ts">TypeScript</option>
+  <option value="py">Python</option>
+</web-multiselect>
+
+Or with selected attribute:
+<option value="js" selected>JavaScript</option>
+<option value="ts" selected>TypeScript</option>
+
+DYNAMIC FORMS
+-------------
+Add/remove multiselect dynamically:
+
+const form = document.getElementById('myForm');
+
+// Add new multiselect
+const select = document.createElement('web-multiselect');
+select.name = 'newField';
+select.options = [...];
+form.appendChild(select);
+
+// Remove multiselect
+const select = form.querySelector('web-multiselect[name="oldField"]');
+select.remove();
+
+FORM RESET
+----------
+Reset form clears selections:
+
+const form = document.getElementById('myForm');
+form.reset();  // Clears all multiselect selections
+
+Programmatic reset:
+const select = form.querySelector('web-multiselect');
+select.setSelected([]);
+
+MULTIPLE MULTISELECTS
+---------------------
+Multiple multiselects in one form:
+
+<form id="myForm">
+  <web-multiselect name="skills" value-format="json">
+    <option value="1">JavaScript</option>
+  </web-multiselect>
+
+  <web-multiselect name="languages" value-format="csv">
+    <option value="en">English</option>
+  </web-multiselect>
+
+  <button type="submit">Submit</button>
+</form>
+
+Form data:
+{
+  skills: ["1", "2"],
+  languages: "en,es"
+}
+
+NESTED FORMS
+------------
+Multiselect in nested structures:
+
+<form>
+  <fieldset>
+    <legend>Skills</legend>
+    <web-multiselect name="skills[]">
+      <option value="1">JavaScript</option>
+    </web-multiselect>
+  </fieldset>
+
+  <button type="submit">Submit</button>
+</form>
+
+FILE UPLOAD FORMS
+-----------------
+Combine with file inputs:
+
+<form enctype="multipart/form-data">
+  <input type="file" name="file" />
+
+  <web-multiselect name="categories" value-format="json">
+    <option value="1">Category 1</option>
+  </web-multiselect>
+
+  <button type="submit">Upload</button>
+</form>
+
+const form = document.querySelector('form');
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const formData = new FormData(form);
+  // Parse JSON fields
+  const categories = JSON.parse(formData.get('categories'));
+  formData.set('categories', JSON.stringify(categories));
+
+  await fetch('/upload', {
+    method: 'POST',
+    body: formData
+  });
+});
+
+AJAX SUBMISSION
+---------------
+Submit without page reload:
+
+const form = document.getElementById('myForm');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const formData = new FormData(form);
+
+  // Convert to plain object
+  const data = {};
+  for (const [key, value] of formData.entries()) {
+    try {
+      data[key] = JSON.parse(value);  // Parse JSON values
+    } catch {
+      data[key] = value;  // Keep as string
+    }
+  }
+
+  const response = await fetch('/api/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+
+  const result = await response.json();
+  console.log(result);
+});
+
+FORM LIBRARIES
+--------------
+Integration with form libraries:
+
+React Hook Form:
+import { useForm } from 'react-hook-form';
+
+function MyForm() {
+  const { register, handleSubmit } = useForm();
+
+  useEffect(() => {
+    const select = document.querySelector('web-multiselect');
+    register('skills');
+
+    select.addEventListener('change', (e) => {
+      setValue('skills', e.detail.selectedValues);
+    });
+  }, []);
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <web-multiselect></web-multiselect>
+    </form>
+  );
+}
+
+Vue with v-model:
+Not directly supported (Web Component)
+
+Workaround:
+<web-multiselect
+  ref="select"
+  @change="handleChange">
+</web-multiselect>
+
+methods: {
+  handleChange(e) {
+    this.formData.skills = e.detail.selectedValues;
+  }
+}
+
+SERVER-SIDE HANDLING
+--------------------
+Parse form data on server:
+
+Express.js:
+app.post('/submit', (req, res) => {
+  const skills = JSON.parse(req.body.skills);
+  console.log(skills);  // [1, 2, 3]
+});
+
+Python Flask:
+@app.route('/submit', methods=['POST'])
+def submit():
+    skills = json.loads(request.form['skills'])
+    print(skills)  # [1, 2, 3]
+
+PHP:
+$skills = json_decode($_POST['skills']);
+var_dump($skills);  // [1, 2, 3]
+
+CONDITIONAL FIELDS
+------------------
+Show/hide fields based on selection:
+
+<form>
+  <web-multiselect name="role">
+    <option value="developer">Developer</option>
+    <option value="designer">Designer</option>
+  </web-multiselect>
+
+  <div id="developerFields" style="display: none;">
+    <web-multiselect name="languages">
+      <option value="js">JavaScript</option>
+    </web-multiselect>
+  </div>
+</form>
+
+<script>
+  const roleSelect = document.querySelector('[name="role"]');
+  const devFields = document.getElementById('developerFields');
+
+  roleSelect.addEventListener('change', (e) => {
+    const selected = e.detail.selectedValues;
+    devFields.style.display =
+      selected.includes('developer') ? 'block' : 'none';
+  });
+</script>
+
+BEST PRACTICES
+--------------
+✅ Use JSON format for arrays
+✅ Use CSV for simple lists
+✅ Use array format for multiple values
+✅ Validate before submission
+✅ Parse JSON values on server
+✅ Handle form reset
+✅ Provide meaningful name attributes
+✅ Test form submission thoroughly
+
+❌ Don't forget to parse JSON on server
+❌ Don't mix value formats inconsistently
+❌ Don't skip validation
+❌ Don't submit without checking selection
+❌ Don't forget error handling
+
+COMMON PATTERNS
+---------------
+Basic form:
+<form action="/submit" method="POST">
+  <web-multiselect name="items" value-format="json">
+  </web-multiselect>
+  <button type="submit">Submit</button>
+</form>
+
+AJAX form:
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const formData = new FormData(form);
+  await fetch('/api', { method: 'POST', body: formData });
+});
+
+With validation:
+form.addEventListener('submit', (e) => {
+  const select = form.querySelector('web-multiselect');
+  if (select.getValue().length === 0) {
+    e.preventDefault();
+    alert('Required');
+  }
+});
+
+DEBUGGING
+---------
+Inspect form state:
+
+const form = document.getElementById('myForm');
+const formData = new FormData(form);
+
+console.log('Form data:');
+for (const [key, value] of formData.entries()) {
+  console.log(key, value);
+}
+
+Check hidden input:
+const select = document.querySelector('web-multiselect');
+const hidden = document.querySelector(`input[name="${select.name}"]`);
+console.log('Hidden value:', hidden?.value);
+
+EXAMPLES
+--------
+See examples-new-api.html for:
+- Form integration examples
+- Value formats
+- FormData usage
+- Validation patterns

@@ -1,0 +1,263 @@
+/* ==============================================================================
+   INPUT & DROPDOWN COMPONENTS
+   ==============================================================================
+   Input field, toggle icon, count badge, floating hint, dropdown container, and actions
+*/
+
+/* ==============================================================================
+   INPUT COMPONENT
+   ==============================================================================
+*/
+
+/* Input wrapper */
+.ms__input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Search input */
+.ms__input {
+  box-sizing: border-box;
+  width: 100%;
+  font-family: inherit; /* Form elements don't inherit font by default */
+  height: var(--ms-input-height);
+  padding: var(--ms-input-padding);
+  padding-right: var(--ms-input-padding-right); /* Space for dropdown icon */
+  font-size: var(--ms-input-font-size);
+  border: var(--ms-input-border);
+  border-radius: var(--ms-input-border-radius);
+  background: var(--ms-input-background);
+  color: var(--ms-input-color);
+  cursor: pointer;
+  transition: border var(--ms-transition-fast) var(--ms-easing-snappy);
+}
+
+.ms__input:hover:not(:focus):not(:disabled) {
+  border: var(--ms-input-border-hover);
+}
+
+.ms__input:focus {
+  outline: none;
+  border: var(--ms-input-border-focus);
+}
+
+.ms__input::placeholder {
+  color: var(--ms-input-placeholder-color);
+  opacity: 0; /* Initially hidden until component is ready */
+  transition: opacity var(--ms-transition-fast) var(--ms-easing-snappy);
+}
+
+/* Show placeholder only after component is fully initialized */
+:host([data-ready]) .ms__input::placeholder {
+  opacity: var(--ms-placeholder-opacity);
+}
+
+/* Size variants */
+.ms__input.ms__input--xs {
+  font-size: var(--ms-input-size-xs-font);
+  padding: var(--ms-input-size-xs-padding-v) var(--ms-input-size-xs-padding-h);
+  padding-right: calc(var(--ms-input-size-xs-padding-h) * 2.5);
+  height: var(--ms-input-size-xs-height);
+}
+
+.ms__input.ms__input--sm {
+  font-size: var(--ms-input-size-sm-font);
+  padding: var(--ms-input-size-sm-padding-v) var(--ms-input-size-sm-padding-h);
+  padding-right: calc(var(--ms-input-size-sm-padding-h) * 2.5);
+  height: var(--ms-input-size-sm-height);
+}
+
+.ms__input.ms__input--lg {
+  font-size: var(--ms-input-size-lg-font);
+  padding: var(--ms-input-size-lg-padding-v) var(--ms-input-size-lg-padding-h);
+  padding-right: calc(var(--ms-input-size-lg-padding-h) * 2.5);
+  height: var(--ms-input-size-lg-height);
+}
+
+.ms__input.ms__input--xl {
+  font-size: var(--ms-input-size-xl-font);
+  padding: var(--ms-input-size-xl-padding-v) var(--ms-input-size-xl-padding-h);
+  padding-right: calc(var(--ms-input-size-xl-padding-h) * 2.5);
+  height: var(--ms-input-size-xl-height);
+}
+
+/* ==============================================================================
+   TOGGLE ICON
+   ==============================================================================
+*/
+
+/* Dropdown toggle icon */
+.ms__toggle {
+  position: absolute;
+  right: var(--ms-toggle-right);
+  top: 50%;
+  transform: var(--ms-transform-center-y);
+  pointer-events: none;
+  color: var(--ms-toggle-icon-color);
+  transition: transform var(--ms-transition-fast) var(--ms-easing-snappy);
+}
+
+.ms--open .ms__toggle {
+  transform: var(--ms-transform-center-y) rotate(var(--ms-transform-rotate-180));
+  color: var(--ms-toggle-icon-color-open);
+}
+
+/* ==============================================================================
+   COUNT BADGE (IN INPUT)
+   ==============================================================================
+*/
+
+/* Count badge (appears next to toggle icon) */
+.ms__counter {
+  position: absolute;
+  right: var(--ms-counter-offset); /* Space for toggle icon */
+  top: 50%;
+  transform: var(--ms-transform-center-y);
+  padding: var(--ms-counter-padding);
+  background: var(--ms-counter-badge-background);
+  color: var(--ms-counter-badge-color);
+  font-size: var(--ms-counter-font-size);
+  font-weight: var(--ms-counter-font-weight);
+  border-radius: var(--ms-counter-border-radius);
+  cursor: pointer;
+  transition: all var(--ms-transition-fast) var(--ms-easing-snappy);
+}
+
+.ms__counter:hover {
+  background: var(--ms-counter-badge-background-hover);
+  transform: var(--ms-transform-center-y) scale(var(--ms-transform-scale-hover));
+}
+
+/* ==============================================================================
+   FLOATING HINT
+   ==============================================================================
+*/
+
+/* Floating search hint (appears above input) */
+.ms__hint {
+  display: none;
+  position: absolute;
+  z-index: var(--ms-z-index-popover);
+  padding: var(--ms-hint-padding);
+  background: var(--ms-hint-background);
+  border: var(--ms-hint-border);
+  border-radius: var(--ms-hint-border-radius);
+  box-shadow: var(--ms-hint-box-shadow);
+  font-size: var(--ms-hint-font-size);
+  color: var(--ms-hint-color);
+  line-height: var(--ms-line-height-relaxed);
+  max-width: 100%;
+}
+
+.ms__hint--visible {
+  display: block;
+}
+
+/* ==============================================================================
+   DROPDOWN CONTAINER
+   ==============================================================================
+*/
+
+/* Floating dropdown (appears below input) */
+.ms__dropdown {
+  display: none;
+  position: absolute;
+  font-family: inherit; /* Ensure font inherits from container */
+  z-index: var(--ms-z-index-dropdown);
+  background: var(--ms-dropdown-background);
+  border: var(--ms-dropdown-border);
+  border-radius: var(--ms-dropdown-border-radius);
+  box-shadow: var(--ms-dropdown-box-shadow);
+  max-height: var(--ms-options-max-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  color: var(--ms-dropdown-text-color);
+
+  /* Scrollbar styling */
+  scrollbar-width: thin;  /* Firefox */
+  scrollbar-color: var(--ms-scrollbar-thumb-bg) var(--ms-scrollbar-track-bg);
+}
+
+.ms__dropdown::-webkit-scrollbar {
+  width: var(--ms-scrollbar-width);
+}
+
+.ms__dropdown::-webkit-scrollbar-track {
+  background: var(--ms-scrollbar-track-bg);
+}
+
+.ms__dropdown::-webkit-scrollbar-thumb {
+  background: var(--ms-scrollbar-thumb-bg);
+  border-radius: var(--ms-scrollbar-thumb-border-radius);
+}
+
+.ms__dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--ms-scrollbar-thumb-bg-hover);
+}
+
+.ms__dropdown--visible {
+  display: block;
+}
+
+.ms__dropdown--virtual {
+  /* In virtual scroll mode, let the options container handle scrolling */
+  overflow-y: visible;
+  max-height: none;
+}
+
+/* ==============================================================================
+   DROPDOWN ACTIONS
+   ==============================================================================
+*/
+
+/* Dropdown actions (Select All / Clear All) */
+.ms__actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--ms-actions-gap);
+  padding: var(--ms-actions-padding);
+  border-bottom: var(--ms-actions-border-bottom);
+}
+
+.ms__actions--wrap {
+  flex-wrap: wrap;
+}
+
+.ms__actions--sticky {
+  position: sticky;
+  top: 0;
+  z-index: var(--ms-z-index-sticky);
+  background: var(--ms-actions-background);
+}
+
+.ms__action-btn {
+  flex: 1;
+  font-family: inherit; /* Form elements don't inherit font by default */
+  padding: var(--ms-action-btn-padding);
+  font-size: var(--ms-action-btn-font-size);
+  border: var(--ms-action-btn-border);
+  border-radius: var(--ms-action-btn-border-radius);
+  background: var(--ms-action-button-background);
+  color: var(--ms-action-button-color);
+  cursor: pointer;
+  transition: all var(--ms-transition-fast) var(--ms-easing-snappy);
+}
+
+.ms__action-btn:hover {
+  background: var(--ms-action-button-background-hover);
+  border-color: var(--ms-action-button-border-color-hover);
+}
+
+.ms__action-btn:active {
+  transform: scale(var(--ms-transform-scale-active));
+}
+
+.ms__action-btn:disabled,
+.ms__action-btn[disabled] {
+  opacity: var(--ms-disabled-opacity);
+  cursor: not-allowed;
+  pointer-events: none;
+}

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Integration - Web Dropzone</title>
+    <link rel="stylesheet" href="examples-shared.css">
+    <style>
+        .form-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 1rem;
+            align-items: start;
+            margin-bottom: 1.25rem;
+        }
+        .form-row > label {
+            margin-top: 0.4rem;
+            font-weight: 500;
+            color: #374151;
+        }
+        .form-row > input[type="text"],
+        .form-row > input[type="email"] {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+        .form-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        .submit-output {
+            background: #1f2937;
+            color: #e5e7eb;
+            font-family: 'SF Mono', Monaco, monospace;
+            padding: 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            margin-top: 1rem;
+            min-height: 4rem;
+        }
+        .submit-output:empty::before {
+            content: '(submit the form to see the captured FormData entries)';
+            color: #9ca3af;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to Examples</a>
+            <h1>📝 Form Integration</h1>
+            <p class="subtitle">Form-associated submission with real FormData and automatic form reset</p>
+        </header>
+
+        <!-- HOW IT WORKS -->
+        <div class="card">
+            <h2>How it works</h2>
+            <p><code>&lt;web-dropzone&gt;</code> is a <strong>form-associated custom element</strong>. Set <code>name="..."</code> and the surrounding form sees every selected file as a real <code>File</code> blob — exactly like <code>&lt;input type="file" multiple&gt;</code>.</p>
+
+            <div class="note">
+                <div class="note-title">Behind the scenes</div>
+                <ul>
+                    <li><code>static formAssociated = true</code> opts in to the form lifecycle.</li>
+                    <li>On every selection change, the element calls <code>internals.setFormValue(formData)</code> with a <code>FormData</code> carrying each <code>File</code> under the configured <code>name</code>.</li>
+                    <li><code>formResetCallback()</code> calls <code>clear()</code> so <code>form.reset()</code> empties the selection.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- LIVE FORM -->
+        <div class="card">
+            <h2>Live Form Submission</h2>
+            <p>The form below intercepts submit and renders the captured <code>FormData</code> entries — no network request. Try selecting files, typing in the text fields, and hitting <strong>Submit</strong>.</p>
+
+            <form id="upload-form">
+                <div class="form-row">
+                    <label for="form-title">Title</label>
+                    <input type="text" id="form-title" name="title" placeholder="Optional title" value="Quarterly report">
+                </div>
+
+                <div class="form-row">
+                    <label for="form-email">Email</label>
+                    <input type="email" id="form-email" name="email" placeholder="you@example.com" value="alice@example.com">
+                </div>
+
+                <div class="form-row">
+                    <label>Attachments</label>
+                    <web-dropzone
+                        name="attachments"
+                        accept="*/*"
+                        max-file-count="5"
+                        display-mode="detailed"
+                        prompt-text="Drop attachments"
+                        hint-text="Up to 5 files">
+                    </web-dropzone>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit">Submit</button>
+                    <button type="reset" class="btn-outline">Reset form</button>
+                </div>
+            </form>
+
+            <div class="output">
+                <div class="output-label">Captured FormData on submit:</div>
+                <div class="submit-output" id="submit-output"></div>
+            </div>
+        </div>
+
+        <!-- WHAT YOU GET SERVER-SIDE -->
+        <div class="card">
+            <h2>What the server sees</h2>
+            <p>When this form is POSTed with <code>enctype="multipart/form-data"</code>, the server receives each file under the <code>attachments</code> field — same wire format as a standard file input.</p>
+
+            <div class="code-block">
+                <pre><code>// Express.js example with multer
+const multer = require('multer')
+const upload = multer({ storage: multer.memoryStorage() })
+
+app.post('/upload', upload.array('attachments'), (req, res) => {
+    console.log(req.body.title)      // -> "Quarterly report"
+    console.log(req.body.email)      // -> "alice@example.com"
+    console.log(req.files.length)    // -> number of dropped files
+    req.files.forEach(f => {
+        console.log(f.originalname, f.size, f.mimetype)
+    })
+})</code></pre>
+            </div>
+
+            <div class="code-block">
+                <pre><code>&lt;!-- The form must use multipart encoding for file fields --&gt;
+&lt;form action="/upload" method="post" enctype="multipart/form-data"&gt;
+    &lt;input type="text" name="title"&gt;
+    &lt;web-dropzone name="attachments" multiple&gt;&lt;/web-dropzone&gt;
+    &lt;button type="submit"&gt;Upload&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+            </div>
+        </div>
+
+        <!-- RESET BEHAVIOR -->
+        <div class="card">
+            <h2>Form Reset</h2>
+            <p>Native <code>form.reset()</code> clears the dropzone via <code>formResetCallback()</code>. The reset button above demonstrates this — pick a few files, hit Reset, and the selection disappears alongside the text fields.</p>
+
+            <div class="code-block">
+                <pre><code>document.getElementById('upload-form').reset()
+//  ^ text inputs reset to their default value
+//  ^ web-dropzone clears its file selection</code></pre>
+            </div>
+        </div>
+
+        <!-- NAMING -->
+        <div class="card">
+            <h2>Field Naming</h2>
+            <p>Like any form control, the <code>name</code> attribute determines the key under which the dropzone's value appears in <code>FormData</code>.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>name="documents"</label>
+                    <form onsubmit="event.preventDefault(); showFD(this, 'naming-1-out')">
+                        <web-dropzone name="documents" display-mode="list" max-file-count="3"></web-dropzone>
+                        <button type="submit" style="margin-top: 0.5rem;">Capture</button>
+                        <pre class="submit-output" id="naming-1-out" style="margin-top: 0.5rem; min-height: 2rem;"></pre>
+                    </form>
+                </div>
+
+                <div class="form-group">
+                    <label>(no name — not submitted)</label>
+                    <form onsubmit="event.preventDefault(); showFD(this, 'naming-2-out')">
+                        <web-dropzone display-mode="list" max-file-count="3"></web-dropzone>
+                        <button type="submit" style="margin-top: 0.5rem;">Capture</button>
+                        <pre class="submit-output" id="naming-2-out" style="margin-top: 0.5rem; min-height: 2rem;"></pre>
+                    </form>
+                </div>
+            </div>
+
+            <div class="note warning">
+                <div class="note-title">Without <code>name</code></div>
+                <p>The dropzone still works as a standalone UI control, but the surrounding form will not submit its files. Use the public <code>.files</code> getter to read state programmatically instead.</p>
+            </div>
+        </div>
+
+        <footer>
+            <p><a href="index.html">← Back to Examples</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        const form = document.getElementById('upload-form')
+        const out = document.getElementById('submit-output')
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault()
+            const fd = new FormData(form)
+            out.textContent = formatFormData(fd)
+        })
+
+        window.showFD = (formEl, outId) => {
+            const fd = new FormData(formEl)
+            document.getElementById(outId).textContent = formatFormData(fd)
+        }
+
+        function formatFormData(fd) {
+            const lines = []
+            for (const [key, value] of fd.entries()) {
+                if (value instanceof File) {
+                    lines.push(`${key}: [File] ${value.name} (${formatBytes(value.size)}, ${value.type || 'unknown'})`)
+                } else {
+                    lines.push(`${key}: ${value}`)
+                }
+            }
+            return lines.length ? lines.join('\n') : '(no entries)'
+        }
+
+        function formatBytes(b) {
+            if (b < 1024) return `${b} B`
+            if (b < 1024*1024) return `${(b/1024).toFixed(1)} KB`
+            return `${(b/(1024*1024)).toFixed(2)} MB`
+        }
+    </script>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>

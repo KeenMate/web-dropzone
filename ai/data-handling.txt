@@ -1,0 +1,563 @@
+DATA HANDLING
+=============
+
+CRITICAL: Flexible Data API - works with ANY data structure
+- Standard objects: { value, label, icon, ... }
+- Custom objects: { id, name, ... } with member properties or callbacks
+- Tuple arrays: [key, value] auto-detected
+- Priority: Callbacks > Member Properties > Default Properties
+
+STANDARD FORMAT
+---------------
+Default property names (no configuration needed):
+
+✅ select.options = [
+  { value: 1, label: 'JavaScript' },
+  { value: 2, label: 'TypeScript' },
+  { value: 3, label: 'Python' }
+];
+
+Standard properties:
+- value: string | number (required) - Unique identifier
+- label: string (required) - Display text
+- icon: string (optional) - Icon/emoji
+- subtitle: string (optional) - Secondary text
+- group: string (optional) - Group name
+- disabled: boolean (optional) - Disable selection
+- selected: boolean (optional) - Pre-selected
+
+CUSTOM OBJECTS
+--------------
+Use your existing data structure without transformation:
+
+Your data:
+const users = [
+  { id: 1, firstName: 'John', lastName: 'Doe', email: 'john@example.com' },
+  { id: 2, firstName: 'Jane', lastName: 'Smith', email: 'jane@example.com' }
+];
+
+Option 1: Member properties
+select.valueMember = 'id';
+select.displayValueMember = 'firstName';
+select.options = users;
+
+Option 2: Callback functions
+select.getValueCallback = (user) => user.id;
+select.getDisplayValueCallback = (user) => `${user.firstName} ${user.lastName}`;
+select.options = users;
+
+MEMBER PROPERTIES
+-----------------
+Map custom object properties:
+
+<web-multiselect
+  value-member="id"
+  display-value-member="name"
+  search-value-member="searchText"
+  icon-member="emoji"
+  subtitle-member="description"
+  group-member="category"
+  disabled-member="isDisabled">
+</web-multiselect>
+
+Or programmatically:
+select.valueMember = 'id';
+select.displayValueMember = 'name';
+select.searchValueMember = 'searchText';
+select.iconMember = 'emoji';
+select.subtitleMember = 'description';
+select.groupMember = 'category';
+select.disabledMember = 'isDisabled';
+
+Example:
+select.options = [
+  {
+    id: 1,
+    name: 'Apple',
+    searchText: 'apple fruit red',
+    emoji: '🍎',
+    description: 'Fresh fruit',
+    category: 'Fruits',
+    isDisabled: false
+  }
+];
+
+CALLBACK FUNCTIONS
+------------------
+Maximum flexibility with callback functions:
+
+select.getValueCallback = (item) => string | number;
+select.getDisplayValueCallback = (item) => string;
+select.getSearchValueCallback = (item) => string;
+select.getIconCallback = (item) => string;
+select.getSubtitleCallback = (item) => string;
+select.getGroupCallback = (item) => string;
+select.getDisabledCallback = (item) => boolean;
+
+Example:
+select.options = [
+  { id: 1, first: 'John', last: 'Doe', active: true },
+  { id: 2, first: 'Jane', last: 'Smith', active: false }
+];
+
+select.getValueCallback = (user) => user.id;
+select.getDisplayValueCallback = (user) => `${user.first} ${user.last}`;
+select.getSearchValueCallback = (user) =>
+  `${user.first} ${user.last} ${user.id}`;
+select.getDisabledCallback = (user) => !user.active;
+
+PRIORITY ORDER
+--------------
+Component checks in this order:
+
+1. Callback function (highest priority)
+2. Member property
+3. Default property (value, label, etc.)
+
+Example (callbacks override members):
+select.valueMember = 'id';  // Ignored if callback exists
+select.getValueCallback = (item) => item.userId;  // Used
+
+Example (members override defaults):
+select.displayValueMember = 'name';  // Used
+// Default 'label' property ignored
+
+Example (defaults used if no config):
+select.options = [
+  { value: 1, label: 'Option 1' }  // Works without config
+];
+
+TUPLE ARRAYS
+------------
+Auto-detected [key, value] format:
+
+✅ select.options = [
+  ['js', 'JavaScript'],
+  ['ts', 'TypeScript'],
+  ['py', 'Python']
+];
+
+// Automatically treats as:
+// { value: 'js', label: 'JavaScript' }
+// { value: 'ts', label: 'TypeScript' }
+// { value: 'py', label: 'Python' }
+
+Component detects tuples when:
+- Array of arrays
+- Inner arrays have exactly 2 elements
+- First element is string or number
+
+DECLARATIVE DATA (HTML)
+-----------------------
+Use <option> elements with data- attributes:
+
+<web-multiselect
+  value-member="id"
+  display-value-member="name"
+  icon-member="emoji">
+  <option value="1" data-name="Apple" data-emoji="🍎">Apple</option>
+  <option value="2" data-name="Banana" data-emoji="🍌">Banana</option>
+</web-multiselect>
+
+IMPORTANT: Use data- prefix for custom attributes in HTML
+
+Standard HTML attributes work without data- prefix:
+<option value="1" disabled>Disabled Option</option>
+
+ICONS
+-----
+Add icons or emojis to options:
+
+Standard format:
+select.options = [
+  { value: 'js', label: 'JavaScript', icon: '🟨' },
+  { value: 'ts', label: 'TypeScript', icon: '🔷' }
+];
+
+Custom property:
+select.iconMember = 'emoji';
+select.options = [
+  { id: 1, name: 'JavaScript', emoji: '🟨' }
+];
+
+Callback:
+select.getIconCallback = (lang) => {
+  const icons = { js: '🟨', ts: '🔷', py: '🐍' };
+  return icons[lang.code];
+};
+
+Icons can be:
+- Emojis: '🍎'
+- Unicode: '\u{1F34E}'
+- Font Awesome classes: 'fa fa-apple'
+- Image URLs: 'https://example.com/icon.png'
+- HTML: '<img src="icon.png" />' (with renderOptionContentCallback)
+
+SUBTITLES
+---------
+Add secondary text below main label:
+
+Standard format:
+select.options = [
+  {
+    value: 1,
+    label: 'John Doe',
+    subtitle: 'john@example.com'
+  }
+];
+
+Custom property:
+select.subtitleMember = 'email';
+select.options = [
+  { id: 1, name: 'John Doe', email: 'john@example.com' }
+];
+
+Callback:
+select.getSubtitleCallback = (user) => {
+  return `${user.email} • ${user.role}`;
+};
+
+GROUPS
+------
+Organize options into collapsible groups:
+
+Standard format:
+select.options = [
+  { value: 1, label: 'Apple', group: 'Fruits' },
+  { value: 2, label: 'Banana', group: 'Fruits' },
+  { value: 3, label: 'Carrot', group: 'Vegetables' }
+];
+
+Custom property:
+select.groupMember = 'category';
+select.options = [
+  { id: 1, name: 'Apple', category: 'Fruits' }
+];
+
+Callback:
+select.getGroupCallback = (item) => {
+  return item.type === 'fruit' ? 'Fruits' : 'Vegetables';
+};
+
+Declarative:
+<web-multiselect allow-groups="true">
+  <optgroup label="Fruits">
+    <option value="1">Apple</option>
+    <option value="2">Banana</option>
+  </optgroup>
+  <optgroup label="Vegetables">
+    <option value="3">Carrot</option>
+  </optgroup>
+</web-multiselect>
+
+DISABLED OPTIONS
+----------------
+Mark options as non-selectable:
+
+Standard format:
+select.options = [
+  { value: 1, label: 'Available' },
+  { value: 2, label: 'Disabled', disabled: true }
+];
+
+Custom property:
+select.disabledMember = 'isDisabled';
+select.options = [
+  { id: 1, name: 'Available', isDisabled: false },
+  { id: 2, name: 'Disabled', isDisabled: true }
+];
+
+Callback (conditional):
+select.getDisabledCallback = (user) => {
+  return !user.isActive || user.suspended;
+};
+
+Declarative:
+<option value="1" disabled>Disabled Option</option>
+
+PRE-SELECTED OPTIONS
+--------------------
+Set initial selection:
+
+Standard format:
+select.options = [
+  { value: 1, label: 'Option 1', selected: true },
+  { value: 2, label: 'Option 2' },
+  { value: 3, label: 'Option 3', selected: true }
+];
+
+Or use setSelected():
+select.setSelected([1, 3]);
+
+Declarative:
+<option value="1" selected>Option 1</option>
+<option value="3" selected>Option 3</option>
+
+Or initial-values attribute:
+<web-multiselect initial-values='[1, 3]'>
+
+COMPLEX OBJECTS
+---------------
+Real-world example with all features:
+
+interface User {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatar: string;
+  department: string;
+  role: string;
+  isActive: boolean;
+  isPremium: boolean;
+}
+
+const users: User[] = [...];
+
+// Approach 1: Callbacks (most flexible)
+select.getValueCallback = (user) => user.userId;
+select.getDisplayValueCallback = (user) =>
+  `${user.firstName} ${user.lastName}`;
+select.getSearchValueCallback = (user) =>
+  `${user.firstName} ${user.lastName} ${user.email} ${user.role}`;
+select.getIconCallback = (user) => user.avatar;
+select.getSubtitleCallback = (user) =>
+  `${user.email} • ${user.role}`;
+select.getGroupCallback = (user) => user.department;
+select.getDisabledCallback = (user) => !user.isActive;
+select.getBadgeDisplayCallback = (user) =>
+  `${user.firstName} ${user.isPremium ? '⭐' : ''}`;
+
+select.options = users;
+
+// Approach 2: Member properties (simpler)
+select.valueMember = 'userId';
+select.displayValueMember = 'firstName';
+select.groupMember = 'department';
+select.disabledMember = 'isActive';  // Note: inverted logic not possible
+
+select.options = users;
+
+COMPUTED PROPERTIES
+-------------------
+Use callbacks for computed values:
+
+select.getDisplayValueCallback = (product) => {
+  const discount = product.discount ? ` (-${product.discount}%)` : '';
+  return `${product.name} - $${product.price}${discount}`;
+};
+
+select.getSubtitleCallback = (product) => {
+  const inStock = product.stock > 0 ? 'In Stock' : 'Out of Stock';
+  return `${inStock} • ${product.category}`;
+};
+
+select.getDisabledCallback = (product) => {
+  return product.stock === 0 || !product.available;
+};
+
+NESTED PROPERTIES
+-----------------
+Access nested object properties:
+
+const options = [
+  {
+    id: 1,
+    name: 'John Doe',
+    contact: { email: 'john@example.com', phone: '555-0100' },
+    address: { city: 'New York', country: 'USA' }
+  }
+];
+
+Use callbacks:
+select.getValueCallback = (user) => user.id;
+select.getDisplayValueCallback = (user) => user.name;
+select.getSubtitleCallback = (user) => user.contact.email;
+select.getGroupCallback = (user) => user.address.country;
+
+ARRAY PROPERTIES
+----------------
+Handle arrays in data:
+
+const options = [
+  {
+    id: 1,
+    name: 'John Doe',
+    tags: ['developer', 'senior', 'frontend'],
+    skills: ['JavaScript', 'React', 'TypeScript']
+  }
+];
+
+Use callbacks:
+select.getSearchValueCallback = (user) => {
+  return `${user.name} ${user.tags.join(' ')} ${user.skills.join(' ')}`;
+};
+
+select.getSubtitleCallback = (user) => {
+  return user.tags.join(' • ');
+};
+
+DYNAMIC DATA
+------------
+Update options dynamically:
+
+// Replace all options
+select.options = newOptions;
+
+// Add options
+select.options = [...select.options, ...newOptions];
+
+// Remove option
+select.options = select.options.filter(opt => opt.value !== valueToRemove);
+
+// Update option
+select.options = select.options.map(opt =>
+  opt.value === targetValue ? { ...opt, label: 'Updated' } : opt
+);
+
+IMPORTANT: Always reassign the entire array for reactivity
+
+❌ select.options.push(newOption);  // Won't trigger update
+✅ select.options = [...select.options, newOption];  // Triggers update
+
+EMPTY OPTIONS
+-------------
+Handle empty state:
+
+select.options = [];
+select.emptyMessage = 'No options available';
+
+Check if empty:
+if (select.options.length === 0) {
+  console.log('No options');
+}
+
+NUMERIC VALUES
+--------------
+Values can be numbers:
+
+✅ select.options = [
+  { value: 1, label: 'Option 1' },
+  { value: 2, label: 'Option 2' }
+];
+
+// Get selected preserves type
+const selected = select.getValue();  // Returns number or number[]
+
+STRING VALUES
+-------------
+Values can be strings:
+
+✅ select.options = [
+  { value: 'opt1', label: 'Option 1' },
+  { value: 'opt2', label: 'Option 2' }
+];
+
+MIXED VALUES (NOT RECOMMENDED)
+------------------------------
+Avoid mixing types:
+
+❌ select.options = [
+  { value: 1, label: 'Option 1' },      // number
+  { value: 'opt2', label: 'Option 2' }  // string
+];
+
+Stick to one type for consistency
+
+NULL/UNDEFINED VALUES
+---------------------
+Handle missing data:
+
+select.getDisplayValueCallback = (item) => {
+  return item.name || 'Unknown';
+};
+
+select.getSubtitleCallback = (item) => {
+  return item.description || '';
+};
+
+select.getDisabledCallback = (item) => {
+  return item.disabled ?? false;
+};
+
+SEARCH VALUE
+------------
+Control what text is searchable:
+
+// Default: searches display value
+select.options = [
+  { value: 1, label: 'JavaScript' }
+];
+// Searches "JavaScript"
+
+// Custom search value
+select.searchValueMember = 'searchText';
+select.options = [
+  {
+    value: 1,
+    label: 'JavaScript',
+    searchText: 'javascript js ecmascript'
+  }
+];
+// Searches "javascript js ecmascript"
+
+// Callback for computed search
+select.getSearchValueCallback = (lang) => {
+  return `${lang.name} ${lang.alias} ${lang.tags.join(' ')}`;
+};
+
+BEST PRACTICES
+--------------
+✅ Use callbacks for complex transformations
+✅ Use member properties for simple mappings
+✅ Use standard format when possible (least config)
+✅ Keep value type consistent (all numbers or all strings)
+✅ Provide meaningful search values
+✅ Use groups to organize large datasets
+✅ Handle null/undefined values gracefully
+✅ Reassign entire array for updates
+
+❌ Don't mix value types (number and string)
+❌ Don't mutate options array directly
+❌ Don't use complex objects as values (use IDs)
+❌ Don't forget to handle empty data
+❌ Don't use callbacks for simple property mapping
+
+COMMON PATTERNS
+---------------
+Simple list:
+select.options = [
+  { value: 1, label: 'Option 1' },
+  { value: 2, label: 'Option 2' }
+];
+
+User list:
+select.getValueCallback = (u) => u.id;
+select.getDisplayValueCallback = (u) => `${u.firstName} ${u.lastName}`;
+select.getSubtitleCallback = (u) => u.email;
+select.getIconCallback = (u) => u.avatar;
+
+Product catalog:
+select.getValueCallback = (p) => p.sku;
+select.getDisplayValueCallback = (p) => `${p.name} ($${p.price})`;
+select.getSubtitleCallback = (p) => p.category;
+select.getGroupCallback = (p) => p.brand;
+select.getDisabledCallback = (p) => p.stock === 0;
+
+Country selector:
+select.options = [
+  { value: 'US', label: 'United States', icon: '🇺🇸' },
+  { value: 'GB', label: 'United Kingdom', icon: '🇬🇧' },
+  { value: 'FR', label: 'France', icon: '🇫🇷' }
+];
+
+DEBUGGING
+---------
+Log data processing:
+
+import { enableLogging, setCategoryLevel } from '@keenmate/web-multiselect';
+setCategoryLevel('MULTISELECT:DATA', 'debug');
+
+Check what component sees:
+console.log(select.options);
+console.log(select.getSelected());

@@ -1,0 +1,464 @@
+IMPORT PATTERNS
+===============
+
+CRITICAL: This package provides a Web Component (Custom Element)
+- Import once to register globally
+- Component + styles bundled together by default
+- Separate imports available for advanced use cases
+- TypeScript types included automatically
+
+RECOMMENDED IMPORT (ESM)
+------------------------
+Most common pattern - imports component + styles:
+
+✅ import '@keenmate/web-multiselect';
+
+This single import:
+- Registers <web-multiselect> custom element
+- Includes all styles in Shadow DOM
+- Ready to use immediately
+
+<web-multiselect>
+  <option value="1">Option 1</option>
+</web-multiselect>
+
+SEPARATE IMPORTS
+----------------
+Import component and styles separately:
+
+✅ import '@keenmate/web-multiselect/style.css';
+✅ import { MultiSelectElement } from '@keenmate/web-multiselect';
+
+Use this when:
+- You want explicit CSS control
+- Building custom bundle configurations
+- Need finer-grained imports
+
+CORE CLASS IMPORT
+-----------------
+Import core logic without Web Component wrapper:
+
+✅ import { WebMultiSelect } from '@keenmate/web-multiselect';
+
+Use for:
+- Framework-specific wrappers
+- Custom element implementations
+- Testing core logic independently
+
+const multiselect = new WebMultiSelect(containerElement, config);
+
+TYPESCRIPT IMPORTS
+------------------
+Types are included automatically, no @types package needed:
+
+✅ import type {
+  MultiSelectOption,
+  MultiSelectConfig,
+  MultiSelectEventDetail,
+  BadgesDisplayMode,
+  SearchMode,
+  ActionButton
+} from '@keenmate/web-multiselect';
+
+Common types:
+
+// Option interface
+interface MultiSelectOption {
+  value: string | number;
+  label: string;
+  icon?: string;
+  subtitle?: string;
+  group?: string;
+  disabled?: boolean;
+  selected?: boolean;
+}
+
+// Generic for custom objects
+const select = document.querySelector('web-multiselect');
+select.options = options as MultiSelectOption<MyCustomType>[];
+
+LOGGING UTILITIES
+-----------------
+Import logging functions:
+
+✅ import {
+  enableLogging,
+  disableLogging,
+  setLogLevel,
+  setCategoryLevel
+} from '@keenmate/web-multiselect';
+
+enableLogging();  // Enable all categories
+disableLogging(); // Disable all logging
+
+setLogLevel('debug');  // Set global level
+setCategoryLevel('MULTISELECT:DATA', 'debug');  // Category-specific
+
+Available categories:
+- MULTISELECT:INIT
+- MULTISELECT:DATA
+- MULTISELECT:UI
+- MULTISELECT:INTERACTION
+
+GLOBAL API (BROWSER)
+--------------------
+Access utilities via window object (no import needed):
+
+✅ window.components['web-multiselect'].version()
+✅ window.components['web-multiselect'].logging.enableLogging()
+✅ window.components['web-multiselect'].logging.setLogLevel('debug')
+✅ window.components['web-multiselect'].getInstances()
+
+Useful for:
+- Browser console debugging
+- Runtime configuration
+- CDN usage without build tools
+
+UMD BUILD (CDN)
+---------------
+For browser without build tools:
+
+<script src="https://unpkg.com/@keenmate/web-multiselect@latest/dist/multiselect.umd.js"></script>
+
+Or specific version:
+<script src="https://unpkg.com/@keenmate/web-multiselect@1.0.0/dist/multiselect.umd.js"></script>
+
+Component automatically registers:
+<web-multiselect>
+  <option value="1">Option 1</option>
+</web-multiselect>
+
+Access via global:
+window.components['web-multiselect'].version();
+
+PACKAGE EXPORTS
+---------------
+Package provides these export paths:
+
+Main (component + styles):
+@keenmate/web-multiselect
+
+Styles only:
+@keenmate/web-multiselect/style.css
+
+Core class:
+@keenmate/web-multiselect (exports WebMultiSelect)
+
+Web Component:
+@keenmate/web-multiselect (exports MultiSelectElement)
+
+Types:
+@keenmate/web-multiselect (included in package)
+
+SCSS:
+@keenmate/web-multiselect/scss
+
+FRAMEWORK-SPECIFIC IMPORTS
+---------------------------
+React:
+import '@keenmate/web-multiselect';
+import type { MultiSelectOption } from '@keenmate/web-multiselect';
+
+function MyComponent() {
+  const selectRef = useRef<HTMLElement>(null);
+  // ...
+}
+
+Vue 3:
+<script setup lang="ts">
+import '@keenmate/web-multiselect';
+import type { MultiSelectOption } from '@keenmate/web-multiselect';
+
+const select = ref<HTMLElement | null>(null);
+</script>
+
+Svelte:
+<script lang="ts">
+  import '@keenmate/web-multiselect';
+  import type { MultiSelectOption } from '@keenmate/web-multiselect';
+
+  let select: HTMLElement;
+</script>
+
+Angular:
+import '@keenmate/web-multiselect';
+
+// In component
+export class MyComponent {
+  @ViewChild('select') select!: ElementRef<HTMLElement>;
+}
+
+// In template
+<web-multiselect #select></web-multiselect>
+
+BUNDLER CONFIGURATION
+---------------------
+Vite (recommended):
+// vite.config.js
+export default {
+  // No special config needed
+  // Works out of the box
+}
+
+Webpack:
+// webpack.config.js
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader']
+      }
+    ]
+  }
+}
+
+Rollup:
+// rollup.config.js
+import resolve from '@rollup/plugin-node-resolve';
+import postcss from 'rollup-plugin-postcss';
+
+export default {
+  plugins: [
+    resolve(),
+    postcss()
+  ]
+}
+
+SCSS CUSTOMIZATION
+------------------
+Import and customize via SCSS:
+
+✅ @use '@keenmate/web-multiselect/scss' with (
+  $ml-primary: #10b981,
+  $ml-border-radius: 0.5rem,
+  $ml-font-family: 'Inter, sans-serif'
+);
+
+Available variables: See styling-theming.txt
+
+Requires sass or sass-embedded:
+npm install -D sass
+
+TREE SHAKING
+------------
+Package is tree-shakeable:
+
+// Only imports what you use
+import { enableLogging } from '@keenmate/web-multiselect';
+// Component code not included if not used
+
+Main import includes everything:
+import '@keenmate/web-multiselect';  // Full bundle
+
+SIDE EFFECTS
+------------
+Package has side effects (Web Component registration):
+
+package.json:
+{
+  "sideEffects": ["**/*.css", "**/*.scss", "dist/multiselect.js"]
+}
+
+This ensures:
+- Component registration not tree-shaken
+- Styles properly included
+- Custom element always available
+
+IMPORT ORDER
+------------
+Correct order matters in some cases:
+
+✅ Correct:
+import '@keenmate/web-multiselect';
+const select = document.querySelector('web-multiselect');
+
+❌ Incorrect:
+const select = document.querySelector('web-multiselect');  // Not defined yet!
+import '@keenmate/web-multiselect';
+
+In frameworks with SSR:
+
+✅ Correct (conditional import):
+if (typeof window !== 'undefined') {
+  import('@keenmate/web-multiselect');
+}
+
+✅ Also correct (safe to import):
+import '@keenmate/web-multiselect';
+// Won't crash during SSR, just won't do anything
+
+COMMON IMPORT ERRORS
+--------------------
+Error: "web-multiselect is not defined"
+Fix: Import the package first
+
+❌ const select = document.createElement('web-multiselect');
+✅ import '@keenmate/web-multiselect';
+   const select = document.createElement('web-multiselect');
+
+Error: "Cannot find module '@keenmate/web-multiselect'"
+Fix: Install the package
+
+npm install @keenmate/web-multiselect
+
+Error: "Property 'options' does not exist"
+Fix: Use TypeScript type assertion
+
+❌ const select = document.querySelector('web-multiselect');
+   select.options = []; // TS error
+
+✅ const select = document.querySelector('web-multiselect') as HTMLElement & {
+     options: MultiSelectOption[];
+   };
+
+Or declare globally:
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'web-multiselect': HTMLElement & {
+      options: MultiSelectOption[];
+      getSelected(): MultiSelectOption[];
+      // ... other properties
+    };
+  }
+}
+
+Error: "Styles not applied"
+Fix: Styles are in Shadow DOM, use CSS variables
+
+❌ .web-multiselect { color: red; }  // Won't work (Shadow DOM)
+
+✅ web-multiselect {
+     --ml-text-primary: red;  // Works (CSS variables)
+   }
+
+IMPORT IN DIFFERENT ENVIRONMENTS
+---------------------------------
+Node.js (ESM):
+import '@keenmate/web-multiselect';
+
+Node.js (CommonJS):
+require('@keenmate/web-multiselect');
+
+Browser (ESM):
+<script type="module">
+  import '@keenmate/web-multiselect';
+</script>
+
+Browser (UMD):
+<script src="unpkg.com/@keenmate/web-multiselect/dist/multiselect.umd.js"></script>
+
+Deno:
+import 'npm:@keenmate/web-multiselect';
+
+DYNAMIC IMPORTS
+---------------
+Lazy load the component:
+
+✅ const loadMultiSelect = async () => {
+  await import('@keenmate/web-multiselect');
+};
+
+// Later
+await loadMultiSelect();
+const select = document.createElement('web-multiselect');
+
+Use for:
+- Code splitting
+- Conditional loading
+- Reducing initial bundle size
+
+CHECKING IF LOADED
+------------------
+Verify component is registered:
+
+✅ if (customElements.get('web-multiselect')) {
+  console.log('Component registered');
+} else {
+  await import('@keenmate/web-multiselect');
+}
+
+Or wait for definition:
+
+✅ await customElements.whenDefined('web-multiselect');
+console.log('Component ready');
+
+VERSION CHECK
+-------------
+Check installed version:
+
+✅ import { version } from '@keenmate/web-multiselect';
+console.log(version);
+
+Or via global API:
+✅ window.components['web-multiselect'].version();
+
+MODULE RESOLUTION
+-----------------
+For TypeScript module resolution:
+
+tsconfig.json:
+{
+  "compilerOptions": {
+    "moduleResolution": "bundler",  // or "node16", "nodenext"
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true
+  }
+}
+
+BEST PRACTICES
+--------------
+✅ Import once at app entry point
+✅ Use TypeScript types for better DX
+✅ Enable logging in development
+✅ Use dynamic imports for code splitting
+✅ Verify component loaded before use
+✅ Use CSS variables for styling
+
+❌ Don't import in every component
+❌ Don't import in loops
+❌ Don't manipulate Shadow DOM directly
+❌ Don't use global styles on component
+❌ Don't assume component loads instantly
+
+TYPICAL APP STRUCTURE
+----------------------
+main.ts/js:
+import '@keenmate/web-multiselect';
+import { enableLogging } from '@keenmate/web-multiselect';
+
+if (import.meta.env.DEV) {
+  enableLogging();
+}
+
+component.ts/js:
+import type { MultiSelectOption } from '@keenmate/web-multiselect';
+
+const options: MultiSelectOption[] = [...];
+const select = document.querySelector('web-multiselect');
+select.options = options;
+
+types.d.ts (optional):
+declare global {
+  interface HTMLElementTagNameMap {
+    'web-multiselect': HTMLElement & {
+      options: any[];
+      multiple: boolean;
+      getSelected(): any[];
+      getValue(): any;
+      setSelected(values: any[]): void;
+      destroy(): void;
+    };
+  }
+}
+
+QUICK REFERENCE
+---------------
+Default import:     import '@keenmate/web-multiselect';
+Types:              import type { MultiSelectOption } from '...';
+Logging:            import { enableLogging } from '...';
+Core class:         import { WebMultiSelect } from '...';
+SCSS:               @use '@keenmate/web-multiselect/scss';
+Global API:         window.components['web-multiselect']
+Version:            window.components['web-multiselect'].version()

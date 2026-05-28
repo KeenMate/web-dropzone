@@ -1,0 +1,462 @@
+VIRTUAL SCROLLING
+=================
+
+CRITICAL: High-performance optimization for large datasets
+- Renders only visible items (~20-30 at a time)
+- Handles 15,000+ options smoothly
+- 25x faster opening time (30ms vs 750ms)
+- 99.8% memory reduction
+- Auto-enables at threshold (default 100 items)
+
+WHEN TO USE
+-----------
+Enable virtual scrolling for:
+- 100+ options (auto-enabled by default)
+- Thousands of items
+- Performance-critical applications
+- Mobile devices
+- Slow hardware
+
+Don't need for:
+- <100 options (overhead not worth it)
+- Very simple data structures
+- When precise CSS control needed
+
+ENABLING VIRTUAL SCROLL
+-----------------------
+Auto-enables at 100 items by default:
+
+<web-multiselect enable-virtual-scroll="true">
+</web-multiselect>
+
+Or always enabled:
+select.enableVirtualScroll = true;
+
+Force disable:
+<web-multiselect enable-virtual-scroll="false">
+</web-multiselect>
+
+THRESHOLD CONFIGURATION
+-----------------------
+Change auto-enable threshold:
+
+<web-multiselect virtual-scroll-threshold="200">
+</web-multiselect>
+
+Programmatic:
+select.virtualScrollThreshold = 150;
+
+Behavior:
+- Options count >= threshold → Enabled
+- Options count < threshold → Disabled
+- Automatic decision based on data size
+
+Recommended thresholds:
+- 50-100: Desktop applications
+- 100-200: Web applications (default 100)
+- 200+: Very simple data structures
+
+OPTION HEIGHT
+-------------
+Set fixed height for each option:
+
+<web-multiselect option-height="50">
+</web-multiselect>
+
+Programmatic:
+select.optionHeight = 40;
+
+Default: 50px
+
+CRITICAL: All options must have same height for virtual scroll to work
+- Icons, subtitles included in height
+- Padding included in height
+- Fixed height required
+
+BUFFER SIZE
+-----------
+Configure rendering buffer:
+
+<web-multiselect virtual-scroll-buffer="10">
+</web-multiselect>
+
+Programmatic:
+select.virtualScrollBuffer = 5;
+
+Default: 10 items
+
+Buffer explanation:
+- Renders extra items above/below viewport
+- Prevents white flashing during scroll
+- Higher buffer = smoother, more memory
+- Lower buffer = less memory, possible flashing
+
+Recommended values:
+- 5: Minimum (light systems)
+- 10: Default (balanced)
+- 20: Maximum smoothness (powerful systems)
+
+PERFORMANCE METRICS
+-------------------
+Virtual scrolling benchmarks:
+
+15,000 options:
+Without virtual scroll:
+- Open time: 750ms
+- Memory: ~60MB
+- Scroll: Laggy
+
+With virtual scroll:
+- Open time: 30ms (25x faster)
+- Memory: ~0.1MB (99.8% less)
+- Scroll: Smooth 60fps
+
+100 options:
+Without: 15ms
+With: 18ms (slight overhead, not worth it)
+
+Threshold sweet spot: 100-150 options
+
+HOW IT WORKS
+------------
+Virtual scrolling technique:
+
+1. Calculate visible range based on scroll position
+2. Render only visible items + buffer
+3. Use spacer divs for scrollbar sizing
+4. Update on scroll events
+5. Reuse DOM elements
+
+Example with 1000 items:
+- Total items: 1000
+- Visible at once: ~20
+- Buffer: 10
+- Actually rendered: ~40 DOM elements
+- Memory saved: 96%
+
+FIXED HEIGHT REQUIREMENT
+-------------------------
+Virtual scroll requires fixed item height:
+
+✅ Correct:
+<style>
+  web-multiselect {
+    --ml-option-padding-v: 0.75rem;
+    --ml-option-font-size: 1rem;
+    --ml-option-line-height: 1.5;
+  }
+</style>
+<web-multiselect option-height="50">
+</web-multiselect>
+
+❌ Incorrect:
+Different heights per item won't work:
+- Variable padding
+- Dynamic content height
+- Auto-sizing elements
+
+CALCULATING OPTION HEIGHT
+--------------------------
+Measure your option height:
+
+const testSelect = document.querySelector('web-multiselect');
+// Open dropdown
+// Use browser devtools to measure option height
+// Set option-height attribute to measured value
+
+Or calculate:
+padding-top + padding-bottom + content-height + border
+
+Example:
+12px (padding-top)
++ 12px (padding-bottom)
++ 24px (text height)
++ 2px (border)
+= 50px
+
+Set: option-height="50"
+
+WITH ICONS AND SUBTITLES
+-------------------------
+Include all content in height calculation:
+
+Option with icon and subtitle:
+- Icon: 24px
+- Primary text: 20px
+- Subtitle: 16px
+- Padding: 12px top + 12px bottom
+- Total: 84px
+
+<web-multiselect option-height="84">
+</web-multiselect>
+
+GROUPS WITH VIRTUAL SCROLL
+---------------------------
+Groups supported but with limitations:
+
+✅ Works:
+- Group headers included in scroll
+- Fixed group header height
+- Collapsible groups
+
+⚠️ Limitations:
+- Group headers must have same height as options
+- Or set separate group-header-height (if implemented)
+
+WITH SEARCH
+-----------
+Virtual scroll works with search:
+
+Filter mode:
+- Filters items
+- Re-calculates visible range
+- Performance maintained
+
+Navigate mode:
+- All items remain in DOM
+- Virtual scroll less beneficial
+- Consider filter mode for large lists
+
+WITH SELECTION
+--------------
+Selection fully supported:
+
+- Selected items tracked regardless of visibility
+- Checkboxes work normally
+- No performance impact on selection
+- Scroll position maintained after selection
+
+SCROLLING BEHAVIOR
+------------------
+Smooth scrolling maintained:
+
+- Native scroll events
+- No scroll hijacking
+- Keyboard navigation works
+- Mouse wheel smooth
+- Touch scrolling smooth
+
+Jump to selected:
+When dropdown opens, scrolls to first selected item
+
+KEYBOARD NAVIGATION
+-------------------
+Fully supported with virtual scroll:
+
+- Arrow keys: ↑↓
+- PageUp/PageDown: Jump 10 items
+- Home/End: First/last item
+- Type to search: Filter mode
+
+Virtual scroll ensures focused item is visible
+
+MEMORY USAGE
+------------
+Memory comparison for 10,000 items:
+
+Without virtual scroll:
+- 10,000 DOM elements
+- ~40MB memory
+- Long initial render
+- Slow scrolling
+
+With virtual scroll:
+- ~40 DOM elements
+- ~0.2MB memory
+- Instant render
+- Smooth scrolling
+
+Memory saved: 99.5%
+
+LIMITATIONS
+-----------
+Virtual scrolling constraints:
+
+❌ Variable height items not supported
+   Must have fixed height for all options
+
+❌ CSS :nth-child selectors may not work
+   Only visible items in DOM
+
+❌ Can't use jQuery/DOM queries on all items
+   Only rendered items exist
+
+❌ Animations between items limited
+   Items added/removed from DOM
+
+✅ Most features work normally:
+   - Selection
+   - Search
+   - Groups
+   - Icons/subtitles
+   - Custom rendering
+
+DISABLING TEMPORARILY
+---------------------
+Disable virtual scroll at runtime:
+
+select.enableVirtualScroll = false;
+
+Re-enable:
+select.enableVirtualScroll = true;
+
+Use case:
+- Switch based on data size
+- Performance testing
+- Debugging layout issues
+
+CUSTOM RENDERING
+----------------
+Custom rendering works with virtual scroll:
+
+select.renderOptionContentCallback = (option, context) => {
+  return `
+    <div style="height: 50px; display: flex; align-items: center;">
+      ${context.isSelected ? '✓ ' : ''}
+      ${option.icon || ''} ${option.label}
+    </div>
+  `;
+};
+
+IMPORTANT: Ensure rendered content matches option-height
+
+TESTING PERFORMANCE
+-------------------
+Measure virtual scroll impact:
+
+console.time('render');
+select.options = largeArray;  // 10,000 items
+console.timeEnd('render');
+
+Benchmark scroll performance:
+const startTime = performance.now();
+// Scroll dropdown
+const endTime = performance.now();
+console.log('Scroll time:', endTime - startTime);
+
+DEBUGGING VIRTUAL SCROLL
+------------------------
+Enable debug logging:
+
+import { setCategoryLevel } from '@keenmate/web-multiselect';
+setCategoryLevel('MULTISELECT:UI', 'debug');
+
+Check virtual scroll state:
+console.log('Virtual scroll enabled:', select.enableVirtualScroll);
+console.log('Option height:', select.optionHeight);
+console.log('Buffer size:', select.virtualScrollBuffer);
+console.log('Threshold:', select.virtualScrollThreshold);
+
+BEST PRACTICES
+--------------
+✅ Enable for 100+ options
+✅ Set correct option-height
+✅ Use fixed height for all options
+✅ Test scrolling performance
+✅ Adjust buffer for smooth scrolling
+✅ Use with search for large lists
+
+❌ Don't use for <100 options
+❌ Don't use variable heights
+❌ Don't forget to measure option height
+❌ Don't set buffer too high (memory)
+❌ Don't disable without testing
+
+COMMON PATTERNS
+---------------
+Auto-enable (default):
+<web-multiselect virtual-scroll-threshold="100">
+</web-multiselect>
+
+Always enabled:
+<web-multiselect
+  enable-virtual-scroll="true"
+  option-height="50">
+</web-multiselect>
+
+Large dataset:
+<web-multiselect
+  enable-virtual-scroll="true"
+  option-height="60"
+  virtual-scroll-buffer="10">
+</web-multiselect>
+
+With custom rendering:
+select.renderOptionContentCallback = (option, context) => {
+  return `<div style="height: 50px;">...</div>`;
+};
+select.optionHeight = 50;
+select.enableVirtualScroll = true;
+
+REAL-WORLD EXAMPLE
+------------------
+Country selector with 195 countries:
+
+<web-multiselect
+  enable-search="true"
+  enable-virtual-scroll="true"
+  virtual-scroll-threshold="100"
+  option-height="50">
+</web-multiselect>
+
+select.options = countries;  // 195 items
+
+Performance:
+- Opens instantly (<30ms)
+- Smooth scrolling
+- Search filters efficiently
+- Low memory usage
+
+OPTIMIZATION TIPS
+-----------------
+1. Set correct option-height
+   Measure actual rendered height
+
+2. Adjust buffer for hardware
+   Lower end: 5
+   High end: 10-20
+
+3. Combine with search
+   Filter large lists before display
+
+4. Use async loading
+   Load data in chunks if >10,000 items
+
+5. Test on target devices
+   Mobile/desktop may differ
+
+TROUBLESHOOTING
+---------------
+Issue: Scroll jumpy/flickering
+Fix: Increase virtual-scroll-buffer
+
+Issue: Wrong items rendered
+Fix: Verify option-height matches actual height
+
+Issue: Selection not working
+Fix: Virtual scroll doesn't affect selection, check other code
+
+Issue: Performance worse with virtual scroll
+Fix: Likely <100 items, disable it
+
+Issue: Groups not aligning
+Fix: Ensure group headers same height as options
+
+COMPARING APPROACHES
+--------------------
+Small list (<100 items):
+✅ Regular rendering: Fast, simple
+❌ Virtual scroll: Unnecessary overhead
+
+Medium list (100-1000 items):
+✅ Virtual scroll: Good performance
+✅ Regular rendering: Works but slower
+
+Large list (1000+ items):
+✅ Virtual scroll: Essential for performance
+❌ Regular rendering: Unusable (slow, laggy)
+
+Huge list (10,000+ items):
+✅ Virtual scroll: Smooth and fast
+✅ Async search: Load on demand
+❌ Regular rendering: Not feasible

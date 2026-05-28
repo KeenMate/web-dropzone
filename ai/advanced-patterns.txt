@@ -1,0 +1,527 @@
+ADVANCED PATTERNS
+=================
+
+CRITICAL: Complex use cases and advanced techniques
+- Hybrid search (popular items + async)
+- Conditional rendering based on state
+- Priority-based badge styling
+- SSR compatibility
+- Performance optimizations
+- Complex data transformations
+
+HYBRID SEARCH PATTERN
+---------------------
+Show popular items initially, load more on search:
+
+// Initial popular options
+const popularLanguages = [
+  { value: 'js', label: 'JavaScript' },
+  { value: 'ts', label: 'TypeScript' },
+  { value: 'py', label: 'Python' },
+  { value: 'java', label: 'Java' }
+];
+
+select.options = popularLanguages;
+select.keepOptionsOnSearch = true;
+select.minSearchLength = 3;
+
+select.searchCallback = async (searchTerm) => {
+  if (searchTerm.length < 3) return [];
+
+  // Load from API
+  const response = await fetch(`/api/languages?q=${searchTerm}`);
+  const results = await response.json();
+
+  // Return additional results
+  return results;
+};
+
+Behavior:
+- Dropdown opens: Shows popular items
+- User searches: Popular + search results
+- Best of both worlds
+
+CONDITIONAL RENDERING
+---------------------
+Render based on item state and context:
+
+select.renderOptionContentCallback = (option, context) => {
+  const user = getCurrentUser();
+
+  // Different rendering for selected items
+  if (context.isSelected) {
+    return `
+      <div class="option-selected">
+        ✓ <strong>${option.label}</strong>
+        ${option.addedBy === user.id ? '<span class="badge-you">You</span>' : ''}
+      </div>
+    `;
+  }
+
+  // Highlight matches in search
+  if (context.isMatched) {
+    const highlighted = highlightSearchTerm(option.label, searchTerm);
+    return `<div class="option-matched">${highlighted}</div>`;
+  }
+
+  // Show different info for disabled
+  if (context.isDisabled) {
+    return `
+      <div class="option-disabled">
+        ${option.label}
+        <span class="reason">${option.disabledReason}</span>
+      </div>
+    `;
+  }
+
+  // Default rendering
+  return `
+    <div class="option">
+      ${option.icon || ''} ${option.label}
+    </div>
+  `;
+};
+
+PRIORITY-BASED STYLING
+----------------------
+Style badges based on priority:
+
+interface PriorityOption extends MultiSelectOption {
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+}
+
+select.getBadgeClassCallback = (option: PriorityOption) => {
+  return [`badge-priority`, `badge-${option.priority}`];
+};
+
+select.customStylesCallback = () => {
+  return `
+    .badge-low {
+      --ml-badge-text-bg: #f3f4f6;
+      --ml-badge-text-color: #6b7280;
+    }
+    .badge-medium {
+      --ml-badge-text-bg: #dbeafe;
+      --ml-badge-text-color: #2563eb;
+    }
+    .badge-high {
+      --ml-badge-text-bg: #fef3c7;
+      --ml-badge-text-color: #d97706;
+    }
+    .badge-urgent {
+      --ml-badge-text-bg: #fee2e2;
+      --ml-badge-text-color: #dc2626;
+      font-weight: 600;
+    }
+  `;
+};
+
+CACHED ASYNC SEARCH
+-------------------
+Implement search caching:
+
+const searchCache = new Map<string, MultiSelectOption[]>();
+const pendingSearches = new Map<string, Promise<MultiSelectOption[]>>();
+
+select.searchCallback = async (searchTerm: string) => {
+  // Check cache
+  if (searchCache.has(searchTerm)) {
+    return searchCache.get(searchTerm)!;
+  }
+
+  // Check if search in progress
+  if (pendingSearches.has(searchTerm)) {
+    return await pendingSearches.get(searchTerm)!;
+  }
+
+  // Create new search promise
+  const searchPromise = fetch(`/api/search?q=${searchTerm}`)
+    .then(res => res.json())
+    .finally(() => {
+      pendingSearches.delete(searchTerm);
+    });
+
+  pendingSearches.set(searchTerm, searchPromise);
+
+  const results = await searchPromise;
+
+  // Cache results
+  searchCache.set(searchTerm, results);
+
+  return results;
+};
+
+DEBOUNCED SEARCH
+----------------
+Reduce API calls with debouncing:
+
+let debounceTimer: ReturnType<typeof setTimeout>;
+
+select.searchCallback = async (searchTerm: string) => {
+  return new Promise((resolve) => {
+    clearTimeout(debounceTimer);
+
+    debounceTimer = setTimeout(async () => {
+      const response = await fetch(`/api/search?q=${searchTerm}`);
+      const results = await response.json();
+      resolve(results);
+    }, 300);
+  });
+};
+
+PROGRESSIVE LOADING
+-------------------
+Load options in batches:
+
+let currentPage = 0;
+const pageSize = 50;
+let allOptions: MultiSelectOption[] = [];
+
+async function loadMore() {
+  const response = await fetch(`/api/options?page=${currentPage}&size=${pageSize}`);
+  const batch = await response.json();
+
+  allOptions = [...allOptions, ...batch];
+  select.options = allOptions;
+
+  currentPage++;
+
+  return batch.length === pageSize; // Has more
+}
+
+// Initial load
+await loadMore();
+
+// Load more on scroll (if implemented)
+select.addEventListener('scroll-near-bottom', async () => {
+  const hasMore = await loadMore();
+  if (!hasMore) {
+    // All loaded
+  }
+});
+
+DYNAMIC VALIDATION
+------------------
+Validate selections dynamically:
+
+select.changeCallback = (selectedOptions) => {
+  // Max selections
+  if (selectedOptions.length > 5) {
+    alert('Maximum 5 selections allowed');
+    const limited = selectedOptions.slice(0, 5);
+    select.setSelected(limited.map(o => o.value));
+    return;
+  }
+
+  // Required combinations
+  const categories = selectedOptions.map(o => o.category);
+  if (!categories.includes('required-category')) {
+    alert('Must include at least one from required category');
+    return;
+  }
+
+  // Mutual exclusivity
+  const hasA = selectedOptions.some(o => o.group === 'A');
+  const hasB = selectedOptions.some(o => o.group === 'B');
+  if (hasA && hasB) {
+    alert('Cannot select from both groups A and B');
+    // Remove last selected
+    const newValues = selectedOptions.slice(0, -1).map(o => o.value);
+    select.setSelected(newValues);
+  }
+};
+
+DEPENDENT MULTISELECTS
+----------------------
+Link multiple multiselects:
+
+const categorySelect = document.querySelector('#categories');
+const itemSelect = document.querySelector('#items');
+
+categorySelect.addEventListener('change', async (e) => {
+  const selected = e.detail.selectedValues;
+
+  // Load items for selected categories
+  const response = await fetch('/api/items', {
+    method: 'POST',
+    body: JSON.stringify({ categories: selected })
+  });
+
+  const items = await response.json();
+  itemSelect.options = items;
+
+  // Clear item selection
+  itemSelect.setSelected([]);
+});
+
+HIERARCHICAL DATA
+-----------------
+Handle parent-child relationships:
+
+interface TreeOption extends MultiSelectOption {
+  parentId?: number;
+  children?: TreeOption[];
+}
+
+select.changeCallback = (selectedOptions: TreeOption[]) => {
+  // Auto-select children when parent selected
+  const withChildren = selectedOptions.flatMap(option => {
+    if (option.children) {
+      return [option, ...option.children];
+    }
+    return [option];
+  });
+
+  // Remove duplicates
+  const unique = Array.from(new Map(
+    withChildren.map(o => [o.value, o])
+  ).values());
+
+  select.setSelected(unique.map(o => o.value));
+};
+
+CUSTOM SORTING
+--------------
+Sort options dynamically:
+
+interface SortableOption extends MultiSelectOption {
+  popularity: number;
+  createdAt: Date;
+}
+
+function updateSorting(sortBy: 'popularity' | 'alphabetical' | 'recent') {
+  const sorted = [...select.options].sort((a: SortableOption, b: SortableOption) => {
+    switch (sortBy) {
+      case 'popularity':
+        return b.popularity - a.popularity;
+      case 'alphabetical':
+        return a.label.localeCompare(b.label);
+      case 'recent':
+        return b.createdAt.getTime() - a.createdAt.getTime();
+    }
+  });
+
+  select.options = sorted;
+}
+
+REAL-TIME UPDATES
+-----------------
+Update options from WebSocket:
+
+const ws = new WebSocket('wss://api.example.com/options');
+
+ws.addEventListener('message', (event) => {
+  const update = JSON.parse(event.data);
+
+  switch (update.type) {
+    case 'add':
+      select.options = [...select.options, update.option];
+      break;
+
+    case 'remove':
+      select.options = select.options.filter(o => o.value !== update.optionId);
+      break;
+
+    case 'update':
+      select.options = select.options.map(o =>
+        o.value === update.option.value ? update.option : o
+      );
+      break;
+  }
+});
+
+OPTIMISTIC UPDATES
+------------------
+Update UI before server confirms:
+
+select.changeCallback = async (selectedOptions) => {
+  const values = selectedOptions.map(o => o.value);
+
+  try {
+    // Optimistically update (already done by component)
+
+    // Save to server
+    const response = await fetch('/api/save', {
+      method: 'POST',
+      body: JSON.stringify({ selections: values })
+    });
+
+    if (!response.ok) {
+      throw new Error('Save failed');
+    }
+  } catch (error) {
+    // Revert on error
+    console.error('Save failed, reverting');
+    const previousValues = getPreviousValues(); // Store previous state
+    select.setSelected(previousValues);
+
+    alert('Failed to save selections');
+  }
+};
+
+SSR COMPATIBILITY
+-----------------
+Safe server-side rendering:
+
+// Next.js / Nuxt / SvelteKit
+import type { MultiSelectOption } from '@keenmate/web-multiselect';
+
+// Safe to import (won't crash during SSR)
+import '@keenmate/web-multiselect';
+
+// Component only renders client-side
+useEffect(() => {
+  // Or onMounted, or $: in Svelte
+  if (typeof window !== 'undefined') {
+    const select = document.querySelector('web-multiselect');
+    if (select) {
+      select.options = options;
+    }
+  }
+}, []);
+
+Or dynamic import:
+const MultiSelect = dynamic(
+  () => import('./MultiSelectWrapper'),
+  { ssr: false }
+);
+
+PERFORMANCE MONITORING
+----------------------
+Track performance metrics:
+
+let renderCount = 0;
+let lastRenderTime = performance.now();
+
+select.renderOptionContentCallback = (option, context) => {
+  renderCount++;
+
+  if (renderCount % 100 === 0) {
+    const now = performance.now();
+    const timePer100 = now - lastRenderTime;
+    console.log(`100 renders: ${timePer100.toFixed(2)}ms`);
+    lastRenderTime = now;
+  }
+
+  return `<div>${option.label}</div>`;
+};
+
+ACCESSIBILITY ENHANCEMENTS
+--------------------------
+Enhanced ARIA support:
+
+select.renderOptionContentCallback = (option, context) => {
+  const ariaLabel = `${option.label}, ${option.subtitle || ''}, ${context.isSelected ? 'selected' : 'not selected'}`;
+
+  return `
+    <div
+      role="option"
+      aria-label="${ariaLabel}"
+      aria-selected="${context.isSelected}"
+      aria-disabled="${context.isDisabled}">
+      ${option.label}
+    </div>
+  `;
+};
+
+KEYBOARD SHORTCUTS
+------------------
+Custom keyboard handlers:
+
+document.addEventListener('keydown', (e) => {
+  const select = document.querySelector('web-multiselect');
+  if (!select) return;
+
+  // Ctrl+A: Select all
+  if (e.ctrlKey && e.key === 'a' && document.activeElement === select) {
+    e.preventDefault();
+    const allValues = select.options.map(o => o.value);
+    select.setSelected(allValues);
+  }
+
+  // Ctrl+Shift+A: Clear all
+  if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+    e.preventDefault();
+    select.setSelected([]);
+  }
+
+  // Escape: Clear and close
+  if (e.key === 'Escape' && select.dropdownOpen) {
+    select.setSelected([]);
+  }
+});
+
+BULK OPERATIONS
+---------------
+Efficient bulk updates:
+
+// Instead of multiple updates
+❌ values.forEach(v => {
+  select.setSelected([...select.getValue(), v]);
+});
+
+// Do single update
+✅ select.setSelected([...select.getValue(), ...values]);
+
+LAZY LOADING OPTIONS
+--------------------
+Load options on first interaction:
+
+let optionsLoaded = false;
+
+select.addEventListener('focus', async () => {
+  if (optionsLoaded) return;
+
+  const response = await fetch('/api/options');
+  const options = await response.json();
+
+  select.options = options;
+  optionsLoaded = true;
+}, { once: true });
+
+INFINITE SCROLL
+---------------
+Implement infinite scrolling (requires custom implementation):
+
+let page = 0;
+let loading = false;
+
+async function loadPage() {
+  if (loading) return;
+  loading = true;
+
+  const response = await fetch(`/api/options?page=${page}`);
+  const newOptions = await response.json();
+
+  select.options = [...select.options, ...newOptions];
+  page++;
+  loading = false;
+}
+
+// Trigger on scroll near bottom
+// (Requires detecting scroll position)
+
+BEST PRACTICES
+--------------
+✅ Cache search results
+✅ Debounce async operations
+✅ Validate selections dynamically
+✅ Handle errors gracefully
+✅ Optimize render callbacks
+✅ Test with large datasets
+✅ Monitor performance
+✅ Use TypeScript for complex patterns
+
+❌ Don't make excessive API calls
+❌ Don't block UI with synchronous operations
+❌ Don't forget error handling
+❌ Don't skip performance testing
+❌ Don't ignore accessibility
+
+EXAMPLES
+--------
+See examples files for:
+- Hybrid search implementation
+- Advanced rendering patterns
+- Performance optimizations
+- Real-world use cases

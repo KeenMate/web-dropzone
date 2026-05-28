@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logging & Debugging - Web Dropzone</title>
+    <link rel="stylesheet" href="examples-shared.css">
+    <style>
+        .log-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .log-controls label {
+            display: flex;
+            flex-direction: column;
+            font-size: 0.85rem;
+            color: #374151;
+            font-weight: 500;
+            gap: 0.3rem;
+        }
+        .log-controls select {
+            padding: 0.4rem 0.6rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            background: white;
+        }
+        .console {
+            background: #1f2937;
+            color: #e5e7eb;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            padding: 1rem;
+            border-radius: 8px;
+            max-height: 320px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .console:empty::before {
+            content: '(no log entries — interact with the dropzone above)';
+            color: #9ca3af;
+            font-style: italic;
+        }
+        .console .l-debug { color: #38bdf8; }
+        .console .l-info  { color: #34d399; }
+        .console .l-warn  { color: #fbbf24; }
+        .console .l-error { color: #f87171; }
+        .console .timestamp { color: #6b7280; }
+        .console .category  { color: #c084fc; font-weight: 600; }
+        .console-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to Examples</a>
+            <h1>🐛 Logging & Debugging</h1>
+            <p class="subtitle">Categorized debug output with runtime control — silent by default in production</p>
+        </header>
+
+        <!-- INTRO -->
+        <div class="card">
+            <h2>The logging system</h2>
+            <p>Built on <a href="https://www.npmjs.com/package/loglevel" target="_blank">loglevel</a>, the dropzone exposes four log categories that can be enabled independently at any time:</p>
+
+            <ul style="margin-left:1.5rem;margin-bottom:1rem;">
+                <li><code>DROPZONE:INIT</code> — component initialization, config updates, lifecycle</li>
+                <li><code>DROPZONE:FILE</code> — file additions, removals, validation, preview generation</li>
+                <li><code>DROPZONE:UI</code> — DOM rendering, popover open/close, file list updates</li>
+                <li><code>DROPZONE:INTERACTION</code> — user drag/drop, clicks, keyboard input</li>
+            </ul>
+
+            <p>All categories start at <code>silent</code> in production builds. Flip them on at runtime via the global API or imported helpers.</p>
+        </div>
+
+        <!-- GLOBAL API -->
+        <div class="card">
+            <h2>Global API (<code>window.components['web-dropzone']</code>)</h2>
+            <p>Once the component is loaded, a global API is available for runtime control. Useful in browser DevTools or for support tooling.</p>
+
+            <div class="code-block">
+                <pre><code>// Show version + package metadata
+window.components['web-dropzone'].version()
+window.components['web-dropzone'].config
+
+// Enable everything at debug level
+window.components['web-dropzone'].logging.enableLogging()
+
+// Set just one category
+window.components['web-dropzone'].logging.setCategoryLevel('DROPZONE:FILE', 'debug')
+
+// Mute everything
+window.components['web-dropzone'].logging.disableLogging()
+
+// List available categories
+window.components['web-dropzone'].logging.getCategories()
+// -> ['DROPZONE:INIT', 'DROPZONE:FILE', 'DROPZONE:UI', 'DROPZONE:INTERACTION']</code></pre>
+            </div>
+        </div>
+
+        <!-- LIVE PLAYGROUND -->
+        <div class="card">
+            <h2>Live Playground</h2>
+            <p>Adjust each category's level below and interact with the dropzone — log entries are captured into the console panel and the browser DevTools console simultaneously.</p>
+
+            <div class="log-controls">
+                <label>DROPZONE:INIT
+                    <select data-category="DROPZONE:INIT">
+                        <option value="silent" selected>silent</option>
+                        <option value="error">error</option>
+                        <option value="warn">warn</option>
+                        <option value="info">info</option>
+                        <option value="debug">debug</option>
+                        <option value="trace">trace</option>
+                    </select>
+                </label>
+                <label>DROPZONE:FILE
+                    <select data-category="DROPZONE:FILE">
+                        <option value="silent">silent</option>
+                        <option value="error">error</option>
+                        <option value="warn">warn</option>
+                        <option value="info">info</option>
+                        <option value="debug" selected>debug</option>
+                        <option value="trace">trace</option>
+                    </select>
+                </label>
+                <label>DROPZONE:UI
+                    <select data-category="DROPZONE:UI">
+                        <option value="silent" selected>silent</option>
+                        <option value="error">error</option>
+                        <option value="warn">warn</option>
+                        <option value="info">info</option>
+                        <option value="debug">debug</option>
+                        <option value="trace">trace</option>
+                    </select>
+                </label>
+                <label>DROPZONE:INTERACTION
+                    <select data-category="DROPZONE:INTERACTION">
+                        <option value="silent">silent</option>
+                        <option value="error">error</option>
+                        <option value="warn">warn</option>
+                        <option value="info">info</option>
+                        <option value="debug" selected>debug</option>
+                        <option value="trace">trace</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="controls" style="margin-bottom: 1rem;">
+                <button onclick="enableAll()">Enable all (debug)</button>
+                <button class="btn-outline" onclick="disableAll()">Disable all</button>
+            </div>
+
+            <div class="form-group">
+                <label>Logging-instrumented dropzone</label>
+                <web-dropzone
+                    id="log-dz"
+                    display-mode="detailed"
+                    accept="*/*"
+                    max-file-count="5"
+                    prompt-text="Drop files (watch the log panel)">
+                </web-dropzone>
+            </div>
+
+            <div class="output">
+                <div class="output-label">Captured log:</div>
+                <div class="console" id="log-output"></div>
+                <div class="console-actions">
+                    <button class="btn-outline" onclick="clearLog()">Clear log</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- IMPORT API -->
+        <div class="card">
+            <h2>Import API</h2>
+            <p>When you import the package directly, the same helpers are available as named exports.</p>
+
+            <div class="code-block">
+                <pre><code>import {
+    enableLogging,
+    disableLogging,
+    setLogLevel,
+    setCategoryLevel,
+    LOGGING_CATEGORIES
+} from '@keenmate/web-dropzone'
+
+// All categories at debug
+enableLogging()
+
+// Or per-category
+setCategoryLevel('DROPZONE:FILE', 'info')
+setCategoryLevel('DROPZONE:UI',   'silent')
+
+// In production
+disableLogging()</code></pre>
+            </div>
+        </div>
+
+        <footer>
+            <p><a href="index.html">← Back to Examples</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        // Monkey-patch console.log/debug/info/warn/error briefly so we can also
+        // mirror the loglevel output into our on-page console panel. This lets
+        // the demo show log lines even if DevTools is closed.
+        const out = document.getElementById('log-output')
+        const original = {
+            log: console.log.bind(console),
+            debug: console.debug.bind(console),
+            info: console.info.bind(console),
+            warn: console.warn.bind(console),
+            error: console.error.bind(console)
+        }
+
+        function attachLine(level, args) {
+            const text = args.map(a => {
+                if (typeof a === 'string') return a
+                try { return JSON.stringify(a) } catch { return String(a) }
+            }).join(' ')
+            if (!text.includes('DROPZONE')) return
+            const line = document.createElement('div')
+            line.className = `l-${level}`
+            // Strip the %c color codes loglevel injects for DevTools styling
+            // since they show up as literal text in textContent.
+            line.textContent = text.replace(/%c/g, '').trim()
+            out.appendChild(line)
+            out.scrollTop = out.scrollHeight
+        }
+
+        ['log','debug','info','warn','error'].forEach(level => {
+            console[level] = (...args) => {
+                original[level](...args)
+                attachLine(level === 'log' ? 'debug' : level, args)
+            }
+        })
+
+        function apply() {
+            const api = window.components?.['web-dropzone']?.logging
+            if (!api) return
+            document.querySelectorAll('[data-category]').forEach(sel => {
+                api.setCategoryLevel(sel.dataset.category, sel.value)
+            })
+        }
+
+        // Initial application after the global API has registered.
+        requestAnimationFrame(apply)
+
+        document.querySelectorAll('[data-category]').forEach(sel => {
+            sel.addEventListener('change', apply)
+        })
+
+        window.enableAll = () => {
+            document.querySelectorAll('[data-category]').forEach(sel => sel.value = 'debug')
+            apply()
+        }
+        window.disableAll = () => {
+            document.querySelectorAll('[data-category]').forEach(sel => sel.value = 'silent')
+            apply()
+        }
+        window.clearLog = () => { out.innerHTML = '' }
+    </script>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>

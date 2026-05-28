@@ -1,0 +1,102 @@
+/* ==============================================================================
+   STATE MODIFIERS
+   ==============================================================================
+   Disabled, loading, and other state modifiers */
+
+/* ==========================================================================
+   DISABLED STATE
+   ========================================================================== */
+.dz__dropzone--disabled {
+  opacity: var(--dz-disabled-opacity);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.dz__dropzone--disabled .dz__dropzone__content {
+  opacity: var(--dz-disabled-opacity);
+}
+
+/* Host-level disabled */
+:host([disabled]) .dz__dropzone {
+  opacity: var(--dz-disabled-opacity);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   FILE STATUS STATES
+   ========================================================================== */
+.dz__file-item--uploading {
+  position: relative;
+}
+
+.dz__file-item--complete {
+  border-color: var(--dz-success-color);
+}
+
+.dz__file-item--error {
+  border-color: var(--dz-error-color);
+}
+
+/* ==========================================================================
+   FOCUS STATES
+   ==========================================================================
+   `:focus-within` on the wrapper is the card family's keyboard-focus ring —
+   it outlines the entire card when its hidden input receives focus. For
+   button/minimal selectors the button already shows its own `:focus-visible`
+   outline, so wrapping it in a second ring would be a double-outline leak. */
+.dz__dropzone--card:focus-within {
+  outline: 2px solid var(--dz-accent-color);
+  outline-offset: 2px;
+}
+
+.dz__summary__line:focus-visible {
+  outline: 2px solid var(--dz-accent-color);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   DRAG OVERLAY (Ultra-Compact Mode)
+   ========================================================================== */
+.dz__overlay {
+  position: fixed;
+  z-index: var(--dz-overlay-z-index);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dz-overlay-bg);
+  border: var(--dz-overlay-border);
+  border-radius: var(--dz-overlay-border-radius);
+  pointer-events: all;
+  animation: dz-overlay-fade-in 0.15s ease-out;
+}
+
+@keyframes dz-overlay-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.dz__overlay__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--dz-overlay-gap);
+  color: var(--dz-overlay-color);
+  text-align: center;
+}
+
+.dz__overlay__icon {
+  font-size: var(--dz-overlay-icon-size);
+  line-height: 1;
+}
+
+.dz__overlay__text {
+  font-size: var(--dz-overlay-text-font-size);
+  font-weight: var(--dz-overlay-text-font-weight);
+}

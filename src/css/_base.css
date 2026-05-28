@@ -1,0 +1,68 @@
+/* ==============================================================================
+   BASE STYLES
+   ==============================================================================
+   FOUC prevention and host/container layout */
+
+/* FOUC Prevention - hide undefined custom element */
+web-dropzone:not(:defined) {
+  display: block;
+  min-height: var(--dz-dropzone-min-height, 120px);
+  color: transparent !important;
+  background: transparent;
+}
+
+/* Host container */
+.dz__host {
+  position: relative;
+  width: 100%;
+}
+
+/* Main container */
+.dz__container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Container modes */
+.dz__container--compact {
+  flex-direction: row;
+  align-items: center;
+  gap: calc(1.2 * var(--dz-rem));
+}
+
+.dz__container--compact .dz__dropzone {
+  flex: 1;
+}
+
+/* Box sizing reset */
+.dz__host *,
+.dz__host *::before,
+.dz__host *::after {
+  box-sizing: border-box;
+}
+
+/* Default button reset. Wrapped in :where() so the selector has 0,0,0
+   specificity — any class-targeted rule (e.g. .dz__button, .dz__minimal)
+   trivially wins. Without :where(), `.dz__host button` would have higher
+   specificity than `.dz__button` and silently strip the accent background
+   / border off every styled button. */
+:where(.dz__host button) {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+:where(.dz__host button):focus {
+  outline: none;
+}
+
+:where(.dz__host button):focus-visible {
+  outline: 2px solid var(--dz-accent-color);
+  outline-offset: 2px;
+}
