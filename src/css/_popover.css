@@ -124,13 +124,13 @@
   padding: var(--dz-popover-body-padding);
 }
 
-/* Popover footer — overall totals (count + total size). Stays at the bottom
-   of the popover frame; the body scrolls between header and footer. */
+/* Popover footer — totals (count + total size), optionally with an aggregate
+   progress strip stacked above. Stays at the bottom of the popover frame;
+   the body scrolls between header and footer. */
 .dz__popover__footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--dz-popover-header-gap);
+  flex-direction: column;
+  gap: calc(0.6 * var(--dz-rem));
   padding: var(--dz-popover-footer-padding);
   background: var(--dz-popover-footer-bg);
   border-top: var(--dz-popover-footer-border-top);
@@ -141,6 +141,15 @@
 
 .dz__popover__footer:empty {
   display: none;
+}
+
+/* Totals row inside the popover footer — count on the left, total size on the
+   right. Lives below the optional aggregate progress strip. */
+.dz__popover__footer__totals {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dz-popover-header-gap);
 }
 
 /* Popover table */
@@ -246,6 +255,13 @@
   color: var(--dz-popover-remove-color-hover);
 }
 
+/* See note in _file-item.css — keeps the action cell's footprint intact
+   while making the button inert and invisible. */
+.dz__popover__remove--hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* ==========================================================================
    PROGRESS COLUMN
    ========================================================================== */
@@ -316,6 +332,16 @@
 .dz__popover__status--error {
   background: color-mix(in srgb, var(--dz-error-color) 15%, transparent);
   color: var(--dz-error-color);
+}
+
+.dz__popover__status--paused {
+  background: color-mix(in srgb, var(--dz-warning-color) 15%, transparent);
+  color: var(--dz-warning-color);
+}
+
+.dz__popover__status--cancelled {
+  background: color-mix(in srgb, var(--dz-text-color-3) 15%, transparent);
+  color: var(--dz-text-color-3);
 }
 
 /* Uploading row animation */

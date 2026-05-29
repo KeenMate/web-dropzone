@@ -87,7 +87,7 @@
 
                 <div class="form-group">
                     <label>popover — list hidden, click summary to open</label>
-                    <web-dropzone list-appearance="popover" accept="image/*,.pdf" max-file-size="5242880" max-file-count="10"></web-dropzone>
+                    <web-dropzone list-appearance="popover" accept="image/*,.pdf" max-file-size="5MB" max-file-count="10"></web-dropzone>
                     <small class="form-text">Popover header shows file count + Add more / Clear all, with a limits hint underneath. Footer pins total size.</small>
                 </div>
 
@@ -116,15 +116,15 @@
                 </div>
 
                 <div class="form-group">
-                    <label><code>max-total-size="5242880"</code> — aggregate cap with "X left" hint</label>
-                    <web-dropzone list-appearance="popover" accept="*/*" max-total-size="5242880"></web-dropzone>
+                    <label><code>max-total-size="5MB"</code> — aggregate cap with "X left" hint</label>
+                    <web-dropzone list-appearance="popover" accept="*/*" max-total-size="5MB"></web-dropzone>
                     <small class="form-text">Selection capped at 5 MB total across all files. Popover limits line shows remaining headroom.</small>
                 </div>
 
                 <div class="form-group">
-                    <label><code>min-file-size="1024"</code> + <code>min-file-count="2"</code> — both caps + form validity</label>
+                    <label><code>min-file-size="1kB"</code> + <code>min-file-count="2"</code> — both caps + form validity</label>
                     <form onsubmit="event.preventDefault(); alert('Form submitted (valid).');">
-                        <web-dropzone name="docs" list-appearance="detailed" accept="*/*" min-file-size="1024" min-file-count="2" max-file-count="5"></web-dropzone>
+                        <web-dropzone name="docs" list-appearance="detailed" accept="*/*" min-file-size="1kB" min-file-count="2" max-file-count="5"></web-dropzone>
                         <button type="submit" style="margin-top: 0.8rem;">Submit</button>
                     </form>
                     <small class="form-text">Zero-byte files are rejected (min size 1 KB). Submit is blocked by native form validity until at least 2 files are selected.</small>
@@ -177,7 +177,7 @@
 
                 <div class="form-group">
                     <label>Toolbar icon — minimal + popover</label>
-                    <web-dropzone selector-appearance="minimal" list-appearance="popover" accept="image/*,.pdf" max-file-size="5242880" max-file-count="10" icon="📎"></web-dropzone>
+                    <web-dropzone selector-appearance="minimal" list-appearance="popover" accept="image/*,.pdf" max-file-size="5MB" max-file-count="10" icon="📎"></web-dropzone>
                     <small class="form-text">Click icon → opens picker. After files exist → click toggles popover.</small>
                 </div>
 
@@ -227,7 +227,7 @@
 
                 <div class="form-group">
                     <label>display-mode="compact" → card + popover</label>
-                    <web-dropzone display-mode="compact" accept="image/*,.pdf" max-file-size="5242880" max-file-count="10"></web-dropzone>
+                    <web-dropzone display-mode="compact" accept="image/*,.pdf" max-file-size="5MB" max-file-count="10"></web-dropzone>
                 </div>
             </div>
 

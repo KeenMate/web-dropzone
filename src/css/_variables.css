@@ -344,6 +344,27 @@
   --dz-progress-transition: width 0.3s ease;
 
   /* ==========================================================================
+     OVERALL PROGRESS STRIP — aggregate upload progress under the inline list
+     and inside the popover footer. Matches FluentUI InputFile's overallFooter.
+     ========================================================================== */
+  --dz-overall-progress-gap: calc(0.4 * var(--dz-rem));
+  --dz-overall-progress-padding: calc(0.6 * var(--dz-rem)) 0;
+  --dz-overall-progress-bar-height: calc(0.6 * var(--dz-rem));
+  --dz-overall-progress-stats-font-size: var(--dz-font-size-xs);
+  --dz-overall-progress-stats-color: var(--dz-text-color-3);
+  --dz-overall-progress-percent-color: var(--dz-text-color-1);
+  --dz-overall-progress-percent-font-weight: var(--base-font-weight-medium, 500);
+  /* Reserve width for the widest percent ("100%") so layout doesn't shift as
+     digits roll over and buttons come and go. */
+  --dz-overall-progress-percent-min-width: calc(3.6 * var(--dz-rem));
+  --dz-overall-progress-action-padding: calc(0.2 * var(--dz-rem)) calc(0.8 * var(--dz-rem));
+  --dz-overall-progress-action-font-size: var(--dz-font-size-xs);
+  --dz-overall-progress-action-font-weight: var(--base-font-weight-medium, 500);
+  --dz-overall-progress-action-color: var(--dz-accent-color);
+  --dz-overall-progress-action-border-radius: var(--dz-border-radius-sm);
+  --dz-overall-progress-action-bg-hover: color-mix(in srgb, var(--dz-accent-color) 10%, transparent);
+
+  /* ==========================================================================
      EMPTY STATE
      ========================================================================== */
   --dz-empty-padding: calc(1.6 * var(--dz-rem));

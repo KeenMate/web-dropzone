@@ -45,9 +45,93 @@ export type ListAppearance = 'list' | 'detailed' | 'grid' | 'badges' | 'popover'
 export type CardSize = 'minimal' | 'compact' | 'big';
 
 /**
- * File upload status
+ * File upload status.
+ * - `pending`   — accepted but no upload attempt yet
+ * - `uploading` — `uploadFileCallback` is currently running
+ * - `complete`  — handler resolved successfully
+ * - `error`     — handler rejected (after exhausting retries)
+ * - `paused`    — handler aborted, will resume on `resumeFile` / `resumeAll`
+ * - `cancelled` — handler aborted; will not auto-resume (manual retry needed)
  */
-export type FileStatus = 'pending' | 'uploading' | 'complete' | 'error';
+export type FileStatus = 'pending' | 'uploading' | 'complete' | 'error' | 'paused' | 'cancelled';
+
+/**
+ * Per-file upload handler. Called once per file by the component's worker
+ * pool when `uploadFileCallback` is set. Returns a Promise that resolves on
+ * success or rejects on failure. The component drives `file.progress` and
+ * `file.status` from the lifecycle of this Promise — the handler should only
+ * report progress via `onProgress(percent)` and respect `signal.aborted`.
+ *
+ * Mirrors svelte-fluentui's `FileUploadHandler`. The signal fires when the
+ * file is paused / cancelled / removed; handlers should bail out via AbortError.
+ */
+/**
+ * Per-call context handed to the upload handler. Carries resume state so the
+ * handler can pick up where a previous attempt left off — without it, the
+ * handler can't know whether this is a fresh upload, a resume after pause,
+ * or a fresh retry.
+ *
+ * Resume flow:
+ * 1. First call — `startBytes=0`, `startPercent=0`, `metadata=undefined`.
+ * 2. Handler does its thing (e.g. POST initiates a tus.io session, returns
+ *    the Location header). Calls `setMetadata({ uploadUrl })` to stash it
+ *    so the next attempt can find it. Calls `onProgress(percent)` as bytes
+ *    land.
+ * 3. User pauses → AbortSignal fires → handler rejects with AbortError.
+ *    Component preserves `file.progress` and `file.metadata`.
+ * 4. User resumes → handler is called again. `startBytes` reflects the last
+ *    reported progress; `metadata.uploadUrl` is still there. Handler does a
+ *    `HEAD uploadUrl` to confirm server-side offset, then resumes from
+ *    `startBytes` (HTTP Content-Range / tus.io PATCH / S3 multipart / etc).
+ */
+export interface FileUploadContext {
+    /**
+     * Byte offset to resume from. 0 for a fresh upload, > 0 when resuming
+     * after a pause. Computed from `file.progress` × `file.size` so the
+     * accuracy depends on what the handler reported via `onProgress` before
+     * the pause.
+     */
+    startBytes: number;
+    /** Same as startBytes expressed as a 0..100 percent. Convenience for
+     *  handlers that work in percent (e.g. progress simulators). */
+    startPercent: number;
+    /**
+     * Current value of `FileState.metadata` — merged from any prior
+     * `FileUploadResult.metadata` AND any prior `context.setMetadata` calls.
+     * Use this to recover e.g. a tus.io session URL or S3 upload-id stashed
+     * during a previous attempt.
+     */
+    metadata: Readonly<Record<string, unknown>> | undefined;
+    /**
+     * Stash partial server state mid-stream. The patch is shallow-merged
+     * into `FileState.metadata` immediately, so the next runUpload call
+     * (after pause / retry) sees it in `context.metadata`. Useful for
+     * session URLs (tus.io Location header) or upload-ids (S3 multipart)
+     * learned from the first request and reused on resume.
+     */
+    setMetadata(patch: Record<string, unknown>): void;
+}
+
+export type FileUploadHandler = (
+    file: File,
+    onProgress: (percent: number) => void,
+    signal: AbortSignal,
+    context: FileUploadContext
+) => Promise<void | FileUploadResult>;
+
+/**
+ * Retry policy applied when `uploadFileCallback` rejects. Each retry waits
+ * `delayMs * (backoff ** attempt)` before the next attempt — defaults give an
+ * exponential 1s / 2s / 4s ramp.
+ */
+export interface RetryPolicy {
+    /** Total attempts including the first try (default: 1 — no retries). */
+    attempts?: number;
+    /** Base delay in ms (default: 1000). */
+    delayMs?: number;
+    /** Exponential backoff multiplier (default: 2). */
+    backoff?: number;
+}
 
 /**
  * Value format for form serialization
@@ -76,6 +160,34 @@ export interface FileState {
     error?: string;
     /** Data URL for image preview (generated on demand) */
     previewUrl?: string;
+    /**
+     * Server-provided URL for the uploaded file (download link). Populated
+     * from `FileUploadResult.downloadUrl` when the handler returns one.
+     */
+    downloadUrl?: string;
+    /**
+     * Arbitrary server-side payload merged from `FileUploadResult.metadata`
+     * on successful upload. Survives in the item for the entire lifetime of
+     * the selection so apps can fire a DELETE against the server using e.g.
+     * `metadata.serverGuid` when the user removes a completed file from the
+     * list. Mirrors svelte-fluentui's `InputFileItem.metadata`.
+     */
+    metadata?: Record<string, unknown>;
+}
+
+/**
+ * Restricted partial that the upload handler can return on success. The
+ * component merges this into the FileState atomically with the
+ * `status: 'complete'` flip. Restricted on purpose — handlers can populate
+ * server-side identifiers (`metadata`), download links, alternate
+ * thumbnails, or a final filename, but cannot overwrite internal lifecycle
+ * fields like `id`, `status`, `progress`, `file`, or `error`.
+ */
+export interface FileUploadResult {
+    metadata?: Record<string, unknown>;
+    downloadUrl?: string;
+    previewUrl?: string;
+    name?: string;
 }
 
 /**
@@ -254,6 +366,62 @@ export interface DropzoneConfig {
     changeCallback?: ((files: FileState[]) => void) | null;
     /** Callback when files are rejected due to validation */
     rejectCallback?: ((rejectedFiles: RejectedFile[]) => void) | null;
+    /** Callback when an upload retry is requested (via the "Retry all" button
+     *  in the overall progress strip, or `retryFile(id)` / `retryAll()`). The
+     *  app's existing upload logic should re-run for the supplied file — the
+     *  component has already reset its status to 'pending' and progress to 0. */
+    retryCallback?: ((file: FileState) => void) | null;
+    /**
+     * Per-file upload handler. When set, the component takes ownership of the
+     * upload lifecycle: a worker pool runs queued files at the configured
+     * `concurrency`, awaits each handler, drives `file.status` from the Promise
+     * outcome, and exposes Pause / Resume / Cancel via the public API.
+     *
+     * When unset, the component stays in the "app drives uploads" mode —
+     * files are merely added and emit `file-added`; the app is expected to
+     * call `updateFileProgress` / `setFileStatus` manually.
+     */
+    uploadFileCallback?: FileUploadHandler | null;
+    /** Optional callback fired after a file uploads successfully (mirrors
+     *  the `file-uploaded` event). Only relevant when `uploadFileCallback`
+     *  is set. */
+    uploadedCallback?: ((file: FileState) => void) | null;
+    /**
+     * Max number of concurrent uploads when the component drives the queue.
+     * Default 1 — uploads run sequentially. Has no effect when
+     * `uploadFileCallback` is unset.
+     */
+    concurrency?: number;
+    /**
+     * When `true` (default), accepted files are immediately queued for upload
+     * via the worker pool. When `false`, files stay in `pending` until the app
+     * calls `uploadAll()` — useful for "stage everything, submit on form
+     * submit" patterns. Only relevant when `uploadFileCallback` is set.
+     */
+    isAutoUploadEnabled?: boolean;
+    /**
+     * Retry policy applied when `uploadFileCallback` rejects. Defaults to a
+     * single attempt (no retries). See {@link RetryPolicy}.
+     */
+    retryPolicy?: RetryPolicy;
+    /**
+     * Whether the user can remove files that have already finished uploading
+     * (`status === 'complete'`). When `false`, the remove button is hidden
+     * on completed rows but its layout space is reserved — so adjacent
+     * elements don't shift as files transition. Default `true`.
+     *
+     * Calling `removeFile(id)` programmatically still works regardless of
+     * this flag — it only affects the rendered button visibility.
+     */
+    isUploadedFileDeletable?: boolean;
+    /**
+     * Callback fired when a file that had finished uploading
+     * (`status === 'complete'`) is removed from the selection. Mirrors the
+     * `file-deleted` event. The app should issue a DELETE against its
+     * server using `file.metadata` (or whatever identifier the upload
+     * handler stashed there). The plain `file-removed` event also fires.
+     */
+    deleteCallback?: ((file: FileState) => void) | null;
 
     // ========================================================================
     // CUSTOM RENDERING
@@ -315,13 +483,56 @@ export interface ChangeEventDetail {
 }
 
 /**
+ * Event detail structure for file-retry event — dispatched when the user
+ * triggers a retry (per-file via API, or "Retry all" in the overall progress
+ * strip). The component has already reset `file.status` to 'pending' and
+ * `file.progress` to 0 before this event fires; the app's existing upload
+ * logic should re-run for `file`.
+ */
+export interface FileRetryEventDetail {
+    /** The file being retried */
+    file: FileState;
+    /** All current files */
+    files: FileState[];
+}
+
+/**
+ * Event detail for file-uploaded — fires when the component-driven worker
+ * pool completes a file successfully. Only dispatched when
+ * `uploadFileCallback` is set.
+ */
+export interface FileUploadedEventDetail {
+    /** The file that finished uploading */
+    file: FileState;
+    /** All current files */
+    files: FileState[];
+}
+
+/**
+ * Event detail for file-deleted — dispatched in addition to file-removed
+ * whenever the removed file had `status === 'complete'`. Lets apps wire
+ * a server-side DELETE separate from the cosmetic "user dropped a pending
+ * file before it uploaded" case. The metadata is whatever the upload
+ * handler returned via `FileUploadResult.metadata`.
+ */
+export interface FileDeletedEventDetail {
+    /** The completed file being removed (includes metadata, downloadUrl) */
+    file: FileState;
+    /** All remaining files after removal */
+    files: FileState[];
+}
+
+/**
  * Helper type for all dropzone event details
  */
 export type DropzoneEventDetail =
     | FileAddedEventDetail
     | FileRemovedEventDetail
     | FilesRejectedEventDetail
-    | ChangeEventDetail;
+    | ChangeEventDetail
+    | FileRetryEventDetail
+    | FileUploadedEventDetail
+    | FileDeletedEventDetail;
 
 /**
  * File type categories for icon mapping

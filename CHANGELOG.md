@@ -31,6 +31,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Overall progress indicator** — aggregate upload progress strip modelled on FluentUI InputFile's `overallFooter`. Shows a single progress bar fed by `uploadedBytes / totalBytes` (completed files count for their full size, uploading files contribute `size × progress%`) plus a stats line: `"X of Y · uploadedBytes / totalBytes · Z failed · NN%"`. Rendered in three places:
+  - Inline under the file list (`list` / `detailed` / `grid` / `badges` modes) via the new `.dz__overall-progress` strip — collapses via `:empty` when no upload activity.
+  - Under the summary line for card+popover combinations so the bar is visible without opening the popover.
+  - Inside the popover footer above the existing count/total-size totals row.
+  - Refreshes on every `updateFileProgress` / `setFileStatus` tick so the bar tracks per-file progress live. Themable via `--dz-overall-progress-*` variables (bar height, stats font-size, percent color, etc.).
+
+- **Retry-all support** — when any file is in the `error` or `cancelled` state, a "Retry all" button appears inside the overall progress stats line. Clicking it (or calling `retryAll()` / `retryFile(id)` programmatically) resets each errored file's status to `pending` and progress to `0`, then fires a new `file-retry` event per file (`detail: { file, files }`). Apps with an upload handler wired to `file-added` can wire the same handler to `file-retry` for bulk retry. New `retryCallback` config option mirrors the event.
+
+- **Server-side file identity + delete hook** — modelled on svelte-fluentui's `FileUploadResult` / `metadata` flow. The `uploadFileCallback` handler can now return `Promise<void | FileUploadResult>` where `FileUploadResult` is a restricted partial (`metadata`, `downloadUrl`, `previewUrl`, `name`). The component merges those fields into the `FileState` atomically with the `status: 'complete'` flip — handlers cannot accidentally overwrite internal lifecycle fields. Apps stash server-assigned ids in `metadata` and read them back when the user removes the file.
+  - New event: `file-deleted` (`detail: { file, files }`) — fires in addition to `file-removed` whenever the removed file had `status === 'complete'`. App wires it to a `DELETE /api/files/${file.metadata.serverGuid}` (or equivalent).
+  - New config option: `deleteCallback` mirrors the event.
+  - `clear()` and the popover's "Clear all" button also fire `file-deleted` for each completed file in the snapshot.
+
+- **Per-row remove button is now layout-stable** — previously the X on a popover row only rendered when `status === 'pending'`, so it disappeared the moment an upload started and never came back. The button is now always in the DOM regardless of status, so adjacent column content stays aligned across the pending → uploading → complete transition.
+  - New config option: `uploaded-deletable` HTML attribute (default `true`) / `isUploadedFileDeletable` config key. When `false`, the remove button on completed rows is hidden via `visibility: hidden` so the slot stays reserved but the button is inert. `removeFile(id)` still works programmatically — the flag only affects user-driven removal.
+
+- **Resumable upload support** — pause now preserves `file.progress` instead of resetting it, and the upload handler receives a 4th `context` argument carrying `{ startBytes, startPercent, metadata, setMetadata(patch) }`. Handlers backed by HTTP `Content-Range` / tus.io / S3 multipart can read `context.startBytes` and `file.slice(context.startBytes)` to resume mid-stream after a pause. `context.setMetadata(patch)` lets the handler stash session URLs / upload-ids mid-stream so the next attempt (after pause or retry) can recover them via `context.metadata`. Behavior matrix:
+  - **Pause → Resume**: progress preserved, handler sees `startBytes > 0` (mid-stream resume).
+  - **Cancel → Resume**: progress reset, handler sees `startBytes = 0` (cancel is treated as fresh-start).
+  - **Retry from error / Auto-retry from policy**: progress reset, handler sees `startBytes = 0` (server state may be incoherent).
+  - Single-shot handlers can simply ignore the `context` arg — pause then becomes "abort + restart from 0" as before. See the new "Resume-aware upload" snippet on `examples-upload.html` for a tus.io-style handler.
+
+- **Component-driven upload pipeline** — when `uploadFileCallback` is set, the component takes ownership of the upload lifecycle (modelled on svelte-fluentui's InputFile). Handler signature `(file, onProgress, signal) => Promise<void>` — the component runs a worker pool of size `concurrency` (default 1), awaits each handler, drives `file.status` from the Promise outcome, and exposes Pause / Resume / Cancel as first-class operations:
+  - New attributes: `concurrency` (int, default 1) and `auto-upload` (bool, default true; when false, files stay pending until `uploadAll()`).
+  - New JS-only props: `uploadFileCallback`, `uploadedCallback`, `retryPolicy` (`{ attempts, delayMs, backoff }` — defaults to a single attempt).
+  - New public methods on the element: `uploadAll()`, `uploadFile(id)`, `pauseFile(id)`, `resumeFile(id)`, `cancelFile(id)`, `pauseAll()`, `resumeAll()`, `retryFile(id)`, `retryAll()`.
+  - New file statuses: `paused` (resumable) and `cancelled` (manual retry needed). Both surface in the overall progress strip with dedicated colors and bulk action buttons (Pause all / Resume all) that gate on current state.
+  - New event: `file-uploaded` (`detail: { file, files }`) — fires after the handler resolves successfully.
+  - The legacy fire-and-forget pattern (`file-added` event + `updateFileProgress` / `setFileStatus`) still works when `uploadFileCallback` is unset — apps with their own upload manager keep full control.
+  - Solves the "all toasts arrive at once" footgun where firing 10 parallel setIntervals from `file-added` made every upload finish within milliseconds of each other.
+
 - **Orthogonal display-axis attributes** — file selection UI is now split into three independent axes:
   - `selector-appearance` — `card` (default, drop-zone) | `button` | `minimal` (icon)
   - `list-appearance` — `list` (default) | `detailed` | `grid` | `badges` | `popover` | `none`
@@ -74,6 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--dz-overlay-gap`, `--dz-overlay-z-index`
 
 - **New CSS variables for orthogonal display axes** — `--dz-button-padding`, `--dz-button-font-size`, `--dz-minimal-size`, `--dz-minimal-icon-size`, `--dz-badge-*` (height, border-radius, text/remove half splits, icon-size — mirrors `--ms-badge-*`), card-size variants (`--dz-dropzone-card-{minimal,big}-{min-height,padding,icon-size,text-font-size}`).
+
+- **Size attributes accept human-readable units** — `max-file-size`, `min-file-size`, and `max-total-size` now parse both raw byte counts and human-readable forms with case-insensitive suffixes and optional whitespace: `"5MB"`, `"300kB"`, `"1.5GB"`, `"1024B"`, `"5 MB"`. Binary (1024-based) units, matching `formatFileSize()` on the display side. Aliases: `K`/`KB`, `M`/`MB`, `G`/`GB`, `T`/`TB`. Implemented via a new `'bytes'` parser type in the `ATTRIBUTE_TABLE` and exported as `parseBytes(raw)` for programmatic use. The JS getters (`.maxFileSize`, `.minFileSize`, `.maxTotalSize`) parse the attribute through the same helper, so `<web-dropzone max-file-size="5MB">` and `el.maxFileSize` agree.
 
 - **Size / count validation cluster aligned with FluentUI's `InputFile`**:
   - **`min-file-size` / `minFileSize`** — reject files below N bytes (e.g. empty / corrupt zero-byte uploads). `code: 'size'`.
@@ -120,6 +153,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Popover arrow removed** — `.dz__popover__arrow` element, Floating UI `arrow` middleware wiring, and `--dz-popover-arrow-{size,bg}` CSS vars all gone. The popover now sits as a clean floating panel with no pointer back at the trigger; the trigger's own hover/active states are sufficient for the relationship to read.
 
+- **`examples-upload.html` — simulated-upload demo page** — six scenarios wired against the existing `updateFileProgress(id, %)` + `setFileStatus(id, status, error?)` primitives so the upload UI surfaces (progress bars in the popover, status badges, status-bordered badges) can be exercised without a real server:
+  1. Random success/failure (~70% success rate, popover + badges side-by-side)
+  2. Always succeed (happy path → `complete`)
+  3. Always fail (`error` with a fake "HTTP 500" message)
+  4. Slow uploads (10s per file — watch the bar grow)
+  5. Bytes-per-second simulation (file size → duration; mix sizes to see differential completion)
+  6. Toolbar minimal + popover with in-flight uploads
+  Includes a copy-pasteable real-upload snippet at the bottom showing how to swap the simulator for a real `XMLHttpRequest` against a server endpoint. Wired into the demo hub. Shares `examples-shared-toast.js` so completion / failure surface as toasts too.
+
 - **`examples-shared-toast.js` — minimal in-page toast service for the demo pages** — vanilla JS, no deps, one file. `toast.info / success / warn / error (message, { title?, timeout? })`. Wired into `examples-classic.html` so every dropzone's `files-rejected` event surfaces as a grouped toast (one per rejection code, with "+N more" when several files share a reason). Useful for seeing `max-file-count` overflow, dedupe, and per-file validation in action.
 
 - **Badge typography + dimensions aligned with web-multiselect** — the badge surface now reads as part of the same component family rather than a heavier dropzone-specific variant:
@@ -137,12 +179,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Popover X click was lost on rows that survived a body rebuild** — `openPopover` bound a click handler that called `removeFile` *and* `updatePopoverContent`, but `bindPopoverRemoveHandlers` (used for body rebuilds and per-tick re-binds) only called `removeFile`. As soon as anything triggered a body rebuild (e.g. adding more files via "Add more"), subsequent X clicks updated `this.files` but never refreshed the popover — the row stayed visible until the popover was reopened. The bug surfaced as "X on cancelled item doesn't delete it" but applied to every status after the first body rebuild. Unified: `bindPopoverRemoveHandlers` is now the single source of truth and `openPopover` calls it instead of its inline duplicate.
+
+- **Per-row remove button rebuilt on every progress tick** — `patchFileRow` did `existingRow.replaceWith(next)` on every `updateFileProgress` / `setFileStatus` call, so the X button was destroyed and recreated 20+ times per second during an upload. Clicks were swallowed when they landed during a rebuild. Replaced with in-place patchers (`patchPopoverRowInPlace`, `patchInlineRowInPlace`) that surgically update the bar fill, progress text, status pill text + modifier class, uploading-animation class, and remove button hidden state. The row's DOM (including the remove button) is preserved across the entire upload lifecycle. Custom `renderFileItemCallback` still gets the full `replaceWith` since we can't introspect its DOM shape.
+
+- **Overall progress strip's action buttons rebuilt on every tick** — `patchFileRow` did `footerEl.innerHTML = getFooterContent()` per tick, which threw away and re-created Pause all / Resume all / Retry all on every progress update. Clicks were dropped when they landed during a rebuild. New `refreshOverallProgress` patches the bar fill, counts span, percent text in place every tick and only rebuilds the actions group when its visible button set crosses a threshold (signature stashed in `container.dataset.dzButtonsSig`). New `refreshPopoverFooter` does the same for the popover footer — totals row spans get span-by-span text patches.
+
+- **Overall progress strip layout shifted as buttons appeared / disappeared** — counts span had no `flex: 1`, so the three siblings (counts / actions / percent) redistributed space via `justify-content: space-between` whenever the button set changed, sliding the percent left/right. Adopted FluentUI's pattern: `flex: 1 1 auto` on counts (pushes everything else to the right edge), `min-width: 3.6 × rem` + `text-align: right` on the percent (reserved width for "100%"), `font-variant-numeric: tabular-nums` on the stats line (digits don't jitter as the percent rolls over), and `flex: 0 0 auto` on the actions wrapper.
+
+- **Overall progress bar jumped back during resume** — during Resume all, files briefly transitioned `paused → pending → uploading`. `getOverallProgress()` only counted partial bytes for `uploading` and `paused`, so the `pending` window dropped each file's bytes from `uploadedBytes` for a microsecond — but the bar's CSS `transition: width 0.3s ease` made the drop visible as a 300ms visual jump down then back up. Now every non-complete file with reported progress contributes `f.size × f.progress/100` regardless of status, so the overall percent stays stable across the transition. Also covers `error` / `cancelled` so retries don't lose the headroom either.
+
+- **`resumeAll()` reset progress to 0** — I fixed `resumeFile()` to preserve progress for paused files (so handlers see `context.startBytes > 0` and can resume mid-stream), but missed the bulk version. `resumeAll()` still did `file.progress = 0` per file, so handlers always saw `startBytes = 0` and restarted. Removed the reset — bulk resume now preserves progress just like the per-file version.
+
+- **Paused files' partial bytes missing from the overall readout** — `getOverallProgress()`'s `paused` branch only incremented `pausedCount`, never added `f.size × f.progress/100` to `uploadedBytes`. So pausing five files mid-upload made the overall bar drop to 0% even though the server had real partial state. Now paused contributes to bytes just like uploading. (Subsequently expanded to cover every non-complete state — see the jump-back fix above.)
+
+- **`file-deleted` only fired for completed files** — apps using tus.io / Content-Range / S3 multipart need to clean up partial server state too (DELETE the session URL stashed via `context.setMetadata({ uploadUrl })` during a paused-then-removed upload). New helper `hasServerSideState(file)` returns `true` when `status === 'complete'` OR `file.metadata` is non-empty, and `file-deleted` now fires whenever it does. `clear()` and the popover's "Clear all" also use the same rule.
+
+- **Custom element pre-upgrade property trap** — `<script type="module" src="/src/index.ts">` registers the custom element, but examples-upload.html's inline wiring module ran *first* in document order (modules execute deferred but in-order). Setting `dz.uploadFileCallback = handler` on an un-upgraded `<web-dropzone>` installed it as an own property on the element instance. When the element later upgraded, its prototype setter was shadowed by the own property forever — the setter never fired, `_uploadFileCallback` stayed `null`, and no upload pipeline activated. Two fixes:
+  - Standard upgrade rescue pattern in `DropzoneElement` constructor — iterates `UPGRADEABLE_PROPS`, snapshots any own-property value, `delete`s the shadow, and reassigns so the prototype setter runs. Defensive for any consumer of the npm package.
+  - Demo wiring gated on `customElements.whenDefined('web-dropzone')` for belt-and-suspenders.
+
+- **Floating-point progress displayed in popover row** — `${file.progress}%` printed raw, so handlers that incremented by non-divisors of 100 (e.g. `100/30 = 3.333…`) showed `50.000000000001%`. Formatted with `.toFixed(1)` so the row always reads `xx.x%`. Underlying `file.progress` stays as a float for smooth bar fill.
+
 - **CSS specificity leaks onto button / minimal selectors**:
   - `.dz__host button` base reset (`background: none; border: none; padding: 0`) had specificity (0,1,1), beating the new `.dz__button` / `.dz__minimal` class rules (0,1,0) — leaving the accent button invisible and the minimal selector borderless. Wrapped the reset in `:where()` so its specificity drops to (0,0,0) and any class-targeted rule trivially wins.
   - `.dz__dropzone:hover:not(.dz__dropzone--disabled)` from the card base painted a hover background on the button / minimal wrappers. Moved to `.dz__dropzone--card:hover:not(...)` so it only applies to the card family.
   - `.dz__dropzone:focus-within` outlined the entire button / minimal wrapper on keyboard focus, doubling up with the button's own `:focus-visible` ring. Scoped to `.dz__dropzone--card:focus-within`.
 
 - **Button / minimal wrapper full-width stretching** — the wrapper is `display: inline-block` but was being stretched to the full width of the parent `.dz__container` because flex containers default to `align-items: stretch`. Added `align-self: start` to both `.dz__dropzone--button` and `.dz__dropzone--minimal` so they take their natural content width.
+
+- **Popover limits hint stuck on stale "X left"** — the limits hint's `X left` segments for `max-total-size` and `max-file-count` are computed from `files.length`, but `updatePopoverContent()` was only refreshing the count label, body, and footer (the inline comment incorrectly described the hint as "static"). Opening the popover at 2 files and growing the selection to 6 via "Add more" left the hint claiming "8 left" — the value frozen at popover-open time. Now refreshed alongside the other dynamic surfaces.
+
+- **Minimal selector count badge never appeared** — `.dz__minimal__badge` was rendered conditionally inside `renderSelector()` (only when `files.length > 0` at build time) and the selector was only built once, so the badge was always absent. Added an in-place `updateSelectorBadge()` patcher hooked into the `updateSummary()` post-change reflection so adding files now updates the top-right corner badge in real time. Patch (rather than re-render) so the hidden `<input type="file">` and its `change` listener survive.
+  - The same patcher also wires a new `.dz__button__badge` on the button selector (renders only when files exist), so inline-attachment patterns like `selector-appearance="button" list-appearance="badges"` show the picked count on the trigger. Uses `--dz-accent-color-active` (darker accent) so it stays visible against the button's accent background — the minimal badge's same-accent fill would blend in.
 
 - **Popover "Add more" picked files but didn't add them** — the popover's `Add more` handler called `inputEl.click()` to open the native picker. The resulting synthetic click bubbled back through the dropzone (where the input is mounted) and hit `handleClick`, which called `inputEl.click()` *again*. The second call within the same user-activation tick replaced the in-flight file dialog, so when the user finished picking files the `change` event arrived with an empty FileList. Added a `e.target === this.inputEl` short-circuit at the top of `handleClick` so the synthetic click is acknowledged once and not re-fired. Also fixes the same latent recursion on the standard card-click → browse flow.
 

@@ -169,6 +169,7 @@
   cursor: default;
 }
 .dz__button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -189,6 +190,27 @@
 .dz__button:disabled {
   opacity: var(--dz-disabled-opacity);
   cursor: not-allowed;
+}
+/* Count badge on the button selector — same top-right placement as the
+   minimal selector's badge, but a darker accent fill so it stands out from
+   the button's own accent background. */
+.dz__button__badge {
+  position: absolute;
+  top: calc(-0.4 * var(--dz-rem));
+  right: calc(-0.4 * var(--dz-rem));
+  min-width: calc(1.8 * var(--dz-rem));
+  height: calc(1.8 * var(--dz-rem));
+  padding: 0 calc(0.4 * var(--dz-rem));
+  background: var(--dz-accent-color-active);
+  color: var(--dz-text-on-accent);
+  border: 2px solid var(--dz-background);
+  border-radius: 999px;
+  font-size: calc(1.1 * var(--dz-rem));
+  font-weight: var(--dz-font-weight-semibold);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ==========================================================================

@@ -265,9 +265,24 @@
 }
 
 /* Status modifiers — recolor the text half's border to mark upload state. */
-.dz__badge--complete .dz__badge-text { border-color: var(--dz-success-color); }
-.dz__badge--error    .dz__badge-text { border-color: var(--dz-error-color); color: var(--dz-error-color); }
+.dz__badge--complete  .dz__badge-text { border-color: var(--dz-success-color); }
+.dz__badge--error     .dz__badge-text { border-color: var(--dz-error-color); color: var(--dz-error-color); }
 .dz__badge--uploading .dz__badge-text { border-color: var(--dz-accent-color); }
+.dz__badge--paused    .dz__badge-text { border-color: var(--dz-warning-color); color: var(--dz-warning-color); }
+.dz__badge--cancelled .dz__badge-text { border-color: var(--dz-text-color-3); color: var(--dz-text-color-3); }
+
+/* "Hidden but space reserved" modifier — used when isUploadedFileDeletable
+   is false and a file has finished uploading. visibility:hidden preserves
+   the button's layout box so the row's remove slot stays aligned with the
+   rest of the column, while pointer-events:none + tabindex=-1 + aria-hidden
+   (set in HTML) make the button inert. Shared across every per-row remove
+   button variant. */
+.dz__file-item__remove--hidden,
+.dz__preview-item__remove--hidden,
+.dz__badge-remove--hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
 
 /* Counter badge — single-half "+N" / "−" pill used by the maxVisible toggle
    in badges mode. No text/remove split, just the badge shell with muted

@@ -12,6 +12,7 @@ import type {
     DropzoneConfig,
     DedupeMode,
     FileState,
+    FileUploadContext,
     ValidationResult,
     RejectedFile,
     DisplayMode,
@@ -40,7 +41,7 @@ const FILE_ICONS: Record<FileTypeCategory, string> = {
 /**
  * Default configuration values
  */
-const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCallback' | 'removeCallback' | 'changeCallback' | 'rejectCallback' | 'renderFileItemCallback' | 'renderPromptCallback' | 'renderSummaryCallback' | 'customStylesCallback' | 'container' | 'hostElement' | 'overlayTarget' | 'selectorAppearance' | 'listAppearance' | 'cardSize' | 'isShowThumbnailsEnabled'>> = {
+const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCallback' | 'removeCallback' | 'changeCallback' | 'rejectCallback' | 'retryCallback' | 'uploadFileCallback' | 'uploadedCallback' | 'deleteCallback' | 'renderFileItemCallback' | 'renderPromptCallback' | 'renderSummaryCallback' | 'customStylesCallback' | 'container' | 'hostElement' | 'overlayTarget' | 'selectorAppearance' | 'listAppearance' | 'cardSize' | 'isShowThumbnailsEnabled' | 'retryPolicy'>> = {
     isMultipleEnabled: true,
     accept: '',
     maxFileSize: 0,
@@ -64,7 +65,10 @@ const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCal
     overlayText: 'Drop files here',
     overlayIcon: '📎',
     name: '',
-    valueFormat: 'json'
+    valueFormat: 'json',
+    concurrency: 1,
+    isAutoUploadEnabled: true,
+    isUploadedFileDeletable: true
 };
 
 /**
@@ -198,12 +202,28 @@ export class WebDropzone {
      *  end of the list (or the "+N" badge in badges mode). Reset on clear(). */
     private showAllList = false;
 
+    // ========================================================================
+    // UPLOAD PIPELINE STATE — only relevant when `uploadFileCallback` is set.
+    // ========================================================================
+    /** AbortController per in-flight upload, used by pause/cancel/remove. */
+    private controllers = new Map<string, AbortController>();
+    /** File IDs the user paused. A paused file aborts its handler and stays
+     *  out of the worker pool's pending pickup. resumeFile() removes the
+     *  entry and re-queues. */
+    private pausedIds = new Set<string>();
+    /** Set of file IDs currently claimed by a worker. Prevents two workers
+     *  from racing onto the same file when the queue is mid-drain. */
+    private activeIds = new Set<string>();
+    /** Re-entrancy guard so simultaneous uploadAll() calls collapse into one. */
+    private isDrainingQueue = false;
+
     // DOM elements
     private dropzoneEl: HTMLElement | null = null;
     private inputEl: HTMLInputElement | null = null;
     private fileListEl: HTMLElement | null = null;
     private filesInsideEl: HTMLElement | null = null;
     private summaryEl: HTMLElement | null = null;
+    private overallProgressEl: HTMLElement | null = null;
 
     // Drag overlay elements
     private overlayTarget: HTMLElement | null = null;
@@ -277,13 +297,25 @@ export class WebDropzone {
         const index = this.files.findIndex(f => f.id === id);
         if (index === -1) return;
 
+        // Abort any in-flight upload for this file before dropping it from
+        // state. Clearing pausedIds first prevents runUpload's catch branch
+        // from flipping the (already-removed) file to 'paused'.
+        this.pausedIds.delete(id);
+        this.controllers.get(id)?.abort();
+
         const file = this.files[index];
+        const hasServerState = this.hasServerSideState(file);
         this.files.splice(index, 1);
 
-        fileLogger.debug('File removed', { id, name: file.name });
+        fileLogger.debug('File removed', { id, name: file.name, hasServerState });
 
-        // Emit events
+        // Emit events. file-deleted fires on top of file-removed whenever
+        // the file has server-side state worth cleaning up — completed
+        // files (server has the full blob) OR any file whose handler
+        // stashed metadata via setMetadata (e.g. tus.io session URL from a
+        // partial upload that the user paused-then-removed).
         this.emitRemoveEvent(file);
+        if (hasServerState) this.emitDeleteEvent(file);
         this.emitChangeEvent();
 
         // Re-render
@@ -292,17 +324,43 @@ export class WebDropzone {
     }
 
     /**
+     * Decide whether this file has server-side state that the app should
+     * clean up on removal. Either:
+     *   - the upload finished (server holds the full blob), OR
+     *   - the handler stashed metadata via context.setMetadata — implying it
+     *     learned a session URL / upload-id during a partial attempt, even
+     *     if the upload itself never completed (pause-then-remove flow).
+     */
+    private hasServerSideState(file: FileState): boolean {
+        if (file.status === 'complete') return true;
+        return !!file.metadata && Object.keys(file.metadata).length > 0;
+    }
+
+    /**
      * Clear all files
      */
     clear(): void {
+        // Abort every in-flight upload before the FileState array is wiped —
+        // the run paths key off `this.files.find(...)` so an empty array would
+        // already be enough, but explicitly aborting also frees XHRs etc.
+        for (const ctrl of this.controllers.values()) ctrl.abort();
+        this.controllers.clear();
+        this.pausedIds.clear();
+        this.activeIds.clear();
+
         const removedFiles = [...this.files];
         this.files = [];
         this.showAllList = false;
 
         fileLogger.debug('All files cleared', { count: removedFiles.length });
 
-        // Emit events for each removed file
-        removedFiles.forEach(file => this.emitRemoveEvent(file));
+        // Emit events for each removed file — also fire file-deleted for
+        // any file that had server-side state stashed (completed OR paused
+        // with metadata, etc.) so server cleanup hooks fire on Clear all.
+        removedFiles.forEach(file => {
+            this.emitRemoveEvent(file);
+            if (this.hasServerSideState(file)) this.emitDeleteEvent(file);
+        });
         this.emitChangeEvent();
 
         // Re-render
@@ -349,6 +407,13 @@ export class WebDropzone {
      * Destroy the component
      */
     destroy(): void {
+        // Abort any in-flight uploads — handlers should bail out via AbortError
+        // so the calling app's underlying XHR / fetch is also cancelled.
+        for (const ctrl of this.controllers.values()) ctrl.abort();
+        this.controllers.clear();
+        this.pausedIds.clear();
+        this.activeIds.clear();
+
         this.detachEventListeners();
         this.closePopover();
         this.cleanupOverlay();
@@ -401,6 +466,300 @@ export class WebDropzone {
      */
     getFile(id: string): FileState | undefined {
         return this.files.find(f => f.id === id);
+    }
+
+    /**
+     * Reset a single file's upload state and either re-queue it (if the
+     * component owns the pipeline) or fire `file-retry` so the app's existing
+     * handler can re-run. Clears `error`, sets `status='pending'`,
+     * `progress=0`, patches the row, then emits the event in both modes.
+     */
+    retryFile(id: string): void {
+        const file = this.files.find(f => f.id === id);
+        if (!file) return;
+        this.pausedIds.delete(id);
+        file.status = 'pending';
+        file.progress = 0;
+        file.error = undefined;
+        fileLogger.debug('File retry requested', { id, name: file.name });
+        this.patchFileRow(file);
+        this.emitRetryEvent(file);
+        // Component-driven mode: re-queue via the worker pool. The pool's
+        // re-entrancy guard collapses simultaneous calls — retryAll calling
+        // retryFile in a loop still triggers one drain pass.
+        if (this.config.uploadFileCallback) {
+            void this.uploadAll();
+        }
+    }
+
+    /**
+     * Retry every file currently in the 'error' or 'cancelled' state. Each
+     * retry fires its own `file-retry` event so apps with a single
+     * upload-handler wired to `file-added` can wire the same handler to
+     * `file-retry` and have bulk retry "just work". When the component-driven
+     * pipeline (`uploadFileCallback`) is active, retryFile() also re-queues
+     * the file — the queue drains via uploadAll() called at the end.
+     */
+    retryAll(): void {
+        // Snapshot the ids first — retryFile mutates each file's status, so
+        // iterating over a live filter would skip every other entry.
+        const failedIds = this.files
+            .filter(f => f.status === 'error' || f.status === 'cancelled')
+            .map(f => f.id);
+        for (const id of failedIds) {
+            this.retryFile(id);
+        }
+    }
+
+    // ========================================================================
+    // UPLOAD PIPELINE — component-driven uploads when uploadFileCallback is set
+    // ========================================================================
+
+    /**
+     * Drain the queue of pending files through a worker pool of size
+     * `config.concurrency`. Re-entrant calls collapse into the in-flight run —
+     * the worker pool naturally picks up any files added mid-drain because
+     * each worker re-queries `this.files` on every iteration.
+     */
+    async uploadAll(): Promise<void> {
+        if (!this.config.uploadFileCallback) return;
+        if (this.isDrainingQueue) return;
+
+        this.isDrainingQueue = true;
+        const concurrency = Math.max(1, this.config.concurrency ?? 1);
+
+        const worker = async (): Promise<void> => {
+            while (true) {
+                const next = this.files.find(f =>
+                    f.status === 'pending' &&
+                    !this.pausedIds.has(f.id) &&
+                    !this.activeIds.has(f.id)
+                );
+                if (!next) return;
+                this.activeIds.add(next.id);
+                try {
+                    await this.runUpload(next.id);
+                } finally {
+                    this.activeIds.delete(next.id);
+                }
+            }
+        };
+
+        try {
+            await Promise.all(Array.from({ length: concurrency }, () => worker()));
+        } finally {
+            this.isDrainingQueue = false;
+        }
+    }
+
+    /**
+     * Upload a single file by ID immediately, bypassing the queue. Useful for
+     * "upload-on-demand" UIs (e.g. each row has its own upload button).
+     */
+    async uploadFile(id: string): Promise<void> {
+        if (!this.config.uploadFileCallback) return;
+        if (this.activeIds.has(id)) return;
+        this.activeIds.add(id);
+        try {
+            await this.runUpload(id);
+        } finally {
+            this.activeIds.delete(id);
+        }
+    }
+
+    /** Pause an in-flight upload. The handler's AbortSignal fires; the file
+     *  status flips to 'paused' once the handler bails. resumeFile() restarts
+     *  from progress=0 (handlers don't resume mid-stream by default). */
+    pauseFile(id: string): void {
+        this.pausedIds.add(id);
+        const ctrl = this.controllers.get(id);
+        if (ctrl) {
+            ctrl.abort();
+        } else {
+            // Not in flight — mark paused so the worker pool skips it.
+            const file = this.files.find(f => f.id === id);
+            if (file && (file.status === 'pending' || file.status === 'uploading')) {
+                file.status = 'paused';
+                this.patchFileRow(file);
+            }
+        }
+        this.updateOverallProgress();
+    }
+
+    /**
+     * Un-pause a file and re-queue it. The worker pool picks it up on its
+     * next iteration (or immediately if no workers are running). Progress is
+     * preserved across pause → resume so the handler can resume mid-stream
+     * if its server supports it (HTTP Content-Range, tus.io, etc); the
+     * handler receives the preserved offset via `context.startBytes`.
+     *
+     * Cancelled files are treated as fresh starts since "cancel" is
+     * user-initiated abort — server-side state should be assumed gone.
+     */
+    async resumeFile(id: string): Promise<void> {
+        this.pausedIds.delete(id);
+        const file = this.files.find(f => f.id === id);
+        if (!file) return;
+        if (file.status === 'paused') {
+            // Preserve progress — handler resumes from context.startBytes.
+            file.status = 'pending';
+            file.error = undefined;
+            this.patchFileRow(file);
+        } else if (file.status === 'cancelled') {
+            // Cancelled → user-initiated abort, server state is assumed lost.
+            file.status = 'pending';
+            file.progress = 0;
+            file.error = undefined;
+            this.patchFileRow(file);
+        }
+        await this.uploadAll();
+    }
+
+    /** Cancel an in-flight upload. Unlike pauseFile(), the file ends in the
+     *  'cancelled' status and won't auto-resume — the user has to retry. */
+    cancelFile(id: string): void {
+        // Distinguish cancel from pause in the run path by clearing pausedIds.
+        this.pausedIds.delete(id);
+        const ctrl = this.controllers.get(id);
+        if (ctrl) {
+            ctrl.abort();
+        } else {
+            const file = this.files.find(f => f.id === id);
+            if (file && (file.status === 'pending' || file.status === 'uploading')) {
+                file.status = 'cancelled';
+                this.patchFileRow(file);
+            }
+        }
+        this.updateOverallProgress();
+    }
+
+    /** Pause every uploading / pending file. */
+    pauseAll(): void {
+        for (const f of this.files) {
+            if (f.status === 'uploading' || f.status === 'pending') {
+                this.pauseFile(f.id);
+            }
+        }
+    }
+
+    /** Resume every paused file. Progress is preserved so handlers see a
+     *  non-zero `context.startBytes` and can resume mid-stream. */
+    async resumeAll(): Promise<void> {
+        for (const f of this.files) {
+            if (f.status === 'paused') {
+                this.pausedIds.delete(f.id);
+                f.status = 'pending';
+                // Progress preserved — handler sees startBytes > 0.
+                f.error = undefined;
+                this.patchFileRow(f);
+            }
+        }
+        await this.uploadAll();
+    }
+
+    /**
+     * Internal: run the upload handler for a single file, drive the status
+     * machine, and apply the retry policy on failure. The worker pool calls
+     * this — direct callers should use uploadFile() so the activeIds bookkeeping
+     * stays consistent.
+     */
+    private async runUpload(id: string, attempt = 0): Promise<void> {
+        const handler = this.config.uploadFileCallback;
+        if (!handler) return;
+        const file = this.files.find(f => f.id === id);
+        if (!file) return;
+        if (this.pausedIds.has(id)) return;
+
+        const ctrl = new AbortController();
+        this.controllers.set(id, ctrl);
+
+        // Flip to uploading. Progress is NOT reset — the caller controls
+        // that. Pause / Resume preserves progress so the handler sees a
+        // non-zero startBytes in context; explicit retry (retryFile) and
+        // automatic retry-after-error (below) reset it to 0 before invoking
+        // runUpload again.
+        file.status = 'uploading';
+        file.error = undefined;
+        this.patchFileRow(file);
+
+        // Build the per-call context — startBytes/startPercent reflect the
+        // file's preserved progress, metadata carries any state previously
+        // stashed by the handler via setMetadata, and setMetadata mutates
+        // file.metadata in place so subsequent attempts (after pause /
+        // retry) can recover it via context.metadata.
+        const context: FileUploadContext = {
+            startBytes: Math.floor(file.size * (file.progress / 100)),
+            startPercent: file.progress,
+            metadata: file.metadata,
+            setMetadata: (patch) => {
+                file.metadata = { ...(file.metadata ?? {}), ...patch };
+            }
+        };
+
+        try {
+            const result = await handler(
+                file.file,
+                (p) => {
+                    // Guard against late progress callbacks after abort —
+                    // updateFileProgress would auto-flip status to 'uploading'
+                    // and overwrite the abort outcome.
+                    if (ctrl.signal.aborted) return;
+                    this.updateFileProgress(id, p);
+                },
+                ctrl.signal,
+                context
+            );
+            // Success — patch + emit. Merge any FileUploadResult fields the
+            // handler returned (metadata, downloadUrl, etc.) into the file
+            // state atomically with the complete flip. Restricted shape (only
+            // the four whitelisted fields) so handlers can't accidentally
+            // overwrite id / file / status / progress / error.
+            if (result) {
+                if (result.metadata !== undefined) file.metadata = result.metadata;
+                if (result.downloadUrl !== undefined) file.downloadUrl = result.downloadUrl;
+                if (result.previewUrl !== undefined) file.previewUrl = result.previewUrl;
+                if (result.name !== undefined) file.name = result.name;
+            }
+            file.status = 'complete';
+            file.progress = 100;
+            this.patchFileRow(file);
+            this.emitUploadedEvent(file);
+        } catch (err) {
+            if (ctrl.signal.aborted) {
+                // The signal fires for pause AND cancel — distinguish by which
+                // set holds the id. pause keeps it for resume; cancel doesn't.
+                if (this.pausedIds.has(id)) {
+                    file.status = 'paused';
+                } else {
+                    file.status = 'cancelled';
+                }
+                this.patchFileRow(file);
+                return;
+            }
+            const msg = err instanceof Error ? err.message : 'Upload failed';
+            const policy = this.config.retryPolicy ?? {};
+            const maxAttempts = Math.max(1, policy.attempts ?? 1);
+            if (attempt + 1 < maxAttempts) {
+                const delay = (policy.delayMs ?? 1000) * Math.pow(policy.backoff ?? 2, attempt);
+                await new Promise(r => setTimeout(r, delay));
+                // Bail out cleanly if the file was paused / removed during the
+                // backoff window.
+                if (this.pausedIds.has(id) || !this.files.find(f => f.id === id)) return;
+                // Auto-retry resets progress — server-side state from the
+                // failed attempt may be incoherent, so start from 0. Handlers
+                // that want smart retry should set retryPolicy.attempts=1 and
+                // handle resume in their own code (where they can check
+                // server state with HEAD before deciding).
+                file.progress = 0;
+                this.patchFileRow(file);
+                return this.runUpload(id, attempt + 1);
+            }
+            file.status = 'error';
+            file.error = msg;
+            this.patchFileRow(file);
+        } finally {
+            this.controllers.delete(id);
+        }
     }
 
     // ========================================================================
@@ -523,6 +882,17 @@ export class WebDropzone {
         // taken when the popover opened.
         if (this.isPopoverOpen && acceptedFiles.length > 0) {
             this.updatePopoverContent();
+        }
+
+        // Auto-upload kicks in once the new files are committed to state, the
+        // UI has reflected the additions, and the file-added event has fired.
+        // The worker pool's re-entrancy guard collapses overlapping calls.
+        if (
+            acceptedFiles.length > 0 &&
+            this.config.uploadFileCallback &&
+            this.config.isAutoUploadEnabled !== false
+        ) {
+            void this.uploadAll();
         }
     }
 
@@ -689,11 +1059,20 @@ export class WebDropzone {
             filesInside ? 'dz__container--files-inside' : ''
         ].filter(Boolean).join(' ');
 
+        // Aggregate progress strip lives alongside any visible file surface in
+        // the host area — the inline list (list/detailed/grid/badges) or the
+        // summary line for card+popover. Inside the popover itself the same
+        // readout is rendered in the footer; for button/minimal+popover the
+        // selector's count badge plays a similar role so we skip the strip
+        // there (it'd dangle below an icon-only trigger).
+        const needsOverallProgress = needsListArea || needsSummary;
+
         return `
             <div class="${containerClasses}">
                 ${this.renderSelector(selectorAppearance, cardSize)}
                 ${needsSummary ? this.renderSummaryArea() : ''}
                 ${needsListArea ? this.renderFileListArea(listAppearance) : ''}
+                ${needsOverallProgress ? this.renderOverallProgressArea() : ''}
             </div>
         `;
     }
@@ -720,10 +1099,14 @@ export class WebDropzone {
 
         if (appearance === 'button') {
             const label = escapeHtml(this.config.selectFilesText || DEFAULT_CONFIG.selectFilesText);
+            const count = this.files.length;
             return `
                 <div class="dz__dropzone dz__dropzone--button ${disabled}">
                     ${input}
-                    <button type="button" class="dz__button" ${this.config.isDisabled ? 'disabled' : ''}>${label}</button>
+                    <button type="button" class="dz__button" ${this.config.isDisabled ? 'disabled' : ''}>
+                        <span class="dz__button__label">${label}</span>
+                        ${count > 0 ? `<span class="dz__button__badge">${count}</span>` : ''}
+                    </button>
                 </div>
             `;
         }
@@ -806,6 +1189,15 @@ export class WebDropzone {
     }
 
     /**
+     * Empty strip below the inline list. Populated by `updateOverallProgress`
+     * whenever any file is uploading / complete / error, and emptied (which
+     * collapses it via `:empty`) when there's no upload activity to report.
+     */
+    private renderOverallProgressArea(): string {
+        return `<div class="dz__overall-progress"></div>`;
+    }
+
+    /**
      * Parse an HTML string into a single root element. Uses <template> so
      * almost any tag (including <tr>) can be parsed without a wrapping
      * context.
@@ -829,7 +1221,13 @@ export class WebDropzone {
 
     /**
      * Attach the popover remove-button click handler. Behaves like the main
-     * list, but additionally closes the popover when the last file is removed.
+     * list, additionally refreshing the popover body (so the row visibly
+     * disappears) and closing the popover when the last file is removed.
+     *
+     * Important: `removeFile` alone only updates `this.files` and re-renders
+     * the inline list — it doesn't touch the popover. So this handler is
+     * the ONE place responsible for keeping the popover's table in sync
+     * after a per-row X click.
      */
     private bindPopoverRemoveHandlers(root: ParentNode): void {
         root.querySelectorAll('[data-action="remove"]').forEach(btn => {
@@ -837,41 +1235,162 @@ export class WebDropzone {
                 const id = (btn as HTMLElement).dataset.fileId;
                 if (!id) return;
                 this.removeFile(id);
-                if (this.files.length === 0) this.closePopover();
+                if (this.files.length === 0) {
+                    this.closePopover();
+                } else {
+                    this.updatePopoverContent();
+                }
             });
         });
     }
 
     /**
      * Patch a single file row in-place — in the main list (or files-inside
-     * container) and in the open popover, if any. Avoids rebuilding the
-     * entire list on every progress/status tick, which is the hot path for
-     * any real upload pipeline.
+     * container) and in the open popover, if any. Hot path on every upload
+     * tick, so we surgically update the bar fill / progress text / status
+     * pill instead of rebuilding the row's DOM. Otherwise the X remove
+     * button would be destroyed and re-created on every tick and clicks
+     * would be swallowed (same problem the overall progress strip had).
+     *
+     * Custom renderers (renderFileItemCallback) opt out of in-place
+     * patching — we can't introspect their DOM shape, so we fall back to
+     * replaceWith and let the consumer eat the click-flicker tradeoff.
      */
     private patchFileRow(file: FileState): void {
+        const { listAppearance } = resolveDisplayConfig(this.config);
+        const hasCustomRenderer = !!this.config.renderFileItemCallback;
         const index = this.files.indexOf(file);
 
         const targetEl = this.config.isFilesInsideEnabled ? this.filesInsideEl : this.fileListEl;
         if (targetEl) {
-            const existing = targetEl.querySelector(`[data-file-id="${file.id}"]`);
+            const existing = targetEl.querySelector(`[data-file-id="${file.id}"]`) as HTMLElement | null;
             if (existing) {
-                const next = this.htmlToElement(this.renderFileItem(file, index, false));
-                if (next) {
-                    existing.replaceWith(next);
-                    this.bindListRemoveHandlers(next);
+                if (hasCustomRenderer) {
+                    const next = this.htmlToElement(this.renderFileItem(file, index, false));
+                    if (next) {
+                        existing.replaceWith(next);
+                        this.bindListRemoveHandlers(next);
+                    }
+                } else {
+                    this.patchInlineRowInPlace(existing, file, listAppearance);
                 }
             }
         }
 
         if (this.popover) {
-            const existingRow = this.popover.querySelector(`tr[data-file-id="${file.id}"]`);
+            const existingRow = this.popover.querySelector(`tr[data-file-id="${file.id}"]`) as HTMLTableRowElement | null;
             if (existingRow) {
-                const next = this.htmlToElement(this.renderCompactItem(file));
-                if (next) {
-                    existingRow.replaceWith(next);
-                    this.bindPopoverRemoveHandlers(next);
+                if (hasCustomRenderer) {
+                    const next = this.htmlToElement(this.renderCompactItem(file));
+                    if (next) {
+                        existingRow.replaceWith(next);
+                        this.bindPopoverRemoveHandlers(next);
+                    }
+                } else {
+                    this.patchPopoverRowInPlace(existingRow, file);
                 }
             }
+            // Patch the footer in place — the totals don't change per tick,
+            // but the embedded overall-progress strip does (and its action
+            // buttons must NOT be re-created on every tick or they become
+            // unclickable).
+            this.refreshPopoverFooter(false);
+        }
+
+        // Aggregate progress strip under the inline list also reflects per-file
+        // ticks. updateSummary() handles add/remove churn; this is the
+        // hot-path entry point for upload progress.
+        this.updateOverallProgress();
+    }
+
+    /**
+     * In-place row patch for the popover. Updates the progress bar fill,
+     * progress text, status pill (text + modifier class), uploading-animation
+     * class on the row, and the remove button's hidden state. Everything
+     * else — icon, filename, size, the remove button itself — stays put so
+     * clicks land cleanly.
+     */
+    private patchPopoverRowInPlace(row: HTMLTableRowElement, file: FileState): void {
+        row.classList.toggle('dz__popover__row--uploading', file.status === 'uploading');
+
+        const fill = row.querySelector('.dz__popover__progress-fill') as HTMLElement | null;
+        if (fill) fill.style.width = `${file.progress}%`;
+
+        const progressText = row.querySelector('.dz__popover__progress-text');
+        if (progressText) progressText.textContent = `${file.progress.toFixed(1)}%`;
+
+        const statusEl = row.querySelector('.dz__popover__status') as HTMLElement | null;
+        if (statusEl) {
+            statusEl.className = `dz__popover__status dz__popover__status--${file.status}`;
+            statusEl.textContent = file.status.charAt(0).toUpperCase() + file.status.slice(1);
+        }
+
+        this.syncRemoveButtonHiddenState(
+            row.querySelector('.dz__popover__remove'),
+            file,
+            'dz__popover__remove--hidden'
+        );
+    }
+
+    /**
+     * In-place row patch for inline lists (list / detailed / grid / badges).
+     * Most of these modes don't render progress, so the patch is light:
+     *   - badges: swap the status modifier class on the badge wrapper
+     *   - grid:  swap the placeholder out for an <img> when previewUrl
+     *            arrives (one-shot transition)
+     *   - all:   sync the remove button's hidden state
+     */
+    private patchInlineRowInPlace(row: HTMLElement, file: FileState, appearance: ListAppearance): void {
+        if (appearance === 'badges') {
+            // Badge wrapper carries the status modifier — recolors the
+            // border via CSS. Pending status has no modifier class.
+            row.className = file.status !== 'pending'
+                ? `dz__badge dz__badge--${file.status}`
+                : 'dz__badge';
+        }
+
+        if (appearance === 'grid' && file.previewUrl) {
+            const placeholder = row.querySelector('.dz__preview-item__placeholder');
+            if (placeholder) {
+                const img = document.createElement('img');
+                img.src = file.previewUrl;
+                img.alt = file.name;
+                img.className = 'dz__preview-item__image';
+                placeholder.replaceWith(img);
+                row.classList.add('dz__preview-item--image');
+            }
+        }
+
+        const removeSelector = appearance === 'badges'
+            ? '.dz__badge-remove'
+            : appearance === 'grid'
+                ? '.dz__preview-item__remove'
+                : '.dz__file-item__remove';
+        const hiddenClass = removeSelector.slice(1) + '--hidden';
+        this.syncRemoveButtonHiddenState(
+            row.querySelector(removeSelector),
+            file,
+            hiddenClass
+        );
+    }
+
+    /** Toggle the `--hidden` modifier on a per-row remove button plus the
+     *  matching aria/tabindex attrs. Shared across all the patcher
+     *  variants so the rules for hiding stay in one place. */
+    private syncRemoveButtonHiddenState(
+        btn: Element | null,
+        file: FileState,
+        hiddenClass: string
+    ): void {
+        if (!btn) return;
+        const hidden = !this.isFileUserRemovable(file);
+        btn.classList.toggle(hiddenClass, hidden);
+        if (hidden) {
+            btn.setAttribute('tabindex', '-1');
+            btn.setAttribute('aria-hidden', 'true');
+        } else {
+            btn.removeAttribute('tabindex');
+            btn.removeAttribute('aria-hidden');
         }
     }
 
@@ -1017,11 +1536,34 @@ export class WebDropzone {
         }
     }
 
+    /**
+     * Whether the remove button should be rendered as interactive for this
+     * file. Returns `false` when the file finished uploading AND the caller
+     * opted out of allowing user-driven deletion of completed files; in that
+     * case the renderers emit the button anyway (so column / cell widths
+     * stay reserved) but stamp a `--hidden` modifier that drops it from the
+     * tab order and hides it via `visibility: hidden`.
+     */
+    private isFileUserRemovable(file: FileState): boolean {
+        if (file.status !== 'complete') return true;
+        return this.config.isUploadedFileDeletable !== false;
+    }
+
+    /** Build the `class=""` / `aria-hidden` / `tabindex` attrs used by every
+     *  per-row remove button. Hidden buttons stay in the DOM (layout
+     *  reserved) but are inert. */
+    private removeButtonAttrs(file: FileState, baseClass: string): string {
+        const hidden = !this.isFileUserRemovable(file);
+        const cls = hidden ? `${baseClass} ${baseClass}--hidden` : baseClass;
+        const inert = hidden ? ' tabindex="-1" aria-hidden="true"' : '';
+        return `class="${cls}" data-action="remove" data-file-id="${file.id}" aria-label="Remove ${escapeHtml(file.name)}"${inert}`;
+    }
+
     private renderListItem(file: FileState): string {
         return `
             <div class="dz__file-item dz__file-item--list" data-file-id="${file.id}">
                 <span class="dz__file-item__name">${escapeHtml(file.name)}</span>
-                <button type="button" class="dz__file-item__remove" data-action="remove" data-file-id="${file.id}" aria-label="Remove ${escapeHtml(file.name)}"></button>
+                <button type="button" ${this.removeButtonAttrs(file, 'dz__file-item__remove')}></button>
             </div>
         `;
     }
@@ -1041,7 +1583,7 @@ export class WebDropzone {
                         <span class="dz__file-item__type">${escapeHtml(file.type || 'Unknown')}</span>
                     </div>
                 </div>
-                <button type="button" class="dz__file-item__remove" data-action="remove" data-file-id="${file.id}" aria-label="Remove ${escapeHtml(file.name)}"></button>
+                <button type="button" ${this.removeButtonAttrs(file, 'dz__file-item__remove')}></button>
             </div>
         `;
     }
@@ -1063,7 +1605,7 @@ export class WebDropzone {
                 <div class="dz__preview-item__overlay">
                     <span class="dz__preview-item__name">${escapeHtml(file.name)}</span>
                 </div>
-                <button type="button" class="dz__preview-item__remove" data-action="remove" data-file-id="${file.id}" aria-label="Remove ${escapeHtml(file.name)}"></button>
+                <button type="button" ${this.removeButtonAttrs(file, 'dz__preview-item__remove')}></button>
             </div>
         `;
     }
@@ -1078,7 +1620,7 @@ export class WebDropzone {
                     <span class="dz__badge-icon">${inner}</span>
                     <span class="dz__badge-name">${escapeHtml(file.name)}</span>
                 </span>
-                <button type="button" class="dz__badge-remove" data-action="remove" data-file-id="${file.id}" aria-label="Remove ${escapeHtml(file.name)}"></button>
+                <button type="button" ${this.removeButtonAttrs(file, 'dz__badge-remove')}></button>
             </span>
         `;
     }
@@ -1089,8 +1631,14 @@ export class WebDropzone {
         const statusClass = `dz__popover__status--${file.status}`;
         const statusText = file.status.charAt(0).toUpperCase() + file.status.slice(1);
         const isUploading = file.status === 'uploading';
-        const canRemove = file.status === 'pending';
 
+        // X button is ALWAYS rendered — column width stays stable as files
+        // transition pending → uploading → complete and the button doesn't
+        // pop in/out. When isUploadedFileDeletable=false and the file has
+        // finished uploading, removeButtonAttrs() stamps a `--hidden`
+        // modifier (visibility: hidden + tabindex=-1) so the slot stays
+        // reserved but the user can't click it; removeFile(id) still works
+        // programmatically.
         return `
             <tr class="dz__popover__row ${isUploading ? 'dz__popover__row--uploading' : ''}" data-file-id="${file.id}">
                 <td class="dz__popover__cell dz__popover__cell--icon"><span class="dz__popover__placeholder">${inner}</span></td>
@@ -1100,19 +1648,31 @@ export class WebDropzone {
                     <div class="dz__popover__progress-bar">
                         <div class="dz__popover__progress-fill" style="width: ${file.progress}%"></div>
                     </div>
-                    <span class="dz__popover__progress-text">${file.progress}%</span>
+                    <span class="dz__popover__progress-text">${file.progress.toFixed(1)}%</span>
                 </td>
                 <td class="dz__popover__cell dz__popover__cell--status">
                     <span class="dz__popover__status ${statusClass}">${statusText}</span>
                 </td>
                 <td class="dz__popover__cell dz__popover__cell--actions">
-                    ${canRemove ? `<button type="button" class="dz__popover__remove" data-action="remove" data-file-id="${file.id}" aria-label="Remove ${escapeHtml(file.name)}"></button>` : ''}
+                    <button type="button" ${this.removeButtonAttrs(file, 'dz__popover__remove')}></button>
                 </td>
             </tr>
         `;
     }
 
     private updateSummary(): void {
+        // The button and minimal selectors each carry a top-right count badge
+        // — neither is tied to the popover-summary surface, so refresh both
+        // here on every files change regardless of whether a summary line is
+        // rendered.
+        this.updateSelectorBadge();
+
+        // The aggregate progress strip lives outside the file list and the
+        // popover, so it has to be refreshed here too — both for the initial
+        // empty-state render and so removing the last in-flight file collapses
+        // the strip.
+        this.updateOverallProgress();
+
         if (!this.summaryEl) return;
 
         if (this.files.length === 0) {
@@ -1151,6 +1711,40 @@ export class WebDropzone {
                     this.togglePopover();
                 }
             });
+        }
+    }
+
+    /**
+     * Patch the count badge on the active selector (button or minimal) in
+     * place. Each selector renders its badge conditionally inside
+     * renderSelector() at component-build time (count = 0 means no badge in
+     * the DOM), so the badge has to be created / removed / updated on every
+     * files change rather than re-rendering the whole selector (which would
+     * trash the hidden <input> and its listeners).
+     */
+    private updateSelectorBadge(): void {
+        if (!this.dropzoneEl) return;
+
+        for (const [hostClass, badgeClass] of [
+            ['dz__minimal', 'dz__minimal__badge'],
+            ['dz__button',  'dz__button__badge']
+        ] as const) {
+            const host = this.dropzoneEl.querySelector(`.${hostClass}`);
+            if (!host) continue;
+
+            const count = this.files.length;
+            let badge = host.querySelector(`.${badgeClass}`) as HTMLElement | null;
+
+            if (count > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = badgeClass;
+                    host.appendChild(badge);
+                }
+                badge.textContent = String(count);
+            } else if (badge) {
+                badge.remove();
+            }
         }
     }
 
@@ -1221,20 +1815,18 @@ export class WebDropzone {
             this.inputEl?.click();
         });
 
-        this.popover.querySelectorAll('[data-action="remove"]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const id = (btn as HTMLElement).dataset.fileId;
-                if (id) {
-                    this.removeFile(id);
-                    // Update popover content
-                    if (this.files.length === 0) {
-                        this.closePopover();
-                    } else {
-                        this.updatePopoverContent();
-                    }
-                }
-            });
-        });
+        // Fill the (empty) overall-progress container inside the footer.
+        // refreshOverallProgress builds the markup and binds the action
+        // handlers, so we don't need to call bindOverallProgressHandlers
+        // separately here.
+        const footerOverall = this.popover.querySelector('.dz__popover__footer .dz__overall-progress') as HTMLElement | null;
+        if (footerOverall) this.refreshOverallProgress(footerOverall);
+
+        // Single canonical binder used for every popover X click — initial
+        // open, body rebuild, and per-tick patches all converge here so
+        // remove behavior stays identical regardless of how the row was
+        // rendered.
+        this.bindPopoverRemoveHandlers(this.popover);
 
         this.isPopoverOpen = true;
         document.addEventListener('click', this.boundHandleDocumentClick);
@@ -1301,17 +1893,283 @@ export class WebDropzone {
     }
 
     /**
-     * Footer content for the popover — overall totals (count + total size).
-     * Returns "" when there are no files (the :empty CSS selector then hides
-     * the footer entirely).
+     * Footer content for the popover — overall totals (count + total size),
+     * with an aggregate progress strip above when any upload is in flight or
+     * already finished. Returns "" when there are no files (the :empty CSS
+     * selector then hides the footer entirely).
      */
     private getFooterContent(): string {
         if (this.files.length === 0) return '';
         const totalBytes = this.files.reduce((sum, f) => sum + f.size, 0);
+        // Overall progress strip lives inside a `.dz__overall-progress`
+        // container so per-tick refreshes can patch it without touching the
+        // surrounding totals row. The container starts empty and is filled by
+        // refreshOverallProgress() after this markup is mounted.
         return `
-            <span>${escapeHtml(this.getFileCountLabel())}</span>
-            <span>${escapeHtml(formatFileSize(totalBytes))}</span>
+            <div class="dz__overall-progress"></div>
+            <div class="dz__popover__footer__totals">
+                <span class="dz__popover__footer__count">${escapeHtml(this.getFileCountLabel())}</span>
+                <span class="dz__popover__footer__bytes">${escapeHtml(formatFileSize(totalBytes))}</span>
+            </div>
         `;
+    }
+
+    /**
+     * In-place refresh of the popover footer. The overall progress strip is
+     * delegated to refreshOverallProgress (which preserves action buttons
+     * across ticks); the totals row is patched span-by-span. `includeTotals`
+     * lets the hot path (progress ticks) skip the totals work, since per-file
+     * size doesn't change mid-upload.
+     */
+    private refreshPopoverFooter(includeTotals: boolean): void {
+        if (!this.popover) return;
+        const footer = this.popover.querySelector('.dz__popover__footer') as HTMLElement | null;
+        if (!footer) return;
+
+        // Empty selection collapses the footer entirely (matches the :empty
+        // CSS rule that hides the chrome).
+        if (this.files.length === 0) {
+            footer.innerHTML = '';
+            return;
+        }
+
+        // Re-install the structure if the footer was previously empty.
+        if (!footer.firstElementChild) {
+            footer.innerHTML = this.getFooterContent();
+        }
+
+        const inner = footer.querySelector('.dz__overall-progress') as HTMLElement | null;
+        if (inner) this.refreshOverallProgress(inner);
+
+        if (includeTotals) {
+            const countEl = footer.querySelector('.dz__popover__footer__count');
+            if (countEl) countEl.textContent = this.getFileCountLabel();
+            const bytesEl = footer.querySelector('.dz__popover__footer__bytes');
+            if (bytesEl) {
+                const totalBytes = this.files.reduce((s, f) => s + f.size, 0);
+                bytesEl.textContent = formatFileSize(totalBytes);
+            }
+        }
+    }
+
+    /**
+     * Aggregate upload stats across the current selection. Mirrors FluentUI
+     * InputFile's overallProgress: completed files count for their full size,
+     * uploading files contribute size × progress%. `hasActivity` is the gate
+     * for showing the strip — pure pending selections (nothing uploaded yet)
+     * keep the strip hidden so it doesn't appear at 0% before any upload
+     * starts.
+     */
+    private getOverallProgress(): {
+        uploadedBytes: number;
+        totalBytes: number;
+        completedCount: number;
+        failedCount: number;
+        uploadingCount: number;
+        pausedCount: number;
+        percent: number;
+        hasActivity: boolean;
+    } {
+        let uploadedBytes = 0;
+        let totalBytes = 0;
+        let completedCount = 0;
+        let failedCount = 0;
+        let uploadingCount = 0;
+        let pausedCount = 0;
+
+        for (const f of this.files) {
+            totalBytes += f.size;
+            if (f.status === 'complete') {
+                uploadedBytes += f.size;
+                completedCount++;
+            } else {
+                // Every other state contributes whatever progress was last
+                // reported. This keeps the overall bar smooth across status
+                // transitions — particularly during resume where a file
+                // momentarily goes paused → pending → uploading. If only
+                // some of those states counted, the overall bar would animate
+                // down then back up and the user sees a "jump back".
+                uploadedBytes += Math.floor(f.size * (f.progress / 100));
+                if (f.status === 'uploading') uploadingCount++;
+                else if (f.status === 'paused') pausedCount++;
+                else if (f.status === 'error' || f.status === 'cancelled') {
+                    // Cancelled rolls into "failed" for the overall readout —
+                    // both need user intervention (retry) to ever finish.
+                    failedCount++;
+                }
+                // 'pending' contributes only to uploadedBytes — no dedicated
+                // counter, since pending isn't a "state the user acts on".
+            }
+        }
+
+        const percent = totalBytes === 0
+            ? 0
+            : Math.min(100, (uploadedBytes / totalBytes) * 100);
+        const hasActivity =
+            uploadingCount > 0 || completedCount > 0 || failedCount > 0 || pausedCount > 0;
+
+        return { uploadedBytes, totalBytes, completedCount, failedCount, uploadingCount, pausedCount, percent, hasActivity };
+    }
+
+    /**
+     * Shared HTML for the aggregate progress strip — bar + a single stats line
+     * showing completed/total counts, bytes uploaded vs. total, and percent.
+     * Used both inline (under the file list) and inside the popover footer.
+     * When any file is in the 'error' state, a "Retry all" button appears
+     * between the stats and the percent (mirrors FluentUI's overallFooter).
+     */
+    private renderOverallProgressMarkup(o: ReturnType<WebDropzone['getOverallProgress']>): string {
+        const pct = Math.round(o.percent);
+        // Layout is anchored on three flex children: counts (flex: 1, pushes
+        // everything else to the right edge), actions group (collapses via
+        // :empty when no bulk actions apply), and percent (fixed min-width
+        // so 9%/99%/100% all take the same horizontal space — no jitter as
+        // the upload progresses). Matches FluentUI's footer-stats layout.
+        return `
+            <div class="dz__overall-progress__bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
+                <div class="dz__overall-progress__fill" style="width: ${o.percent}%"></div>
+            </div>
+            <div class="dz__overall-progress__stats">
+                <span class="dz__overall-progress__counts">${this.renderOverallCountsInner(o)}</span>
+                <div class="dz__overall-progress__actions">${this.renderOverallActions(o)}</div>
+                <span class="dz__overall-progress__percent">${pct}%</span>
+            </div>
+        `;
+    }
+
+    /**
+     * Inner HTML of the counts line — extracted so per-tick patching can
+     * refresh just this span without disturbing the surrounding action
+     * buttons.
+     */
+    private renderOverallCountsInner(o: ReturnType<WebDropzone['getOverallProgress']>): string {
+        const pausedSegment = o.pausedCount > 0
+            ? ` · <span class="dz__overall-progress__paused">${o.pausedCount} paused</span>`
+            : '';
+        const failedSegment = o.failedCount > 0
+            ? ` · <span class="dz__overall-progress__failed">${o.failedCount} failed</span>`
+            : '';
+        return `${o.completedCount} of ${this.files.length} · ${escapeHtml(formatFileSize(o.uploadedBytes))} / ${escapeHtml(formatFileSize(o.totalBytes))}${pausedSegment}${failedSegment}`;
+    }
+
+    /**
+     * Bulk-action buttons rendered between the counts and the percent. Each
+     * gates on a state crossing zero (Pause all when something's uploading,
+     * Resume all when something's paused, Retry all when something errored).
+     * Returns "" when no actions apply.
+     */
+    private renderOverallActions(o: ReturnType<WebDropzone['getOverallProgress']>): string {
+        const pipelineActive = !!this.config.uploadFileCallback;
+        const out: string[] = [];
+        if (pipelineActive && o.uploadingCount > 0) {
+            out.push(`<button type="button" class="dz__overall-progress__action" data-action="pause-all">Pause all</button>`);
+        }
+        if (pipelineActive && o.pausedCount > 0) {
+            out.push(`<button type="button" class="dz__overall-progress__action" data-action="resume-all">Resume all</button>`);
+        }
+        if (o.failedCount > 0) {
+            out.push(`<button type="button" class="dz__overall-progress__action" data-action="retry-all">Retry all</button>`);
+        }
+        return out.join('');
+    }
+
+    /**
+     * Single-character signature of which action buttons are currently
+     * showing. Stored on the container's dataset; per-tick refreshes only
+     * rebuild the buttons when this signature actually changes. Otherwise
+     * the buttons stay put across ticks — without this, every progress
+     * update would destroy and re-create them, making them unclickable.
+     */
+    private overallActionsSignature(o: ReturnType<WebDropzone['getOverallProgress']>): string {
+        const pipelineActive = !!this.config.uploadFileCallback;
+        const p = pipelineActive && o.uploadingCount > 0 ? '1' : '0';
+        const r = pipelineActive && o.pausedCount > 0 ? '1' : '0';
+        const e = o.failedCount > 0 ? '1' : '0';
+        return `${p}${r}${e}`;
+    }
+
+    /**
+     * Attach the "Retry all" click handler within a subtree. Used everywhere
+     * the overall progress markup is rendered: the inline strip's update path,
+     * the initial popover render, and the popover's footer refresh.
+     */
+    private bindOverallProgressHandlers(root: ParentNode): void {
+        root.querySelectorAll('[data-action="retry-all"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.retryAll();
+            });
+        });
+        root.querySelectorAll('[data-action="pause-all"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.pauseAll();
+            });
+        });
+        root.querySelectorAll('[data-action="resume-all"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                void this.resumeAll();
+            });
+        });
+    }
+
+    /**
+     * Refresh the inline aggregate progress strip below the file list. Cleared
+     * to empty (which collapses via `:empty`) when there's no activity to
+     * report; otherwise renders the shared bar+stats markup.
+     */
+    private updateOverallProgress(): void {
+        if (!this.overallProgressEl) return;
+        this.refreshOverallProgress(this.overallProgressEl);
+    }
+
+    /**
+     * Refresh an overall-progress container in place. Patches the bar fill /
+     * counts / percent on every call (cheap, no event handlers to thrash);
+     * only rebuilds the inner DOM when the structure is missing or when the
+     * action-button set changes. Used by both the inline strip and the
+     * popover footer's embedded strip.
+     */
+    private refreshOverallProgress(container: HTMLElement): void {
+        const overall = this.getOverallProgress();
+        if (!overall.hasActivity) {
+            container.innerHTML = '';
+            delete container.dataset.dzButtonsSig;
+            return;
+        }
+
+        const sig = this.overallActionsSignature(overall);
+        const fillEl = container.querySelector('.dz__overall-progress__fill') as HTMLElement | null;
+        const barEl = container.querySelector('.dz__overall-progress__bar') as HTMLElement | null;
+        const countsEl = container.querySelector('.dz__overall-progress__counts') as HTMLElement | null;
+        const percentEl = container.querySelector('.dz__overall-progress__percent') as HTMLElement | null;
+        const actionsEl = container.querySelector('.dz__overall-progress__actions') as HTMLElement | null;
+
+        // First-time render — install the full structure.
+        if (!fillEl || !countsEl || !percentEl || !actionsEl) {
+            container.innerHTML = this.renderOverallProgressMarkup(overall);
+            this.bindOverallProgressHandlers(container);
+            container.dataset.dzButtonsSig = sig;
+            return;
+        }
+
+        // Always-changing bits — bar fill, counts, percent.
+        const pct = Math.round(overall.percent);
+        fillEl.style.width = `${overall.percent}%`;
+        barEl?.setAttribute('aria-valuenow', String(pct));
+        countsEl.innerHTML = this.renderOverallCountsInner(overall);
+        percentEl.textContent = `${pct}%`;
+
+        // Only rebuild the actions group when the visible button set crosses
+        // a threshold (Pause/Resume/Retry appearing or disappearing). The
+        // surrounding strip — bar, counts span, percent — stays put, so the
+        // percent doesn't slide left/right as buttons come and go.
+        if (container.dataset.dzButtonsSig !== sig) {
+            actionsEl.innerHTML = this.renderOverallActions(overall);
+            this.bindOverallProgressHandlers(actionsEl);
+            container.dataset.dzButtonsSig = sig;
+        }
     }
 
     private closePopover(): void {
@@ -1370,14 +2228,20 @@ export class WebDropzone {
     private updatePopoverContent(): void {
         if (!this.popover) return;
 
-        // Refresh the file-count label, body rows + toggle, and overall-totals
-        // footer. The limits hint is derived from static config, so it doesn't
-        // change while the popover is open.
+        // Refresh the file-count label, limits hint, body rows, and totals
+        // footer. The limits hint includes dynamic "X left" segments for
+        // max-total-size / max-file-count, so it has to re-render on every
+        // files change just like the count and footer.
         const countEl = this.popover.querySelector('.dz__popover__count');
         if (countEl) countEl.textContent = this.getFileCountLabel();
 
-        const footerEl = this.popover.querySelector('.dz__popover__footer');
-        if (footerEl) footerEl.innerHTML = this.getFooterContent();
+        const limitsEl = this.popover.querySelector('.dz__popover__limits');
+        if (limitsEl) limitsEl.textContent = this.getLimitsHint();
+
+        // Patch the footer in place — preserves action buttons across the
+        // refresh just like patchFileRow above. Add/remove changes the
+        // totals, so include them here.
+        this.refreshPopoverFooter(true);
 
         const body = this.popover.querySelector('.dz__popover__body');
         if (body) {
@@ -1402,6 +2266,7 @@ export class WebDropzone {
         this.fileListEl = this.element.querySelector('.dz__file-list');
         this.filesInsideEl = this.element.querySelector('.dz__files-inside');
         this.summaryEl = this.element.querySelector('.dz__summary');
+        this.overallProgressEl = this.element.querySelector('.dz__overall-progress');
     }
 
     private attachEventListeners(): void {
@@ -1608,6 +2473,45 @@ export class WebDropzone {
 
         if (this.config.rejectCallback) {
             this.config.rejectCallback(rejectedFiles);
+        }
+    }
+
+    private emitRetryEvent(file: FileState): void {
+        const event = new CustomEvent('file-retry', {
+            detail: { file, files: this.getFiles() },
+            bubbles: true,
+            composed: true
+        });
+        this.element.dispatchEvent(event);
+
+        if (this.config.retryCallback) {
+            this.config.retryCallback(file);
+        }
+    }
+
+    private emitUploadedEvent(file: FileState): void {
+        const event = new CustomEvent('file-uploaded', {
+            detail: { file, files: this.getFiles() },
+            bubbles: true,
+            composed: true
+        });
+        this.element.dispatchEvent(event);
+
+        if (this.config.uploadedCallback) {
+            this.config.uploadedCallback(file);
+        }
+    }
+
+    private emitDeleteEvent(file: FileState): void {
+        const event = new CustomEvent('file-deleted', {
+            detail: { file, files: this.getFiles() },
+            bubbles: true,
+            composed: true
+        });
+        this.element.dispatchEvent(event);
+
+        if (this.config.deleteCallback) {
+            this.config.deleteCallback(file);
         }
     }
 

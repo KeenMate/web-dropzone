@@ -46,3 +46,110 @@
 .dz__progress__status--error {
   color: var(--dz-error-color);
 }
+
+/* ==============================================================================
+   OVERALL PROGRESS STRIP
+   ==============================================================================
+   Aggregate upload progress — bar + stats line — rendered both inline below
+   the file list and inside the popover footer. Empty when no upload activity,
+   in which case `:empty` collapses the inline container entirely. */
+
+.dz__overall-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dz-overall-progress-gap);
+  padding: var(--dz-overall-progress-padding);
+}
+
+.dz__overall-progress:empty {
+  display: none;
+}
+
+.dz__overall-progress__bar {
+  width: 100%;
+  height: var(--dz-overall-progress-bar-height);
+  background: var(--dz-progress-bg);
+  border-radius: var(--dz-progress-border-radius);
+  overflow: hidden;
+}
+
+.dz__overall-progress__fill {
+  height: 100%;
+  background: var(--dz-progress-fill-bg);
+  border-radius: var(--dz-progress-border-radius);
+  transition: var(--dz-progress-transition);
+}
+
+.dz__overall-progress__stats {
+  display: flex;
+  align-items: center;
+  gap: calc(0.8 * var(--dz-rem));
+  font-size: var(--dz-overall-progress-stats-font-size);
+  color: var(--dz-overall-progress-stats-color);
+  /* Tabular figures so the percent doesn't jitter between 9% / 99% / 100% on
+     every tick — proportional digits would shift the surrounding layout. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Counts span consumes leftover width and pushes the actions group + percent
+   to the right edge. min-width: 0 lets text-overflow: ellipsis work inside
+   a flex parent. */
+.dz__overall-progress__counts {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dz__overall-progress__failed {
+  color: var(--dz-error-color);
+}
+
+.dz__overall-progress__paused {
+  color: var(--dz-warning-color);
+}
+
+/* Bulk-action button group ("Pause all", "Resume all", "Retry all"). Always
+   in the DOM for layout stability; :empty collapses it when no actions
+   apply so the gap doesn't show. */
+.dz__overall-progress__actions {
+  display: flex;
+  align-items: center;
+  gap: calc(0.2 * var(--dz-rem));
+  flex: 0 0 auto;
+}
+
+.dz__overall-progress__actions:empty {
+  display: none;
+}
+
+/* Reserved width — "100%" is the widest the percent ever gets, so locking
+   to that width via min-width keeps the percent's right edge stable as
+   buttons appear / disappear and as digits roll over. */
+.dz__overall-progress__percent {
+  flex: 0 0 auto;
+  min-width: var(--dz-overall-progress-percent-min-width);
+  text-align: right;
+  color: var(--dz-overall-progress-percent-color);
+  font-weight: var(--dz-overall-progress-percent-font-weight);
+}
+
+/* Bulk action button ("Retry all") inside the stats line. Sits between the
+   counts and the percent, only visible when any file is in the error state. */
+.dz__overall-progress__action {
+  padding: var(--dz-overall-progress-action-padding);
+  font-size: var(--dz-overall-progress-action-font-size);
+  font-weight: var(--dz-overall-progress-action-font-weight);
+  color: var(--dz-overall-progress-action-color);
+  background: transparent;
+  border: none;
+  border-radius: var(--dz-overall-progress-action-border-radius);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__overall-progress__action:hover {
+  background: var(--dz-overall-progress-action-bg-hover);
+}

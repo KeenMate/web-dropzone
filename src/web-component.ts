@@ -48,12 +48,48 @@ type AttrParser =
     | 'string-or-undefined'
     | 'enum'
     | 'int'
+    // Byte count with optional unit suffix — accepts plain integers
+    // ("5242880") and human-readable forms ("5MB", "300kB", "1.5GB"). Binary
+    // (1024-based) units, matching formatFileSize() in dropzone.ts.
+    | 'bytes'
     | 'bool-default-true'
     | 'bool-default-false'
     // Missing → undefined (so the component can decide an "auto" default per
     // mode rather than committing to a global true/false at parse time).
     // Present → true unless the value is the literal 'false'.
     | 'bool-optional';
+
+/**
+ * Parse a byte count from a string. Accepts plain integers ("5242880") and
+ * human-readable forms with case-insensitive unit suffixes and optional
+ * whitespace ("5MB", "300 kB", "1.5GB", "1024B"). Returns null if the input
+ * doesn't match; the parser falls back to the spec's default in that case.
+ *
+ * Binary units (1024-based) — matches the display side in formatFileSize().
+ * Aliases: K/KB, M/MB, G/GB, T/TB (no SI variants — `5MB` always means
+ * 5 × 1024 × 1024).
+ */
+const BYTE_UNIT_MULTIPLIERS: Record<string, number> = {
+    '':   1,
+    'b':  1,
+    'k':  1024,
+    'kb': 1024,
+    'm':  1024 ** 2,
+    'mb': 1024 ** 2,
+    'g':  1024 ** 3,
+    'gb': 1024 ** 3,
+    't':  1024 ** 4,
+    'tb': 1024 ** 4
+};
+
+export function parseBytes(raw: string): number | null {
+    const m = raw.trim().match(/^(\d+(?:\.\d+)?)\s*([a-z]*)$/i);
+    if (!m) return null;
+    const value = parseFloat(m[1]);
+    const mult = BYTE_UNIT_MULTIPLIERS[m[2].toLowerCase()];
+    if (mult === undefined) return null;
+    return Math.round(value * mult);
+}
 
 interface AttrSpec {
     /** External (kebab-case) attribute name */
@@ -78,9 +114,9 @@ const ATTRIBUTE_TABLE: ReadonlyArray<AttrSpec> = [
     // Core
     { attr: 'accept',              key: 'accept',                parser: 'string-or-undefined' },
     { attr: 'multiple',            key: 'isMultipleEnabled',     parser: 'bool-default-true' },
-    { attr: 'max-file-size',       key: 'maxFileSize',           parser: 'int', default: 0 },
-    { attr: 'min-file-size',       key: 'minFileSize',           parser: 'int', default: 0 },
-    { attr: 'max-total-size',      key: 'maxTotalSize',          parser: 'int', default: 0 },
+    { attr: 'max-file-size',       key: 'maxFileSize',           parser: 'bytes', default: 0 },
+    { attr: 'min-file-size',       key: 'minFileSize',           parser: 'bytes', default: 0 },
+    { attr: 'max-total-size',      key: 'maxTotalSize',          parser: 'bytes', default: 0 },
     { attr: 'max-file-count',      key: 'maxFileCount',          parser: 'int', default: 0 },
     { attr: 'min-file-count',      key: 'minFileCount',          parser: 'int', default: 0 },
     { attr: 'max-visible-files',   key: 'maxVisibleFiles',       parser: 'int', default: 7 },
@@ -125,10 +161,41 @@ const ATTRIBUTE_TABLE: ReadonlyArray<AttrSpec> = [
     // Form integration
     { attr: 'name',                key: 'name',                  parser: 'string-or-undefined' },
     { attr: 'value-format',        key: 'valueFormat',           parser: 'enum',
-      enumValues: ['json', 'csv', 'array'], default: 'json' }
+      enumValues: ['json', 'csv', 'array'], default: 'json' },
+
+    // Upload pipeline (only meaningful when `uploadFileCallback` is set via JS)
+    { attr: 'concurrency',         key: 'concurrency',           parser: 'int', default: 1 },
+    { attr: 'auto-upload',         key: 'isAutoUploadEnabled',   parser: 'bool-default-true' },
+    { attr: 'uploaded-deletable',  key: 'isUploadedFileDeletable', parser: 'bool-default-true' }
 ];
 
 const ATTRIBUTE_TABLE_BY_ATTR = new Map(ATTRIBUTE_TABLE.map(s => [s.attr, s]));
+
+/**
+ * Property names whose setters live on the DropzoneElement prototype and
+ * therefore need pre-upgrade rescue (see `upgradeProperties` in the
+ * constructor). Lists both JS-only callback props and attribute-reflected
+ * props — the rescue is a no-op for anything that wasn't actually pre-set,
+ * so over-listing is harmless.
+ */
+const UPGRADEABLE_PROPS: ReadonlyArray<string> = [
+    // JS-only callbacks
+    'validateCallback', 'addCallback', 'removeCallback', 'changeCallback',
+    'rejectCallback', 'retryCallback', 'uploadFileCallback', 'uploadedCallback',
+    'deleteCallback', 'retryPolicy',
+    'renderFileItemCallback', 'renderPromptCallback', 'renderSummaryCallback',
+    'customStylesCallback',
+    // Attribute-reflected (pre-upgrade JS assignment otherwise bypasses the
+    // setAttribute call inside the setter and the value never reaches the
+    // attribute / parseAttributesFromTable / config flow).
+    'accept', 'multiple', 'maxFileSize', 'minFileSize', 'maxTotalSize',
+    'maxFileCount', 'minFileCount', 'disabled', 'displayMode',
+    'selectorAppearance', 'listAppearance', 'cardSize', 'selectFilesText',
+    'showThumbnails', 'filesInside', 'icon', 'promptText', 'hintText',
+    'dragActiveText', 'emptyMessage', 'summaryTemplate', 'popoverPlacement',
+    'overlayTarget', 'overlayText', 'overlayIcon', 'name', 'valueFormat',
+    'concurrency', 'autoUpload', 'uploadedDeletable'
+];
 
 /** Parse a single attribute value through its spec. Used by both initial parse and live updates. */
 function parseAttrValue(spec: AttrSpec, raw: string | null): any {
@@ -151,6 +218,10 @@ function parseAttrValue(spec: AttrSpec, raw: string | null): any {
         case 'int': {
             const n = parseInt(raw, 10);
             return isNaN(n) ? spec.default : n;
+        }
+        case 'bytes': {
+            const n = parseBytes(raw);
+            return n === null ? spec.default : n;
         }
         // For all boolean variants: only the literal 'false' negates. Present
         // (including empty string from `<el disabled>`) means true. This matches
@@ -189,6 +260,11 @@ export class DropzoneElement extends BaseElement {
     private _removeCallback: DropzoneConfig['removeCallback'] = null;
     private _changeCallback: DropzoneConfig['changeCallback'] = null;
     private _rejectCallback: DropzoneConfig['rejectCallback'] = null;
+    private _retryCallback: DropzoneConfig['retryCallback'] = null;
+    private _uploadFileCallback: DropzoneConfig['uploadFileCallback'] = null;
+    private _uploadedCallback: DropzoneConfig['uploadedCallback'] = null;
+    private _deleteCallback: DropzoneConfig['deleteCallback'] = null;
+    private _retryPolicy: DropzoneConfig['retryPolicy'] = undefined;
     private _renderFileItemCallback: DropzoneConfig['renderFileItemCallback'] = null;
     private _renderPromptCallback: DropzoneConfig['renderPromptCallback'] = null;
     private _renderSummaryCallback: DropzoneConfig['renderSummaryCallback'] = null;
@@ -217,6 +293,30 @@ export class DropzoneElement extends BaseElement {
         this.container = document.createElement('div');
         this.container.className = 'dz__host';
         this.shadow.appendChild(this.container);
+
+        // Rescue properties that were set on the element *before* the upgrade
+        // (e.g. `dz.uploadFileCallback = handler` when the wiring script ran
+        // before the customElements.define call). Without this, the
+        // pre-upgrade assignment lands as an instance property that shadows
+        // the prototype setter forever — the setter never runs, the backing
+        // _* field stays null, and the dropzone never sees the value.
+        // Standard custom-element upgrade pattern: snapshot, delete the
+        // instance prop, then reassign so the now-reachable setter fires.
+        this.upgradeProperties();
+    }
+
+    /** Run upgrade-time rescue for every JS-settable property that has a
+     *  setter on the prototype. Cheap (one hasOwnProperty check per prop) so
+     *  we can safely include all of them — covers callback props (the
+     *  primary use case) and attribute-reflected props alike. */
+    private upgradeProperties(): void {
+        for (const prop of UPGRADEABLE_PROPS) {
+            if (Object.prototype.hasOwnProperty.call(this, prop)) {
+                const value = (this as any)[prop];
+                delete (this as any)[prop];
+                (this as any)[prop] = value;
+            }
+        }
     }
 
     // ========================================================================
@@ -309,6 +409,11 @@ export class DropzoneElement extends BaseElement {
                 this.syncFormValue();
             },
             rejectCallback: this._rejectCallback,
+            retryCallback: this._retryCallback,
+            uploadFileCallback: this._uploadFileCallback,
+            uploadedCallback: this._uploadedCallback,
+            deleteCallback: this._deleteCallback,
+            retryPolicy: this._retryPolicy,
             renderFileItemCallback: this._renderFileItemCallback,
             renderPromptCallback: this._renderPromptCallback,
             renderSummaryCallback: this._renderSummaryCallback,
@@ -435,9 +540,14 @@ export class DropzoneElement extends BaseElement {
         else this.setAttribute('multiple', 'false');
     }
 
+    /** The size getters parse the attribute the same way as the ATTRIBUTE_TABLE
+     *  so `<web-dropzone max-file-size="5MB">` and `.maxFileSize` agree.
+     *  Setting a number stores the raw byte count; callers wanting a unit
+     *  string can use `setAttribute('max-file-size', '5MB')` directly. */
     get maxFileSize(): number {
         const value = this.getAttribute('max-file-size');
-        return value ? parseInt(value, 10) : 0;
+        if (!value) return 0;
+        return parseBytes(value) ?? 0;
     }
     set maxFileSize(value: number) {
         this.setAttribute('max-file-size', String(value));
@@ -445,7 +555,8 @@ export class DropzoneElement extends BaseElement {
 
     get minFileSize(): number {
         const value = this.getAttribute('min-file-size');
-        return value ? parseInt(value, 10) : 0;
+        if (!value) return 0;
+        return parseBytes(value) ?? 0;
     }
     set minFileSize(value: number) {
         this.setAttribute('min-file-size', String(value));
@@ -453,7 +564,8 @@ export class DropzoneElement extends BaseElement {
 
     get maxTotalSize(): number {
         const value = this.getAttribute('max-total-size');
-        return value ? parseInt(value, 10) : 0;
+        if (!value) return 0;
+        return parseBytes(value) ?? 0;
     }
     set maxTotalSize(value: number) {
         this.setAttribute('max-total-size', String(value));
@@ -613,6 +725,79 @@ export class DropzoneElement extends BaseElement {
         this.dropzone?.updateConfig({ rejectCallback: value });
     }
 
+    get retryCallback(): DropzoneConfig['retryCallback'] { return this._retryCallback; }
+    set retryCallback(value: DropzoneConfig['retryCallback']) {
+        this._retryCallback = value;
+        this.dropzone?.updateConfig({ retryCallback: value });
+    }
+
+    /**
+     * Component-driven upload handler. When set, the component takes over the
+     * upload lifecycle — files added to the dropzone are queued and run through
+     * a worker pool of size `concurrency`. The handler receives the File, an
+     * `onProgress(percent)` callback, and an `AbortSignal` that fires when the
+     * file is paused / cancelled / removed.
+     */
+    get uploadFileCallback(): DropzoneConfig['uploadFileCallback'] { return this._uploadFileCallback; }
+    set uploadFileCallback(value: DropzoneConfig['uploadFileCallback']) {
+        this._uploadFileCallback = value;
+        this.dropzone?.updateConfig({ uploadFileCallback: value });
+    }
+
+    get uploadedCallback(): DropzoneConfig['uploadedCallback'] { return this._uploadedCallback; }
+    set uploadedCallback(value: DropzoneConfig['uploadedCallback']) {
+        this._uploadedCallback = value;
+        this.dropzone?.updateConfig({ uploadedCallback: value });
+    }
+
+    /** Fires when a completed file is removed. Hand it whatever does the
+     *  server-side DELETE — use `file.metadata` for the server-assigned id
+     *  (or whatever the upload handler stashed). */
+    get deleteCallback(): DropzoneConfig['deleteCallback'] { return this._deleteCallback; }
+    set deleteCallback(value: DropzoneConfig['deleteCallback']) {
+        this._deleteCallback = value;
+        this.dropzone?.updateConfig({ deleteCallback: value });
+    }
+
+    /** Whether the user can remove already-uploaded files. False hides the
+     *  remove button on completed rows (layout space stays reserved). */
+    get uploadedDeletable(): boolean {
+        const attr = this.getAttribute('uploaded-deletable');
+        return attr !== 'false';
+    }
+    set uploadedDeletable(value: boolean) {
+        if (value) this.setAttribute('uploaded-deletable', '');
+        else this.setAttribute('uploaded-deletable', 'false');
+    }
+
+    /** Retry policy applied when `uploadFileCallback` rejects. Defaults to a
+     *  single attempt (no retries). */
+    get retryPolicy(): DropzoneConfig['retryPolicy'] { return this._retryPolicy; }
+    set retryPolicy(value: DropzoneConfig['retryPolicy']) {
+        this._retryPolicy = value;
+        this.dropzone?.updateConfig({ retryPolicy: value });
+    }
+
+    /** Max concurrent uploads. Reflects the `concurrency` HTML attribute. */
+    get concurrency(): number {
+        const value = this.getAttribute('concurrency');
+        return value ? parseInt(value, 10) : 1;
+    }
+    set concurrency(value: number) {
+        this.setAttribute('concurrency', String(value));
+    }
+
+    /** Whether new files auto-upload through the worker pool. Reflects the
+     *  `auto-upload` HTML attribute (defaults to true). */
+    get autoUpload(): boolean {
+        const attr = this.getAttribute('auto-upload');
+        return attr !== 'false';
+    }
+    set autoUpload(value: boolean) {
+        if (value) this.setAttribute('auto-upload', '');
+        else this.setAttribute('auto-upload', 'false');
+    }
+
     get renderFileItemCallback(): DropzoneConfig['renderFileItemCallback'] { return this._renderFileItemCallback; }
     set renderFileItemCallback(value: DropzoneConfig['renderFileItemCallback']) {
         this._renderFileItemCallback = value;
@@ -679,6 +864,48 @@ export class DropzoneElement extends BaseElement {
     getFile(id: string): FileState | undefined {
         return this.dropzone?.getFile(id);
     }
+
+    // ========================================================================
+    // UPLOAD PIPELINE — only meaningful when `uploadFileCallback` is set
+    // ========================================================================
+
+    /** Drain the queue of pending files through the worker pool. */
+    uploadAll(): Promise<void> {
+        return this.dropzone?.uploadAll() ?? Promise.resolve();
+    }
+
+    /** Upload a single file immediately, bypassing the queue. */
+    uploadFile(id: string): Promise<void> {
+        return this.dropzone?.uploadFile(id) ?? Promise.resolve();
+    }
+
+    /** Pause an in-flight upload — the handler's AbortSignal fires and the
+     *  file lands in the 'paused' status. */
+    pauseFile(id: string): void { this.dropzone?.pauseFile(id); }
+
+    /** Resume a paused file and re-queue it. */
+    resumeFile(id: string): Promise<void> {
+        return this.dropzone?.resumeFile(id) ?? Promise.resolve();
+    }
+
+    /** Cancel an in-flight upload — like pause, but the file ends in
+     *  'cancelled' and won't auto-resume. */
+    cancelFile(id: string): void { this.dropzone?.cancelFile(id); }
+
+    /** Pause every uploading / pending file. */
+    pauseAll(): void { this.dropzone?.pauseAll(); }
+
+    /** Resume every paused file. */
+    resumeAll(): Promise<void> {
+        return this.dropzone?.resumeAll() ?? Promise.resolve();
+    }
+
+    /** Retry every errored / cancelled file. */
+    retryAll(): void { this.dropzone?.retryAll(); }
+
+    /** Retry a single file (resets status, fires `file-retry`, re-queues if
+     *  `uploadFileCallback` is set). */
+    retryFile(id: string): void { this.dropzone?.retryFile(id); }
 
     /** Destroy the component */
     destroy(): void {
