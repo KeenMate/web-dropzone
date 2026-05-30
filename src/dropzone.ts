@@ -5,7 +5,7 @@
  * and multiple display modes.
  */
 
-import { computePosition, flip, shift, offset } from '@floating-ui/dom';
+import { computePosition, flip, shift, offset, size, autoUpdate } from '@floating-ui/dom';
 import type { Placement } from '@floating-ui/dom';
 import { initLogger, fileLogger, uiLogger, interactionLogger } from './logger';
 import type {
@@ -87,7 +87,7 @@ function actionForStatus(status: FileStatus): RowAction | null {
 /**
  * Default configuration values
  */
-const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCallback' | 'removeCallback' | 'changeCallback' | 'rejectCallback' | 'retryCallback' | 'uploadFileCallback' | 'uploadedCallback' | 'deleteCallback' | 'renderFileItemCallback' | 'renderPromptCallback' | 'renderSummaryCallback' | 'customStylesCallback' | 'container' | 'hostElement' | 'overlayTarget' | 'selectorAppearance' | 'listAppearance' | 'cardSize' | 'isShowThumbnailsEnabled' | 'retryPolicy'>> = {
+const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCallback' | 'removeCallback' | 'changeCallback' | 'rejectCallback' | 'retryCallback' | 'uploadFileCallback' | 'uploadedCallback' | 'deleteCallback' | 'renderFileItemCallback' | 'renderPromptCallback' | 'renderSummaryCallback' | 'customStylesCallback' | 'persistStateCallback' | 'loadStateCallback' | 'storageKey' | 'container' | 'hostElement' | 'overlayTarget' | 'selectorAppearance' | 'listAppearance' | 'cardSize' | 'isShowThumbnailsEnabled' | 'retryPolicy'>> = {
     isMultipleEnabled: true,
     accept: '',
     maxFileSize: 0,
@@ -114,7 +114,8 @@ const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCal
     valueFormat: 'json',
     concurrency: 1,
     isAutoUploadEnabled: true,
-    isUploadedFileDeletable: true
+    isUploadedFileDeletable: true,
+    isReorderCompletedEnabled: false
 };
 
 /**
@@ -243,6 +244,17 @@ export class WebDropzone {
     private dragActive = false;
     private popover: HTMLElement | null = null;
     private isPopoverOpen = false;
+    /** Cleanup function returned by Floating UI's autoUpdate. Called from
+     *  closePopover() to detach the scroll / resize observers it installs.
+     *  null when the popover isn't open. */
+    private popoverPositionCleanup: (() => void) | null = null;
+    /** ResizeObserver watching the popover for user-driven resize. Saves
+     *  the resulting dimensions to persisted state. Disconnected in
+     *  closePopover so it doesn't leak past popover lifetime. */
+    private popoverResizeObserver: ResizeObserver | null = null;
+    /** Debounce handle for the resize → save flow. ResizeObserver fires on
+     *  every drag tick; we only want to persist the final dimension. */
+    private popoverSaveTimer: number | null = null;
     /** When true, the maxVisibleFiles cap is ignored and all files are
      *  rendered. Toggled by the "Show N more" / "Show less" button at the
      *  end of the list (or the "+N" badge in badges mode). Reset on clear(). */
@@ -1104,12 +1116,19 @@ export class WebDropzone {
              listAppearance === 'grid' ||
              listAppearance === 'badges');
 
+        // `--manual-upload` modifier hides the "pending" status icon across
+        // all list appearances (per-row + the popover summary fallback) when
+        // auto-upload is off — the icon would otherwise show the second a
+        // file is added, before any actual upload activity has happened.
+        const isManualUpload = this.config.isAutoUploadEnabled === false;
+
         const containerClasses = [
             'dz__container',
             `dz__container--selector-${selectorAppearance}`,
             `dz__container--list-${listAppearance}`,
             selectorAppearance === 'card' ? `dz__container--card-${cardSize}` : '',
-            filesInside ? 'dz__container--files-inside' : ''
+            filesInside ? 'dz__container--files-inside' : '',
+            isManualUpload ? 'dz__container--manual-upload' : ''
         ].filter(Boolean).join(' ');
 
         // Aggregate progress strip lives alongside any visible file surface in
@@ -1233,12 +1252,33 @@ export class WebDropzone {
     }
 
     private renderFileListArea(listAppearance: ListAppearance): string {
-        return `<div class="dz__file-list dz__file-list--${listAppearance}"></div>`;
+        const reorderClass = this.config.isReorderCompletedEnabled ? ' dz__file-list--reorder-completed' : '';
+        return `<div class="dz__file-list dz__file-list--${listAppearance}${reorderClass}"></div>`;
     }
 
     private renderFilesInsideArea(): string {
         const { listAppearance } = resolveDisplayConfig(this.config);
-        return `<div class="dz__files-inside dz__files-inside--${listAppearance}"></div>`;
+        const reorderClass = this.config.isReorderCompletedEnabled ? ' dz__files-inside--reorder-completed' : '';
+        return `<div class="dz__files-inside dz__files-inside--${listAppearance}${reorderClass}"></div>`;
+    }
+
+    /**
+     * Return a snapshot of `this.files` ordered for rendering. When
+     * `isReorderCompletedEnabled` is on, completed files slide to the end
+     * via a stable sort (so within each bucket the original add order is
+     * preserved). Used by the popover render path; the inline list relies
+     * on CSS `order` instead so this snapshot is for surfaces that can't
+     * use flex ordering (the popover table being the main one).
+     */
+    private getOrderedFiles(): FileState[] {
+        if (!this.config.isReorderCompletedEnabled) return this.files;
+        // Pair each file with its original index, sort by (isComplete asc,
+        // index asc), then map back. Native Array#sort is stable in modern
+        // browsers but the index pairing guards against any edge cases.
+        return this.files
+            .map((f, i) => ({ f, i, complete: f.status === 'complete' ? 1 : 0 }))
+            .sort((a, b) => (a.complete - b.complete) || (a.i - b.i))
+            .map(x => x.f);
     }
 
     /**
@@ -1300,6 +1340,18 @@ export class WebDropzone {
                 } else {
                     this.updatePopoverContent();
                 }
+            });
+        });
+        // Per-row pause / resume / retry. No need to refresh the popover body
+        // here — handleUserActionClick mutates file.status and patchFileRow
+        // takes care of the in-place patch (button swap + status pill swap),
+        // so the row stays put and the click registered on the button doesn't
+        // get torn out from under the user.
+        root.querySelectorAll('[data-action="row-action"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = (btn as HTMLElement).dataset.fileId;
+                if (id) this.handleUserActionClick(id);
             });
         });
     }
@@ -1393,6 +1445,17 @@ export class WebDropzone {
      * clicks land cleanly.
      */
     private patchPopoverRowInPlace(row: HTMLTableRowElement, file: FileState): void {
+        // Track previous status on the row so we can detect a transition
+        // across the complete boundary and slide the row visually — flex
+        // `order` doesn't work on <tr>, so this is a real DOM move (one
+        // tbody.appendChild call per transition; cheap).
+        const prevStatus = row.dataset.status;
+        const crossedCompleteBoundary =
+            this.config.isReorderCompletedEnabled &&
+            prevStatus !== file.status &&
+            (prevStatus === 'complete' || file.status === 'complete');
+        row.dataset.status = file.status;
+
         row.classList.toggle('dz__popover__row--uploading', file.status === 'uploading');
 
         const fill = row.querySelector('.dz__popover__progress-fill') as HTMLElement | null;
@@ -1410,11 +1473,36 @@ export class WebDropzone {
             statusEl.innerHTML = STATUS_ICONS[file.status];
         }
 
+        this.patchActionButton(
+            row.querySelector('.dz__popover__row-action'),
+            file,
+            'dz__popover__row-action'
+        );
+
         this.syncRemoveButtonHiddenState(
             row.querySelector('.dz__popover__remove'),
             file,
             'dz__popover__remove--hidden'
         );
+
+        if (crossedCompleteBoundary) this.reorderPopoverRows();
+    }
+
+    /**
+     * Resync the popover tbody's row order against getOrderedFiles(). Only
+     * called when a row crosses the complete-incomplete boundary (and the
+     * reorder toggle is on), so this isn't a hot path. Appending an element
+     * already in the DOM moves it in place, so a stable single pass over
+     * the desired order is sufficient.
+     */
+    private reorderPopoverRows(): void {
+        if (!this.popover) return;
+        const tbody = this.popover.querySelector('.dz__popover__table tbody') as HTMLTableSectionElement | null;
+        if (!tbody) return;
+        for (const f of this.getOrderedFiles()) {
+            const tr = tbody.querySelector(`tr[data-file-id="${f.id}"]`) as HTMLTableRowElement | null;
+            if (tr) tbody.appendChild(tr);
+        }
     }
 
     /**
@@ -1438,6 +1526,21 @@ export class WebDropzone {
             row.className = file.status !== 'pending'
                 ? `dz__badge dz__badge--${file.status}`
                 : 'dz__badge';
+
+            const statusEl = row.querySelector('.dz__badge-status') as HTMLElement | null;
+            if (statusEl && statusEl.dataset.status !== file.status) {
+                statusEl.dataset.status = file.status;
+                statusEl.className = `dz__badge-status dz__badge-status--${file.status}`;
+                statusEl.title = STATUS_LABELS[file.status];
+                statusEl.setAttribute('aria-label', `Status: ${STATUS_LABELS[file.status]}`);
+                statusEl.innerHTML = STATUS_ICONS[file.status];
+            }
+
+            this.patchActionButton(
+                row.querySelector('.dz__badge-action'),
+                file,
+                'dz__badge-action'
+            );
         }
 
         // list / detailed have the popover-style triplet (bar fill, %, pill).
@@ -1565,9 +1668,10 @@ export class WebDropzone {
      * behind the "Show N more" toggle.
      */
     private getVisibleFiles(): FileState[] {
+        const ordered = this.getOrderedFiles();
         const cap = this.config.maxVisibleFiles || 0;
-        if (cap <= 0 || this.showAllList) return this.files;
-        return this.files.slice(0, cap);
+        if (cap <= 0 || this.showAllList) return ordered;
+        return ordered.slice(0, cap);
     }
 
     /**
@@ -1834,10 +1938,12 @@ export class WebDropzone {
         const useThumbnail = this.shouldShowThumbnails('badges');
         const inner = this.renderPlaceholderInner(file, useThumbnail);
         return `
-            <span class="dz__badge ${statusClass}" data-file-id="${file.id}">
+            <span class="dz__badge ${statusClass}" data-file-id="${file.id}" data-status="${file.status}">
                 <span class="dz__badge-text" title="${escapeHtml(file.name)}">
                     <span class="dz__badge-icon">${inner}</span>
                     <span class="dz__badge-name">${escapeHtml(file.name)}</span>
+                    ${this.renderRowActionButton(file, 'dz__badge-action')}
+                    <span class="dz__badge-status dz__badge-status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
                 </span>
                 <button type="button" ${this.removeButtonAttrs(file, 'dz__badge-remove')}></button>
             </span>
@@ -1868,6 +1974,9 @@ export class WebDropzone {
                     </div>
                     <span class="dz__popover__progress-text">${file.progress.toFixed(1)}%</span>
                 </td>
+                <td class="dz__popover__cell dz__popover__cell--action">
+                    ${this.renderRowActionButton(file, 'dz__popover__row-action')}
+                </td>
                 <td class="dz__popover__cell dz__popover__cell--status">
                     <span class="dz__popover__status ${statusClass}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
                 </td>
@@ -1876,6 +1985,38 @@ export class WebDropzone {
                 </td>
             </tr>
         `;
+    }
+
+    /**
+     * Render the icon shown in the popover-summary line. Paperclip when the
+     * selection hasn't seen any upload activity yet (still purely pending),
+     * otherwise the aggregate status icon — same Lucide glyph + colour rules
+     * as the per-row status pill, so the summary reads as "uploading /
+     * paused / errored / done" at a glance even when the popover is closed.
+     */
+    private renderSummaryIcon(): string {
+        const overall = this.getOverallProgress();
+        if (!overall.hasActivity) {
+            return '<span class="dz__summary__icon" data-status="pending">📎</span>';
+        }
+        const s = overall.aggregateStatus;
+        return `<span class="dz__summary__icon dz__summary__icon--${s}" data-status="${s}" aria-label="Status: ${STATUS_LABELS[s]}">${STATUS_ICONS[s]}</span>`;
+    }
+
+    /**
+     * Per-tick patch for the summary-line icon. Called from
+     * updateOverallProgress so the icon swaps from paperclip → spinner →
+     * check / error / pause without rebuilding the summary line (which
+     * would tear down its click handler).
+     */
+    private patchSummaryIcon(): void {
+        if (!this.summaryEl) return;
+        const iconEl = this.summaryEl.querySelector('.dz__summary__icon') as HTMLElement | null;
+        if (!iconEl) return;
+        const overall = this.getOverallProgress();
+        const nextStatus = overall.hasActivity ? overall.aggregateStatus : 'pending';
+        if (iconEl.dataset.status === nextStatus) return;
+        iconEl.outerHTML = this.renderSummaryIcon();
     }
 
     private updateSummary(): void {
@@ -1911,7 +2052,7 @@ export class WebDropzone {
 
             content = `
                 <div class="dz__summary__line" tabindex="0" role="button" aria-label="Click to view files">
-                    <span class="dz__summary__icon">📎</span>
+                    ${this.renderSummaryIcon()}
                     <span class="dz__summary__text">${escapeHtml(text)}</span>
                 </div>
             `;
@@ -1991,7 +2132,23 @@ export class WebDropzone {
 
         // Create popover
         this.popover = document.createElement('div');
-        this.popover.className = 'dz__popover';
+        this.popover.className = this.config.isAutoUploadEnabled === false
+            ? 'dz__popover dz__popover--manual-upload'
+            : 'dz__popover';
+
+        // Kick off the state-restore asynchronously. Reading is cheap when
+        // backed by localStorage (synchronous, just await ms), but the
+        // callback flavour may go to the network. Apply width/height once
+        // resolved — autoUpdate re-positions on the size change.
+        void this.loadDropzoneState().then(state => {
+            if (!this.popover || !state) return;
+            if (typeof state.popoverWidth === 'number') {
+                this.popover.style.width = `${state.popoverWidth}px`;
+            }
+            if (typeof state.popoverHeight === 'number') {
+                this.popover.style.height = `${state.popoverHeight}px`;
+            }
+        });
         this.popover.innerHTML = `
             <div class="dz__popover__sticky-top">
                 <div class="dz__popover__header">
@@ -2006,7 +2163,7 @@ export class WebDropzone {
             <div class="dz__popover__body">
                 <table class="dz__popover__table">
                     <tbody>
-                        ${this.files.map((f, i) => this.renderCompactItem(f)).join('')}
+                        ${this.getOrderedFiles().map((f) => this.renderCompactItem(f)).join('')}
                     </tbody>
                 </table>
             </div>
@@ -2045,6 +2202,22 @@ export class WebDropzone {
         // remove behavior stays identical regardless of how the row was
         // rendered.
         this.bindPopoverRemoveHandlers(this.popover);
+
+        // Watch for user-driven resize (CSS `resize: both` handle) and
+        // persist the resulting dimensions. ResizeObserver fires on every
+        // drag tick; debounce ~250ms so we only write once the user
+        // settles. Skipped when persistence is disabled — the observer
+        // itself is cheap but the storage round-trip isn't free.
+        if (this.getStorageKey() && typeof ResizeObserver !== 'undefined') {
+            this.popoverResizeObserver = new ResizeObserver(() => {
+                if (this.popoverSaveTimer !== null) clearTimeout(this.popoverSaveTimer);
+                this.popoverSaveTimer = window.setTimeout(() => {
+                    this.popoverSaveTimer = null;
+                    this.flushPopoverSize();
+                }, 250);
+            });
+            this.popoverResizeObserver.observe(this.popover);
+        }
 
         this.isPopoverOpen = true;
         document.addEventListener('click', this.boundHandleDocumentClick);
@@ -2187,6 +2360,7 @@ export class WebDropzone {
         pausedCount: number;
         percent: number;
         hasActivity: boolean;
+        aggregateStatus: 'uploading' | 'paused' | 'error' | 'complete';
     } {
         let uploadedBytes = 0;
         let totalBytes = 0;
@@ -2226,7 +2400,23 @@ export class WebDropzone {
         const hasActivity =
             uploadingCount > 0 || completedCount > 0 || failedCount > 0 || pausedCount > 0;
 
-        return { uploadedBytes, totalBytes, completedCount, failedCount, uploadingCount, pausedCount, percent, hasActivity };
+        // Aggregate-state priority (drives the overall bar's color):
+        //   error > uploading > paused > complete
+        // Errors override everything else because a hidden errored file
+        // (e.g. a badge off-screen) would otherwise blend into a partial
+        // bar and the user wouldn't notice why the strip never hits 100%.
+        // Active uploads win over paused so the bar reads as "live" while
+        // anything's still moving; paused wins over complete so a "half
+        // done, half paused" selection signals action-needed rather than
+        // a happy in-progress state.
+        const aggregateStatus: 'uploading' | 'paused' | 'error' | 'complete' =
+            failedCount > 0          ? 'error'
+          : uploadingCount > 0       ? 'uploading'
+          : pausedCount > 0          ? 'paused'
+          : completedCount === this.files.length && this.files.length > 0 ? 'complete'
+          : 'uploading';
+
+        return { uploadedBytes, totalBytes, completedCount, failedCount, uploadingCount, pausedCount, percent, hasActivity, aggregateStatus };
     }
 
     /**
@@ -2338,6 +2528,11 @@ export class WebDropzone {
      * report; otherwise renders the shared bar+stats markup.
      */
     private updateOverallProgress(): void {
+        // Summary-line icon mirrors the same aggregate state — patched here
+        // (not in refreshOverallProgress) so it tracks state changes even on
+        // surfaces that don't render the inline progress strip (e.g. when
+        // the strip is collapsed via :empty before any activity).
+        this.patchSummaryIcon();
         if (!this.overallProgressEl) return;
         this.refreshOverallProgress(this.overallProgressEl);
     }
@@ -2354,6 +2549,7 @@ export class WebDropzone {
         if (!overall.hasActivity) {
             container.innerHTML = '';
             delete container.dataset.dzButtonsSig;
+            delete container.dataset.status;
             return;
         }
 
@@ -2363,6 +2559,13 @@ export class WebDropzone {
         const countsEl = container.querySelector('.dz__overall-progress__counts') as HTMLElement | null;
         const percentEl = container.querySelector('.dz__overall-progress__percent') as HTMLElement | null;
         const actionsEl = container.querySelector('.dz__overall-progress__actions') as HTMLElement | null;
+
+        // Aggregate-state attribute drives the bar's fill & track color
+        // via CSS selectors. Errors win so a hidden errored badge can't
+        // mask itself as "97% green, nothing to see here".
+        if (container.dataset.status !== overall.aggregateStatus) {
+            container.dataset.status = overall.aggregateStatus;
+        }
 
         // First-time render — install the full structure.
         if (!fillEl || !countsEl || !percentEl || !actionsEl) {
@@ -2393,6 +2596,22 @@ export class WebDropzone {
     private closePopover(): void {
         if (!this.isPopoverOpen || !this.popover) return;
 
+        // Detach Floating UI's scroll/resize observers before tearing the
+        // popover out — leaking these is the classic autoUpdate footgun
+        // (they keep firing against a detached element forever).
+        this.popoverPositionCleanup?.();
+        this.popoverPositionCleanup = null;
+
+        // Tear down the user-resize observer + flush any pending save so
+        // a quick close-after-resize doesn't lose the final dimension.
+        this.popoverResizeObserver?.disconnect();
+        this.popoverResizeObserver = null;
+        if (this.popoverSaveTimer !== null) {
+            clearTimeout(this.popoverSaveTimer);
+            this.popoverSaveTimer = null;
+            this.flushPopoverSize();
+        }
+
         this.popover.remove();
         this.popover = null;
         this.isPopoverOpen = false;
@@ -2401,6 +2620,98 @@ export class WebDropzone {
         document.removeEventListener('keydown', this.boundHandleKeyDown);
 
         uiLogger.debug('Popover closed');
+    }
+
+    // ========================================================================
+    // PERSISTED UI STATE
+    // ========================================================================
+
+    /** Resolve the storage namespace key. Persistence is disabled (everything
+     *  becomes a no-op) when no storage-key is configured. */
+    private getStorageKey(): string | null {
+        const k = this.config.storageKey;
+        return (typeof k === 'string' && k.length > 0) ? k : null;
+    }
+
+    /** localStorage key paired with the configured storage-key. */
+    private localStorageKeyFor(storageKey: string): string {
+        return `dz-state:${storageKey}`;
+    }
+
+    /**
+     * Load persisted state. Prefers `loadStateCallback` when set; otherwise
+     * falls back to localStorage. Returns null when no state is found OR
+     * when persistence is disabled. Tolerant of corruption (JSON parse
+     * errors) and missing globals (SSR / sandboxed contexts).
+     */
+    private async loadDropzoneState(): Promise<import('./types').DropzoneState | null> {
+        const key = this.getStorageKey();
+        if (!key) return null;
+
+        if (this.config.loadStateCallback) {
+            try {
+                const result = await this.config.loadStateCallback(key);
+                return result ?? null;
+            } catch (err) {
+                uiLogger.warn('loadStateCallback threw, ignoring', err);
+                return null;
+            }
+        }
+
+        try {
+            const raw = globalThis.localStorage?.getItem(this.localStorageKeyFor(key));
+            return raw ? JSON.parse(raw) : null;
+        } catch {
+            // localStorage may be unavailable (private mode, SSR) or the
+            // serialized value may be corrupted. Either way, start fresh.
+            return null;
+        }
+    }
+
+    /**
+     * Merge `partial` into the existing state and write it back through
+     * the configured sink (callback or localStorage). The full snapshot is
+     * always passed to `persistStateCallback` — implementations can write
+     * the full object or diff against their own prior view as they prefer.
+     */
+    private async saveDropzoneState(partial: Partial<import('./types').DropzoneState>): Promise<void> {
+        const key = this.getStorageKey();
+        if (!key) return;
+
+        const current = (await this.loadDropzoneState()) ?? {};
+        const next = { ...current, ...partial };
+
+        if (this.config.persistStateCallback) {
+            try {
+                await this.config.persistStateCallback(key, next);
+            } catch (err) {
+                uiLogger.warn('persistStateCallback threw, falling back to in-memory', err);
+            }
+            return;
+        }
+
+        try {
+            globalThis.localStorage?.setItem(
+                this.localStorageKeyFor(key),
+                JSON.stringify(next)
+            );
+        } catch {
+            // localStorage write failures (quota, private mode) are
+            // swallowed — the UI keeps working with in-memory state.
+        }
+    }
+
+    /** Read the popover's current size from its computed style and persist
+     *  it. Called from the ResizeObserver's debounced tick and from the
+     *  flush path in closePopover so a late close doesn't drop the final
+     *  dimension. */
+    private flushPopoverSize(): void {
+        if (!this.popover) return;
+        const rect = this.popover.getBoundingClientRect();
+        void this.saveDropzoneState({
+            popoverWidth: Math.round(rect.width),
+            popoverHeight: Math.round(rect.height)
+        });
     }
 
     /**
@@ -2417,30 +2728,49 @@ export class WebDropzone {
         return btn ?? this.dropzoneEl;
     }
 
-    private async positionPopover(): Promise<void> {
+    private positionPopover(): void {
         if (!this.popover) return;
         const anchor = this.getPopoverAnchor();
         if (!anchor) return;
 
         const placement = (this.config.popoverPlacement || DEFAULT_CONFIG.popoverPlacement) as Placement;
+        const popover = this.popover;
 
-        const { x, y } = await computePosition(
-            anchor,
-            this.popover,
-            {
+        // autoUpdate keeps the popover correctly placed whenever ANYTHING
+        // moves — scroll, anchor reflow, viewport resize, AND user-driven
+        // resize of the popover itself via the CSS `resize` handle. The
+        // returned cleanup detaches the observers; we hold onto it so
+        // closePopover() can call it when the popover goes away.
+        const update = async () => {
+            const { x, y } = await computePosition(anchor, popover, {
                 placement,
                 middleware: [
                     offset(8),
                     flip(),
+                    // size middleware caps maxWidth/maxHeight at the
+                    // viewport edge minus 8px padding. Without this, the
+                    // user can drag the resize handle past the viewport
+                    // and the bottom rows disappear off-screen.
+                    size({
+                        padding: 8,
+                        apply({ availableWidth, availableHeight, elements }) {
+                            Object.assign(elements.floating.style, {
+                                maxWidth:  `${Math.max(0, availableWidth)}px`,
+                                maxHeight: `${Math.max(0, availableHeight)}px`
+                            });
+                        }
+                    }),
                     shift({ padding: 8 })
                 ]
-            }
-        );
+            });
+            Object.assign(popover.style, {
+                left: `${x}px`,
+                top: `${y}px`
+            });
+        };
 
-        Object.assign(this.popover.style, {
-            left: `${x}px`,
-            top: `${y}px`
-        });
+        this.popoverPositionCleanup?.();
+        this.popoverPositionCleanup = autoUpdate(anchor, popover, update);
     }
 
     private updatePopoverContent(): void {
@@ -2466,7 +2796,7 @@ export class WebDropzone {
             body.innerHTML = `
                 <table class="dz__popover__table">
                     <tbody>
-                        ${this.files.map((f, i) => this.renderCompactItem(f)).join('')}
+                        ${this.getOrderedFiles().map((f) => this.renderCompactItem(f)).join('')}
                     </tbody>
                 </table>
             `;

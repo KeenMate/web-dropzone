@@ -166,7 +166,12 @@ const ATTRIBUTE_TABLE: ReadonlyArray<AttrSpec> = [
     // Upload pipeline (only meaningful when `uploadFileCallback` is set via JS)
     { attr: 'concurrency',         key: 'concurrency',           parser: 'int', default: 1 },
     { attr: 'auto-upload',         key: 'isAutoUploadEnabled',   parser: 'bool-default-true' },
-    { attr: 'uploaded-deletable',  key: 'isUploadedFileDeletable', parser: 'bool-default-true' }
+    { attr: 'uploaded-deletable',  key: 'isUploadedFileDeletable', parser: 'bool-default-true' },
+    { attr: 'reorder-completed',   key: 'isReorderCompletedEnabled', parser: 'bool-default-false' },
+
+    // Persistence — opaque key used to scope localStorage / persistStateCallback.
+    // Empty / unset disables persistence entirely.
+    { attr: 'storage-key',         key: 'storageKey',            parser: 'string-or-undefined' }
 ];
 
 const ATTRIBUTE_TABLE_BY_ATTR = new Map(ATTRIBUTE_TABLE.map(s => [s.attr, s]));
@@ -194,7 +199,9 @@ const UPGRADEABLE_PROPS: ReadonlyArray<string> = [
     'showThumbnails', 'filesInside', 'icon', 'promptText', 'hintText',
     'dragActiveText', 'emptyMessage', 'summaryTemplate', 'popoverPlacement',
     'overlayTarget', 'overlayText', 'overlayIcon', 'name', 'valueFormat',
-    'concurrency', 'autoUpload', 'uploadedDeletable'
+    'concurrency', 'autoUpload', 'uploadedDeletable', 'storageKey',
+    // Persistence callbacks
+    'persistStateCallback', 'loadStateCallback'
 ];
 
 /** Parse a single attribute value through its spec. Used by both initial parse and live updates. */
@@ -269,6 +276,8 @@ export class DropzoneElement extends BaseElement {
     private _renderPromptCallback: DropzoneConfig['renderPromptCallback'] = null;
     private _renderSummaryCallback: DropzoneConfig['renderSummaryCallback'] = null;
     private _customStylesCallback: DropzoneConfig['customStylesCallback'] = null;
+    private _persistStateCallback: DropzoneConfig['persistStateCallback'] = null;
+    private _loadStateCallback: DropzoneConfig['loadStateCallback'] = null;
 
     constructor() {
         super();
@@ -418,6 +427,8 @@ export class DropzoneElement extends BaseElement {
             renderPromptCallback: this._renderPromptCallback,
             renderSummaryCallback: this._renderSummaryCallback,
             customStylesCallback: this._customStylesCallback,
+            persistStateCallback: this._persistStateCallback,
+            loadStateCallback: this._loadStateCallback,
 
             // Shadow DOM container for popover anchoring + form-element host
             container: this.container!,
@@ -770,6 +781,17 @@ export class DropzoneElement extends BaseElement {
         else this.setAttribute('uploaded-deletable', 'false');
     }
 
+    /** Whether completed files slide to the bottom of the rendered list.
+     *  Reflects the `reorder-completed` HTML attribute. */
+    get reorderCompleted(): boolean {
+        return this.hasAttribute('reorder-completed') &&
+               this.getAttribute('reorder-completed') !== 'false';
+    }
+    set reorderCompleted(value: boolean) {
+        if (value) this.setAttribute('reorder-completed', '');
+        else this.removeAttribute('reorder-completed');
+    }
+
     /** Retry policy applied when `uploadFileCallback` rejects. Defaults to a
      *  single attempt (no retries). */
     get retryPolicy(): DropzoneConfig['retryPolicy'] { return this._retryPolicy; }
@@ -796,6 +818,35 @@ export class DropzoneElement extends BaseElement {
     set autoUpload(value: boolean) {
         if (value) this.setAttribute('auto-upload', '');
         else this.setAttribute('auto-upload', 'false');
+    }
+
+    /** Opaque key used to scope persisted UI state (popover dimensions,
+     *  future toggles). Reflects the `storage-key` HTML attribute; unset
+     *  means no persistence. */
+    get storageKey(): string | null {
+        return this.getAttribute('storage-key');
+    }
+    set storageKey(value: string | null) {
+        if (value == null || value === '') this.removeAttribute('storage-key');
+        else this.setAttribute('storage-key', value);
+    }
+
+    /** Custom persistence sink. App-supplied (DB write, server PUT, etc.) —
+     *  receives the full DropzoneState snapshot on every change. When
+     *  unset, the component falls back to `localStorage`. */
+    get persistStateCallback(): DropzoneConfig['persistStateCallback'] { return this._persistStateCallback; }
+    set persistStateCallback(value: DropzoneConfig['persistStateCallback']) {
+        this._persistStateCallback = value;
+        this.dropzone?.updateConfig({ persistStateCallback: value });
+    }
+
+    /** Custom persistence source paired with `persistStateCallback`. Called
+     *  once when the popover opens to restore the user's last-known
+     *  dimensions. When unset, the component reads from `localStorage`. */
+    get loadStateCallback(): DropzoneConfig['loadStateCallback'] { return this._loadStateCallback; }
+    set loadStateCallback(value: DropzoneConfig['loadStateCallback']) {
+        this._loadStateCallback = value;
+        this.dropzone?.updateConfig({ loadStateCallback: value });
     }
 
     get renderFileItemCallback(): DropzoneConfig['renderFileItemCallback'] { return this._renderFileItemCallback; }

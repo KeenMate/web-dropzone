@@ -153,6 +153,13 @@
   --dz-badge-text-bg-hover: var(--dz-accent-color-light-hover);
   --dz-badge-text-color-hover: var(--dz-badge-text-color);
 
+  /* Per-badge action button (pause/resume/retry) + status icon —
+     small inline controls sitting at the right edge of the text half.
+     Sized smaller than the list/detailed/grid variants because badges
+     themselves are compact inline pills. */
+  --dz-badge-action-size: calc(1.8 * var(--dz-rem));
+  --dz-badge-status-icon-size: calc(1.4 * var(--dz-rem));
+
   /* Remove half — square pill end, equal width to badge height. */
   --dz-badge-remove-width: calc(2.7 * var(--dz-rem));
   --dz-badge-remove-bg: var(--dz-accent-color);
@@ -308,6 +315,13 @@
   --dz-popover-width: calc(48 * var(--dz-rem));
   --dz-popover-max-width: 90vw;
   --dz-popover-max-height: calc(40 * var(--dz-rem));
+  /* Floors for the user-resize handle — drag below these and the box
+     stops shrinking. The viewport cap is set dynamically by Floating UI's
+     `size` middleware, so the user can grow the popover up to the
+     visible edge (minus 8px padding) without falling off-screen. */
+  --dz-popover-min-width: calc(28 * var(--dz-rem));
+  --dz-popover-min-height: calc(14 * var(--dz-rem));
+  --dz-popover-resize: both;
   --dz-popover-bg: var(--dz-background);
   --dz-popover-border: 1px solid var(--dz-border-color);
   --dz-popover-border-radius: calc(var(--base-border-radius-lg, 0.8) * var(--dz-rem));
@@ -341,7 +355,7 @@
   --dz-popover-actions-gap: calc(0.4 * var(--dz-rem));
 
   /* Popover Body */
-  --dz-popover-body-padding: calc(0.8 * var(--dz-rem));
+  --dz-popover-body-padding: calc(0.4 * var(--dz-rem));
 
   /* Popover Footer — overall totals (file count + total size). */
   --dz-popover-footer-padding: calc(0.8 * var(--dz-rem)) calc(1.2 * var(--dz-rem));

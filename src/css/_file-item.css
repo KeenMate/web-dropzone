@@ -109,6 +109,18 @@
   to { transform: rotate(360deg); }
 }
 
+/* Manual upload mode — files sit in 'pending' until the consumer triggers
+   uploadAll(), so the per-row clock icon would otherwise read as "stuck".
+   Hide it (preserving the slot via visibility) until the file actually
+   transitions to uploading. Targets every list appearance + the popover
+   row variant. */
+.dz__container--manual-upload [data-status="pending"] .dz__file-item__status,
+.dz__container--manual-upload [data-status="pending"] .dz__preview-item__status,
+.dz__container--manual-upload [data-status="pending"] .dz__badge-status,
+.dz__popover--manual-upload   [data-status="pending"] .dz__popover__status {
+  visibility: hidden;
+}
+
 /* Detailed mode lays out the progress block as a third row inside the
    info column, under the meta line. */
 .dz__file-item--detailed .dz__file-item__progress {
@@ -339,6 +351,68 @@
   min-width: 0;
 }
 
+/* Per-badge action button (pause / resume / retry) — small inline
+   glyph sitting after the filename. Same data-action="row-action"
+   wiring as list/detailed, but display:none when no action applies
+   so the badge shrinks rather than reserving an empty slot (badges
+   are inline-flex; layout reservation isn't meaningful since each
+   badge sizes independently). */
+.dz__badge-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dz-badge-action-size);
+  height: var(--dz-badge-action-size);
+  flex-shrink: 0;
+  background: transparent;
+  color: inherit;
+  border: none;
+  padding: 0;
+  border-radius: var(--dz-border-radius-sm);
+  cursor: pointer;
+  font: inherit;
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__badge-action > svg {
+  width: var(--dz-badge-status-icon-size);
+  height: var(--dz-badge-status-icon-size);
+  display: block;
+}
+
+.dz__badge-action:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+/* Per-badge status icon — Lucide glyph sitting at the right edge of
+   the text half, just before the remove button. Same colour palette
+   as the other status-icon variants. */
+.dz__badge-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dz-badge-status-icon-size);
+  height: var(--dz-badge-status-icon-size);
+  flex-shrink: 0;
+}
+
+.dz__badge-status > svg {
+  width: var(--dz-badge-status-icon-size);
+  height: var(--dz-badge-status-icon-size);
+  display: block;
+}
+
+.dz__badge-status--pending   { color: var(--dz-text-color-3); }
+.dz__badge-status--uploading { color: var(--dz-accent-color); }
+.dz__badge-status--complete  { color: var(--dz-success-color); }
+.dz__badge-status--error     { color: var(--dz-error-color); }
+.dz__badge-status--paused    { color: var(--dz-warning-color); }
+.dz__badge-status--cancelled { color: var(--dz-text-color-3); }
+
+.dz__badge-status--uploading > svg {
+  animation: dz-status-spin var(--dz-status-spin-duration) linear infinite;
+}
+
 /* Remove half — square pill end with X glyph rendered via mask so it inherits
    the configured remove color via currentColor. */
 .dz__badge-remove {
@@ -398,6 +472,15 @@
 .dz__file-item__action--hidden {
   visibility: hidden;
   pointer-events: none;
+}
+
+/* Badge action button collapses entirely when no action is applicable
+   — badges are inline-flex with each card sizing independently, so a
+   reserved-but-invisible slot would leave an awkward gap. Defined
+   after .dz__badge-action above so the cascade selects display: none
+   over inline-flex. */
+.dz__badge-action--hidden {
+  display: none;
 }
 
 /* Counter badge — single-half "+N" / "−" pill used by the maxVisible toggle

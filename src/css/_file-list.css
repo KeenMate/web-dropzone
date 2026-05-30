@@ -32,6 +32,25 @@
   grid-column: 1 / -1;
 }
 
+/* Reorder-completed mode — flexbox `order` slides completed rows to the
+   end of the visual list without mutating `this.files` or rebuilding the
+   DOM. The Show-more toggle and the badges "+N" counter always trail
+   everything (order: 2) so they stay below both buckets. patchFileRow
+   keeps `data-status` on each row in sync, so a file completing
+   mid-upload slides down LIVE instead of waiting for a full re-render.
+   Same rule applies to the in-card variant via .dz__files-inside--*. */
+.dz__file-list--reorder-completed > [data-status="complete"],
+.dz__files-inside--reorder-completed > [data-status="complete"] {
+  order: 1;
+}
+
+.dz__file-list--reorder-completed > .dz__show-more,
+.dz__file-list--reorder-completed > .dz__badge--more,
+.dz__files-inside--reorder-completed > .dz__show-more,
+.dz__files-inside--reorder-completed > .dz__badge--more {
+  order: 2;
+}
+
 /* Detailed mode - slightly more padding */
 .dz__file-list--detailed {
   gap: calc(0.6 * var(--dz-rem));

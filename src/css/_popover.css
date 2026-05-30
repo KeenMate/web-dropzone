@@ -29,6 +29,31 @@
 
 .dz__summary__icon {
   font-size: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* When the icon is a Lucide SVG (any non-paperclip state) it sizes to the
+   same slot as per-row status icons so the summary line doesn't jitter as
+   the aggregate state switches between emoji and SVG. */
+.dz__summary__icon > svg {
+  width: var(--dz-status-icon-size);
+  height: var(--dz-status-icon-size);
+  display: block;
+}
+
+/* Aggregate state — mirrors the per-row colour rules so the summary
+   reads "blue=uploading, orange=paused, green=done, red=error" without
+   the user opening the popover. */
+.dz__summary__icon--uploading { color: var(--dz-accent-color); }
+.dz__summary__icon--paused    { color: var(--dz-warning-color); }
+.dz__summary__icon--complete  { color: var(--dz-success-color); }
+.dz__summary__icon--error     { color: var(--dz-error-color); }
+
+.dz__summary__icon--uploading > svg {
+  animation: dz-status-spin var(--dz-status-spin-duration) linear infinite;
 }
 
 .dz__summary__text {
@@ -44,12 +69,21 @@
   width: var(--dz-popover-width);
   max-width: var(--dz-popover-max-width);
   max-height: var(--dz-popover-max-height);
+  min-width: var(--dz-popover-min-width);
+  min-height: var(--dz-popover-min-height);
   display: flex;
   flex-direction: column;
   background: var(--dz-popover-bg);
   border: var(--dz-popover-border);
   border-radius: var(--dz-popover-border-radius);
   box-shadow: var(--dz-popover-box-shadow);
+  /* Native CSS resize handle in the bottom-right corner. Floating UI's
+     `autoUpdate` (wired in positionPopover) catches the box-size change
+     and re-runs `computePosition`, so the popover stays anchored to its
+     trigger as it grows. The `size` middleware clamps maxWidth /
+     maxHeight to the viewport so the user can't drag it off-screen. */
+  resize: var(--dz-popover-resize);
+  overflow: hidden;
 }
 
 /* Popover sticky-top wrapper — groups header + limits hint so both share a
@@ -219,9 +253,64 @@
   text-align: right;
 }
 
+/* Action + status sit next to each other on the right edge — tighten the
+   horizontal padding on both cells so the pause/retry button doesn't
+   read as "stranded" two columns over from the status pill. */
+.dz__popover__cell--action {
+  width: var(--dz-item-action-size);
+  text-align: center;
+  padding-left: 0;
+  padding-right: calc(0.2 * var(--dz-rem));
+}
+
+.dz__popover__cell--status {
+  padding-left: 0.3rem;
+  padding-right: 0.3rem;
+}
+
 .dz__popover__cell--actions {
   width: calc(3.2 * var(--dz-rem));
   text-align: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Per-row pause / resume / retry button. Mirrors .dz__file-item__action —
+   same hit area, same Lucide stroke, same accent-on-hover. Lives in its
+   own dedicated cell so the column width stays reserved even when the
+   button is in the `--hidden` slot. Icon size matches the status pill
+   (1.6rem) so the two glyphs read as a paired control. Distinct class
+   from the header text-button .dz__popover__action (Add more / Clear
+   all) so the two don't cross-cascade. */
+.dz__popover__row-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dz-item-action-size);
+  height: var(--dz-item-action-size);
+  padding: 0;
+  vertical-align: middle;
+  border-radius: var(--dz-border-radius-sm);
+  color: var(--dz-item-action-color);
+  background: var(--dz-item-action-bg);
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy),
+              color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__popover__row-action:hover {
+  background: var(--dz-item-action-bg-hover);
+  color: var(--dz-item-action-color-hover);
+}
+
+.dz__popover__row-action > svg {
+  width: var(--dz-status-icon-size);
+  height: var(--dz-status-icon-size);
+  display: block;
+}
+
+.dz__popover__row-action--hidden {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Popover remove button — same mask glyph pattern as .dz__file-item__remove
@@ -233,6 +322,7 @@
   justify-content: center;
   width: var(--dz-popover-remove-size);
   height: var(--dz-popover-remove-size);
+  vertical-align: middle;
   border-radius: var(--dz-border-radius-sm);
   background: var(--dz-popover-remove-bg);
   color: var(--dz-popover-remove-color);
@@ -305,10 +395,18 @@
   text-align: center;
 }
 
+/* Row height in the popover is dominated by `.dz__popover__placeholder`
+   (the icon/thumbnail slot, fixed at --dz-popover-icon-size). Inline-flex
+   spans on the right — status pill, per-row action, remove × — sit on
+   the text baseline by default, so their glyphs read a few pixels above
+   the placeholder's vertical centre. Forcing each to the same height
+   with align-items:center lines all five icons up on the same centerline. */
 .dz__popover__status {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  height: var(--dz-popover-icon-size);
+  vertical-align: middle;
   color: var(--dz-text-color-3);
 }
 

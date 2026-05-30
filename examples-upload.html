@@ -217,6 +217,14 @@ dropzone.autoUpload   = true    // start uploads on add (default)</code></pre>
                 </div>
 
                 <div class="control">
+                    <label>Reorder completed</label>
+                    <div class="playground-radio-row">
+                        <label><input type="radio" name="playground-reorder" value="off" checked> Off (added order)</label>
+                        <label><input type="radio" name="playground-reorder" value="on"> On (completed → bottom)</label>
+                    </div>
+                </div>
+
+                <div class="control">
                     <label>Success rate · <span class="control-value" id="playground-rate-label">70%</span></label>
                     <input type="range" id="playground-rate" min="0" max="100" step="5" value="70">
                 </div>
@@ -243,6 +251,7 @@ dropzone.autoUpload   = true    // start uploads on add (default)</code></pre>
             </div>
 
             <web-dropzone id="upload-playground"
+                storage-key="upload-playground"
                 list-appearance="popover"
                 accept="*/*"
                 max-file-count="20"
@@ -389,6 +398,7 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
             const listSelect     = document.getElementById('playground-list')
             const modeRadios     = document.querySelectorAll('input[name="playground-mode"]')
             const resumeRadios   = document.querySelectorAll('input[name="playground-resume"]')
+            const reorderRadios  = document.querySelectorAll('input[name="playground-reorder"]')
             const rateInput      = document.getElementById('playground-rate')
             const rateLabel      = document.getElementById('playground-rate-label')
             const concSelect     = document.getElementById('playground-concurrency')
@@ -412,6 +422,9 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
             const savedResume = loadPref('resume', 'on')
             const resumeRadio = document.querySelector(`input[name="playground-resume"][value="${savedResume}"]`)
             if (resumeRadio) resumeRadio.checked = true
+            const savedReorder = loadPref('reorder', 'off')
+            const reorderRadio = document.querySelector(`input[name="playground-reorder"][value="${savedReorder}"]`)
+            if (reorderRadio) reorderRadio.checked = true
 
             // Append a row to the handler-invocation log. Tag drives the
             // color class (start/resume/retry/done/fail).
@@ -588,6 +601,11 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
             resumeRadios.forEach(r => r.addEventListener('change', () => {
                 savePref('resume', document.querySelector('input[name="playground-resume"]:checked').value)
             }))
+            reorderRadios.forEach(r => r.addEventListener('change', () => {
+                const v = document.querySelector('input[name="playground-reorder"]:checked').value
+                dz.reorderCompleted = v === 'on'
+                savePref('reorder', v)
+            }))
             rateInput.addEventListener('input', () => {
                 rateLabel.textContent = `${rateInput.value}%`
                 savePref('rate', rateInput.value)
@@ -608,6 +626,7 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
             dz.setAttribute('selector-appearance', selectorSelect.value)
             dz.setAttribute('list-appearance', listSelect.value)
             dz.concurrency = parseInt(concSelect.value, 10)
+            dz.reorderCompleted = document.querySelector('input[name="playground-reorder"]:checked').value === 'on'
             applyMode()
         }
 

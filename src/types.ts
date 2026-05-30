@@ -236,6 +236,19 @@ export interface FileItemRenderContext {
 /**
  * Configuration options for the WebDropzone component
  */
+/**
+ * Persisted UI state — everything the user can change via direct
+ * interaction that should survive a page reload. Currently only popover
+ * dimensions; extensible so new toggles can join without breaking the
+ * storage shape (loaders should treat unknown keys as default).
+ */
+export interface DropzoneState {
+    /** Width in CSS pixels set by the user's last popover resize. */
+    popoverWidth?: number;
+    /** Height in CSS pixels set by the user's last popover resize. */
+    popoverHeight?: number;
+}
+
 export interface DropzoneConfig {
     // ========================================================================
     // CORE OPTIONS
@@ -415,6 +428,21 @@ export interface DropzoneConfig {
      */
     isUploadedFileDeletable?: boolean;
     /**
+     * Re-order the rendered file list so completed (`status === 'complete'`)
+     * files slide to the bottom and unresolved files (pending / uploading /
+     * paused / error / cancelled) stay at the top. The underlying
+     * `this.files` array order is NOT mutated — the visual reordering is
+     * pure CSS (`order: 1` on completed rows) for the inline list
+     * appearances and a stable sort in the render path for the popover
+     * table. So `file-added` / `file-removed` event order and form
+     * submission order remain deterministic. Default `false`.
+     *
+     * Useful when uploads finish out of order and the user needs to see
+     * what still needs attention (errors at the top, not buried beneath
+     * a long tail of green checkmarks).
+     */
+    isReorderCompletedEnabled?: boolean;
+    /**
      * Callback fired when a file that had finished uploading
      * (`status === 'complete'`) is removed from the selection. Mirrors the
      * `file-deleted` event. The app should issue a DELETE against its
@@ -426,6 +454,38 @@ export interface DropzoneConfig {
     // ========================================================================
     // CUSTOM RENDERING
     // ========================================================================
+
+    // ========================================================================
+    // PERSISTENCE — user-driven UI state survives page reloads
+    // ========================================================================
+
+    /**
+     * Opaque identifier used to scope persisted UI state. When set, user
+     * actions like resizing the popover are saved (to localStorage by
+     * default, or via {@link persistStateCallback} when provided) and
+     * restored on next mount. Two dropzones on the same page need
+     * distinct keys; the empty string / `undefined` disables persistence
+     * entirely.
+     */
+    storageKey?: string;
+    /**
+     * Custom persistence sink. Called whenever a piece of state changes
+     * (currently: popover dimensions after the user finishes a resize).
+     * The full state object is passed every time so the implementation
+     * can choose to merge / overwrite as it sees fit. Return a promise
+     * if the write is async — failures are swallowed; the component
+     * keeps working with in-memory state. Falls back to `localStorage`
+     * with key `dz-state:${storageKey}` when not set.
+     */
+    persistStateCallback?: ((key: string, state: DropzoneState) => void | Promise<void>) | null;
+    /**
+     * Custom persistence source. Called once when the popover is about
+     * to open, to restore the user's last-known dimensions. Return
+     * `null` or `undefined` when no state exists for the key. Falls
+     * back to `localStorage` lookup at `dz-state:${storageKey}` when
+     * not set.
+     */
+    loadStateCallback?: ((key: string) => DropzoneState | null | Promise<DropzoneState | null>) | null;
 
     /** Custom renderer for file item content */
     renderFileItemCallback?: ((file: FileState, context: FileItemRenderContext) => string | HTMLElement) | null;

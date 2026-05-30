@@ -80,6 +80,16 @@
   transition: var(--dz-progress-transition);
 }
 
+/* State-coloured overall bar — picked up via the container's
+   `data-status` attribute. Priority is computed in getOverallProgress:
+   error > uploading > paused > complete. The error case ALSO tints
+   the track so a hidden errored file (off-screen badge, scrolled-out
+   list row) can't hide behind a "97% green, almost done" reading. */
+.dz__overall-progress[data-status="complete"]  .dz__overall-progress__fill { background: var(--dz-success-color); }
+.dz__overall-progress[data-status="paused"]    .dz__overall-progress__fill { background: var(--dz-warning-color); }
+.dz__overall-progress[data-status="error"]     .dz__overall-progress__fill { background: var(--dz-error-color); }
+.dz__overall-progress[data-status="error"]     .dz__overall-progress__bar  { background: color-mix(in srgb, var(--dz-error-color) 18%, transparent); }
+
 .dz__overall-progress__stats {
   display: flex;
   align-items: center;
