@@ -9,7 +9,6 @@
 .dz__file-item--list {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: calc(0.8 * var(--dz-rem));
   padding: var(--dz-item-padding);
   border: var(--dz-item-border);
@@ -30,6 +29,90 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Inline progress block — bar + tabular percent. Hides progress bits when
+   nothing's uploading (status === pending and progress === 0). Reserved
+   width keeps the row layout stable across status transitions. */
+.dz__file-item__progress {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: calc(0.4 * var(--dz-rem));
+  width: var(--dz-item-progress-width);
+}
+
+.dz__file-item__progress-bar {
+  flex: 1;
+  height: var(--dz-progress-height);
+  background: var(--dz-progress-bg);
+  border-radius: var(--dz-progress-border-radius);
+  overflow: hidden;
+}
+
+.dz__file-item__progress-fill {
+  height: 100%;
+  background: var(--dz-progress-fill-bg);
+  border-radius: var(--dz-progress-border-radius);
+  transition: width 0.2s ease-out;
+}
+
+/* State-coloured progress bars — picked up via the row-level
+   `data-status` attribute. Error case ALSO tints the track so a 0%
+   failure is still visible (otherwise the fill is zero-width and the
+   bar reads as "nothing happened" instead of "failed immediately"). */
+.dz__file-item[data-status="complete"]  .dz__file-item__progress-fill { background: var(--dz-success-color); }
+.dz__file-item[data-status="paused"]    .dz__file-item__progress-fill { background: var(--dz-warning-color); }
+.dz__file-item[data-status="cancelled"] .dz__file-item__progress-fill { background: var(--dz-text-color-3); }
+.dz__file-item[data-status="error"]     .dz__file-item__progress-fill { background: var(--dz-error-color); }
+.dz__file-item[data-status="error"]     .dz__file-item__progress-bar  { background: color-mix(in srgb, var(--dz-error-color) 18%, transparent); }
+
+.dz__file-item__progress-text {
+  flex: 0 0 auto;
+  min-width: var(--dz-item-progress-text-width);
+  text-align: right;
+  font-size: var(--dz-font-size-xs);
+  color: var(--dz-text-color-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status icon — Lucide glyph that scales with --dz-rem. The container
+   reserves a fixed width so per-row layout stays stable; status colour
+   is carried by `currentColor` on the SVG stroke. */
+.dz__file-item__status {
+  flex: 0 0 auto;
+  width: var(--dz-item-status-width);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dz-text-color-3);
+}
+
+.dz__file-item__status > svg {
+  width: var(--dz-status-icon-size);
+  height: var(--dz-status-icon-size);
+  display: block;
+}
+
+.dz__file-item__status--pending   { color: var(--dz-text-color-3); }
+.dz__file-item__status--uploading { color: var(--dz-accent-color); }
+.dz__file-item__status--complete  { color: var(--dz-success-color); }
+.dz__file-item__status--error     { color: var(--dz-error-color); }
+.dz__file-item__status--paused    { color: var(--dz-warning-color); }
+.dz__file-item__status--cancelled { color: var(--dz-text-color-3); }
+
+.dz__file-item__status--uploading > svg {
+  animation: dz-status-spin var(--dz-status-spin-duration) linear infinite;
+}
+
+@keyframes dz-status-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Detailed mode lays out the progress block as a third row inside the
+   info column, under the meta line. */
+.dz__file-item--detailed .dz__file-item__progress {
+  width: 100%;
 }
 
 /* ==========================================================================
@@ -137,6 +220,39 @@
 .dz__file-item__remove:hover {
   background: var(--dz-item-remove-bg-hover);
   color: var(--dz-item-remove-color-hover);
+}
+
+/* ==========================================================================
+   ACTION BUTTON (pause / resume / retry) — shared shell across list and
+   detailed modes. The button stays in the DOM at all times so the row's
+   column widths don't shift as a file moves through pending → uploading
+   → paused → … — the `--hidden` modifier (visibility: hidden) handles
+   the "no actionable state" case.
+   ========================================================================== */
+.dz__file-item__action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dz-item-action-size);
+  height: var(--dz-item-action-size);
+  border-radius: var(--dz-border-radius-sm);
+  background: var(--dz-item-action-bg);
+  color: var(--dz-item-action-color);
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy),
+              color var(--dz-transition-fast) var(--dz-easing-snappy);
+  cursor: pointer;
+}
+
+.dz__file-item__action > svg {
+  width: var(--dz-item-action-icon-size);
+  height: var(--dz-item-action-icon-size);
+  display: block;
+}
+
+.dz__file-item__action:hover {
+  background: var(--dz-item-action-bg-hover);
+  color: var(--dz-item-action-color-hover);
 }
 
 /* ==========================================================================
@@ -278,8 +394,8 @@
    (set in HTML) make the button inert. Shared across every per-row remove
    button variant. */
 .dz__file-item__remove--hidden,
-.dz__preview-item__remove--hidden,
-.dz__badge-remove--hidden {
+.dz__badge-remove--hidden,
+.dz__file-item__action--hidden {
   visibility: hidden;
   pointer-events: none;
 }
@@ -330,7 +446,25 @@
   color: var(--dz-text-color-3);
 }
 
-/* Overlay with filename */
+/* Full-cover hover scrim — dark layer that fades in over the tile so
+   the action / remove buttons and the filename overlay read cleanly
+   against any thumbnail. Rendered before the overlay/buttons in the
+   DOM so document order keeps it stacked behind them. */
+.dz__preview-item__scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--dz-preview-scrim-bg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__preview-item:hover .dz__preview-item__scrim {
+  opacity: 1;
+}
+
+/* Overlay with filename — sits ABOVE the scrim on hover; the gradient
+   plus the scrim together give a hard read on the bottom edge. */
 .dz__preview-item__overlay {
   position: absolute;
   bottom: 0;
@@ -355,39 +489,133 @@
   white-space: nowrap;
 }
 
-/* Preview remove button — circular floating × over the thumbnail. Same mask
-   glyph pattern as the shared file-item remove (see .dz__file-item__remove). */
-.dz__preview-item__remove {
+/* Hover actions overlay — full-cover flex container that centers the
+   pause/resume/retry + remove buttons over the scrim. Fades in with
+   the scrim on tile hover so the underlying thumbnail isn't covered
+   in idle state. */
+.dz__preview-item__hover-actions {
   position: absolute;
-  top: var(--dz-preview-remove-offset);
-  right: var(--dz-preview-remove-offset);
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--dz-preview-remove-size);
-  height: var(--dz-preview-remove-size);
-  border-radius: 50%;
-  background: var(--dz-preview-remove-bg);
-  color: var(--dz-preview-remove-color);
+  gap: var(--dz-preview-action-gap);
   opacity: 0;
-  transition: opacity var(--dz-transition-fast) var(--dz-easing-snappy),
-              background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+  pointer-events: none;
+  transition: opacity var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__preview-item:hover .dz__preview-item__hover-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Big centered action button (pause / resume / retry) and remove button —
+   bare icons on the scrim by default, soft fill on individual hover so
+   the user gets a clear click affordance. Border-radius defaults to
+   match the grid cell (--dz-preview-item-border-radius) so the controls
+   read as part of the cell's geometric language; override
+   --dz-preview-action-button-border-radius to make them circular. */
+.dz__preview-item__action,
+.dz__preview-item__remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dz-preview-action-button-size);
+  height: var(--dz-preview-action-button-size);
+  border-radius: var(--dz-preview-action-button-border-radius);
+  background: transparent;
+  color: var(--dz-preview-remove-color);
+  cursor: pointer;
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+/* Hidden modifier — grid buttons live inside a flex-centered hover
+   overlay so layout reservation isn't meaningful; collapsing the slot
+   keeps the remaining button centered. Defined AFTER the button rule
+   above so the cascade selects `display: none` over `display: flex`. */
+.dz__preview-item__remove--hidden,
+.dz__preview-item__action--hidden {
+  display: none;
+}
+
+.dz__preview-item__action > svg {
+  width: var(--dz-preview-action-icon-size);
+  height: var(--dz-preview-action-icon-size);
+  display: block;
 }
 
 .dz__preview-item__remove::before {
   content: "";
   display: block;
-  width: var(--dz-preview-remove-icon-size);
-  height: var(--dz-preview-remove-icon-size);
+  width: var(--dz-preview-action-icon-size);
+  height: var(--dz-preview-action-icon-size);
   background-color: currentColor;
   -webkit-mask: var(--dz-icon-remove) center / contain no-repeat;
           mask: var(--dz-icon-remove) center / contain no-repeat;
 }
 
-.dz__preview-item:hover .dz__preview-item__remove {
-  opacity: 1;
+.dz__preview-item__action:hover {
+  background: var(--dz-accent-color);
 }
 
 .dz__preview-item__remove:hover {
   background: var(--dz-preview-remove-bg-hover);
 }
+
+/* Status icon in the top-left corner of a grid tile. Floats over the
+   thumbnail; drop-shadow keeps the glyph readable on light or dark
+   imagery without needing a chip background. */
+.dz__preview-item__status {
+  position: absolute;
+  top: var(--dz-preview-remove-offset);
+  left: var(--dz-preview-remove-offset);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dz-text-color-3);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+.dz__preview-item__status > svg {
+  width: var(--dz-status-icon-size);
+  height: var(--dz-status-icon-size);
+  display: block;
+}
+
+.dz__preview-item__status--pending   { opacity: 0; }
+.dz__preview-item__status--uploading { color: var(--dz-accent-color); }
+.dz__preview-item__status--complete  { color: var(--dz-success-color); }
+.dz__preview-item__status--error     { color: var(--dz-error-color); }
+.dz__preview-item__status--paused    { color: var(--dz-warning-color); }
+.dz__preview-item__status--cancelled { color: var(--dz-text-color-3); }
+
+.dz__preview-item__status--uploading > svg {
+  animation: dz-status-spin var(--dz-status-spin-duration) linear infinite;
+}
+
+/* Grid-tile progress bar — pinned to the bottom edge under the overlay. */
+.dz__preview-item__progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--dz-progress-height);
+  background: rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.dz__preview-item__progress-fill {
+  height: 100%;
+  background: var(--dz-progress-fill-bg);
+  transition: width 0.2s ease-out;
+}
+
+/* State-coloured grid progress bar — same palette as list/detailed. The
+   error case also tints the track so a 0% failure is visible against
+   the underlying thumbnail (otherwise nothing reads as "failed"). */
+.dz__preview-item[data-status="complete"]  .dz__preview-item__progress-fill { background: var(--dz-success-color); }
+.dz__preview-item[data-status="paused"]    .dz__preview-item__progress-fill { background: var(--dz-warning-color); }
+.dz__preview-item[data-status="cancelled"] .dz__preview-item__progress-fill { background: var(--dz-text-color-3); }
+.dz__preview-item[data-status="error"]     .dz__preview-item__progress-fill { background: var(--dz-error-color); }
+.dz__preview-item[data-status="error"]     .dz__preview-item__progress-bar  { background: color-mix(in srgb, var(--dz-error-color) 35%, transparent); }

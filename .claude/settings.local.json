@@ -12,7 +12,9 @@
       "Bash(echo \"EXIT=$?\")",
       "Bash(awk '/<style/,/<\\\\/style/' C:/Git/KM/svelte-fluentui/packages/svelte-fluentui/src/lib/components/InputFile.svelte)",
       "Bash(git add *)",
-      "Bash(xargs sed -i 's/max-size=/max-file-size=/g; s/max-files=/max-file-count=/g')"
+      "Bash(xargs sed -i 's/max-size=/max-file-size=/g; s/max-files=/max-file-count=/g')",
+      "mcp__pure-admin-icons__search_icons",
+      "mcp__pure-admin-icons__get_icon_svg"
     ],
     "deny": [],
     "ask": []

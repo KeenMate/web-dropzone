@@ -20,6 +20,7 @@ import type {
     ListAppearance,
     CardSize,
     FileTypeCategory,
+    FileStatus,
     FILE_TYPE_ICONS,
     FileItemRenderContext
 } from './types';
@@ -37,6 +38,51 @@ const FILE_ICONS: Record<FileTypeCategory, string> = {
     text: '📃',
     default: '📁'
 };
+
+// Lucide outline icons (24/24, currentColor stroke). Rendered as an inline
+// SVG inside the status span; size is controlled via CSS `width: 1em` so the
+// icon scales with --dz-rem.
+const STATUS_ICONS: Record<FileStatus, string> = {
+    pending:   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+    uploading: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',
+    paused:    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>',
+    complete:  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
+    error:     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>',
+    cancelled: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>'
+};
+
+const STATUS_LABELS: Record<FileStatus, string> = {
+    pending:   'Pending',
+    uploading: 'Uploading',
+    paused:    'Paused',
+    complete:  'Complete',
+    error:     'Error',
+    cancelled: 'Cancelled'
+};
+
+// Per-row action button (pause/resume/retry). Drawn alongside the X so
+// the user can recover an in-flight file without reaching for the
+// overall Pause-all / Retry-all controls.
+type RowAction = 'pause' | 'resume' | 'retry';
+
+const ACTION_ICONS: Record<RowAction, string> = {
+    pause:  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="14" y="3" width="5" height="18" rx="1"/><rect x="5" y="3" width="5" height="18" rx="1"/></svg>',
+    resume: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></svg>',
+    retry:  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>'
+};
+
+const ACTION_LABELS: Record<RowAction, string> = {
+    pause:  'Pause',
+    resume: 'Resume',
+    retry:  'Retry'
+};
+
+function actionForStatus(status: FileStatus): RowAction | null {
+    if (status === 'uploading') return 'pause';
+    if (status === 'paused')    return 'resume';
+    if (status === 'error')     return 'retry';
+    return null;
+}
 
 /**
  * Default configuration values
@@ -469,19 +515,24 @@ export class WebDropzone {
     }
 
     /**
-     * Reset a single file's upload state and either re-queue it (if the
-     * component owns the pipeline) or fire `file-retry` so the app's existing
-     * handler can re-run. Clears `error`, sets `status='pending'`,
-     * `progress=0`, patches the row, then emits the event in both modes.
+     * Re-queue a single file's upload after a failure (error / cancelled) and
+     * fire `file-retry` so apps with their own handler can re-run it. Symmetric
+     * with the pause/resume design: the COMPONENT preserves `file.progress`
+     * and the HANDLER decides whether to continue from the partial offset
+     * (resume-aware, e.g. tus.io HEAD then PATCH from the server's offset) or
+     * reset and start fresh (single-shot endpoints). Handlers that always
+     * start from 0 can simply call `onProgress(0)` on their first tick — the
+     * bar snaps back from the old failure point as expected. Clears `error`
+     * and flips status to `pending`; `file.progress` is unchanged so
+     * `context.startBytes` reflects the last known offset.
      */
     retryFile(id: string): void {
         const file = this.files.find(f => f.id === id);
         if (!file) return;
         this.pausedIds.delete(id);
         file.status = 'pending';
-        file.progress = 0;
         file.error = undefined;
-        fileLogger.debug('File retry requested', { id, name: file.name });
+        fileLogger.debug('File retry requested', { id, name: file.name, startPercent: file.progress });
         this.patchFileRow(file);
         this.emitRetryEvent(file);
         // Component-driven mode: re-queue via the worker pool. The pool's
@@ -673,11 +724,13 @@ export class WebDropzone {
         const ctrl = new AbortController();
         this.controllers.set(id, ctrl);
 
-        // Flip to uploading. Progress is NOT reset — the caller controls
-        // that. Pause / Resume preserves progress so the handler sees a
-        // non-zero startBytes in context; explicit retry (retryFile) and
-        // automatic retry-after-error (below) reset it to 0 before invoking
-        // runUpload again.
+        // Flip to uploading. Progress is NOT reset here — the caller
+        // (resumeFile / retryFile / processFiles) controls that. Both
+        // pause/resume AND retry-after-failure preserve `file.progress`,
+        // so a resume-aware handler always sees a non-zero `startBytes`
+        // for any re-entry and can decide whether to continue or restart.
+        // Cancel-then-resume (via resumeFile after a cancel) resets to 0,
+        // matching the explicit-restart intent of cancellation.
         file.status = 'uploading';
         file.error = undefined;
         this.patchFileRow(file);
@@ -1214,7 +1267,14 @@ export class WebDropzone {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const id = (btn as HTMLElement).dataset.fileId;
-                if (id) this.removeFile(id);
+                if (id) this.handleUserRemoveClick(id);
+            });
+        });
+        root.querySelectorAll('[data-action="row-action"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = (btn as HTMLElement).dataset.fileId;
+                if (id) this.handleUserActionClick(id);
             });
         });
     }
@@ -1234,7 +1294,7 @@ export class WebDropzone {
             btn.addEventListener('click', () => {
                 const id = (btn as HTMLElement).dataset.fileId;
                 if (!id) return;
-                this.removeFile(id);
+                this.handleUserRemoveClick(id);
                 if (this.files.length === 0) {
                     this.closePopover();
                 } else {
@@ -1242,6 +1302,28 @@ export class WebDropzone {
                 }
             });
         });
+    }
+
+    /**
+     * Two-step X click — give the user a chance to recover from an
+     * accidental click on an in-progress upload:
+     *   - `uploading` → cancelFile (abort + status flips to `cancelled`,
+     *      row stays in the list with the Retry button available).
+     *   - everything else → removeFile (drop from the list, fire
+     *      file-removed / file-deleted as appropriate).
+     *
+     * Apps that want single-click removal everywhere can listen to
+     * `file-removed` / `file-deleted` and bypass the two-step UX by
+     * calling `removeFile(id)` directly from their own click handler.
+     */
+    private handleUserRemoveClick(id: string): void {
+        const file = this.files.find(f => f.id === id);
+        if (!file) return;
+        if (file.status === 'uploading') {
+            this.cancelFile(id);
+        } else {
+            this.removeFile(id);
+        }
     }
 
     /**
@@ -1320,9 +1402,12 @@ export class WebDropzone {
         if (progressText) progressText.textContent = `${file.progress.toFixed(1)}%`;
 
         const statusEl = row.querySelector('.dz__popover__status') as HTMLElement | null;
-        if (statusEl) {
+        if (statusEl && statusEl.dataset.status !== file.status) {
+            statusEl.dataset.status = file.status;
             statusEl.className = `dz__popover__status dz__popover__status--${file.status}`;
-            statusEl.textContent = file.status.charAt(0).toUpperCase() + file.status.slice(1);
+            statusEl.title = STATUS_LABELS[file.status];
+            statusEl.setAttribute('aria-label', `Status: ${STATUS_LABELS[file.status]}`);
+            statusEl.innerHTML = STATUS_ICONS[file.status];
         }
 
         this.syncRemoveButtonHiddenState(
@@ -1341,6 +1426,12 @@ export class WebDropzone {
      *   - all:   sync the remove button's hidden state
      */
     private patchInlineRowInPlace(row: HTMLElement, file: FileState, appearance: ListAppearance): void {
+        // Row-level data-status drives state-coloured progress bars (and any
+        // future per-row state styling) via CSS attribute selectors.
+        if (row.dataset.status !== file.status) {
+            row.dataset.status = file.status;
+        }
+
         if (appearance === 'badges') {
             // Badge wrapper carries the status modifier — recolors the
             // border via CSS. Pending status has no modifier class.
@@ -1349,15 +1440,61 @@ export class WebDropzone {
                 : 'dz__badge';
         }
 
-        if (appearance === 'grid' && file.previewUrl) {
-            const placeholder = row.querySelector('.dz__preview-item__placeholder');
-            if (placeholder) {
-                const img = document.createElement('img');
-                img.src = file.previewUrl;
-                img.alt = file.name;
-                img.className = 'dz__preview-item__image';
-                placeholder.replaceWith(img);
-                row.classList.add('dz__preview-item--image');
+        // list / detailed have the popover-style triplet (bar fill, %, pill).
+        if (appearance === 'list' || appearance === 'detailed') {
+            const fill = row.querySelector('.dz__file-item__progress-fill') as HTMLElement | null;
+            if (fill) fill.style.width = `${file.progress}%`;
+
+            const pct = row.querySelector('.dz__file-item__progress-text');
+            if (pct) pct.textContent = `${file.progress.toFixed(1)}%`;
+
+            const statusEl = row.querySelector('.dz__file-item__status') as HTMLElement | null;
+            if (statusEl && statusEl.dataset.status !== file.status) {
+                statusEl.dataset.status = file.status;
+                statusEl.className = `dz__file-item__status dz__file-item__status--${file.status}`;
+                statusEl.title = STATUS_LABELS[file.status];
+                statusEl.setAttribute('aria-label', `Status: ${STATUS_LABELS[file.status]}`);
+                statusEl.innerHTML = STATUS_ICONS[file.status];
+            }
+
+            this.patchActionButton(
+                row.querySelector('.dz__file-item__action'),
+                file,
+                'dz__file-item__action'
+            );
+        }
+
+        if (appearance === 'grid') {
+            // Grid tiles get a bottom-edge progress bar and a corner status pill.
+            const fill = row.querySelector('.dz__preview-item__progress-fill') as HTMLElement | null;
+            if (fill) fill.style.width = `${file.progress}%`;
+
+            const statusEl = row.querySelector('.dz__preview-item__status') as HTMLElement | null;
+            if (statusEl && statusEl.dataset.status !== file.status) {
+                statusEl.dataset.status = file.status;
+                statusEl.className = `dz__preview-item__status dz__preview-item__status--${file.status}`;
+                statusEl.title = STATUS_LABELS[file.status];
+                statusEl.setAttribute('aria-label', `Status: ${STATUS_LABELS[file.status]}`);
+                statusEl.innerHTML = STATUS_ICONS[file.status];
+            }
+
+            this.patchActionButton(
+                row.querySelector('.dz__preview-item__action'),
+                file,
+                'dz__preview-item__action'
+            );
+
+            // One-shot placeholder → <img> swap when previewUrl arrives.
+            if (file.previewUrl) {
+                const placeholder = row.querySelector('.dz__preview-item__placeholder');
+                if (placeholder) {
+                    const img = document.createElement('img');
+                    img.src = file.previewUrl;
+                    img.alt = file.name;
+                    img.className = 'dz__preview-item__image';
+                    placeholder.replaceWith(img);
+                    row.classList.add('dz__preview-item--image');
+                }
             }
         }
 
@@ -1559,10 +1696,76 @@ export class WebDropzone {
         return `class="${cls}" data-action="remove" data-file-id="${file.id}" aria-label="Remove ${escapeHtml(file.name)}"${inert}`;
     }
 
+    /** Render the per-row action button (pause / resume / retry). The slot
+     *  is ALWAYS in the DOM so column / cell widths stay reserved; when
+     *  there's no applicable action (pending, complete, cancelled) the
+     *  `--hidden` modifier hides it visually but keeps the space. Use the
+     *  same `data-action="row-action"` handle that bindListRemoveHandlers
+     *  binds the click on. */
+    private renderRowActionButton(file: FileState, baseClass: string): string {
+        const action = actionForStatus(file.status);
+        const hidden = !action;
+        const cls = hidden ? `${baseClass} ${baseClass}--hidden` : baseClass;
+        const inert = hidden ? ' tabindex="-1" aria-hidden="true"' : '';
+        const label = action ? `${ACTION_LABELS[action]} ${escapeHtml(file.name)}` : '';
+        const title = action ? ACTION_LABELS[action] : '';
+        const dataAction = action ?? '';
+        const icon = action ? ACTION_ICONS[action] : '';
+        return `<button type="button" class="${cls}" data-action="row-action" data-row-action="${dataAction}" data-file-id="${file.id}" aria-label="${label}" title="${title}"${inert}>${icon}</button>`;
+    }
+
+    /** In-place patch the action button as file.status transitions
+     *  (pending→uploading→paused→…→complete). Gated on `data-row-action`
+     *  so clicks on the live button aren't disrupted between transitions. */
+    private patchActionButton(btn: HTMLElement | null, file: FileState, baseClass: string): void {
+        if (!btn) return;
+        const action = actionForStatus(file.status);
+        const current = btn.dataset.rowAction || '';
+        const target = action ?? '';
+        if (current === target) return;
+
+        btn.dataset.rowAction = target;
+        const hidden = !action;
+        btn.className = hidden ? `${baseClass} ${baseClass}--hidden` : baseClass;
+        btn.innerHTML = action ? ACTION_ICONS[action] : '';
+
+        if (action) {
+            btn.setAttribute('aria-label', `${ACTION_LABELS[action]} ${file.name}`);
+            btn.title = ACTION_LABELS[action];
+            btn.removeAttribute('tabindex');
+            btn.removeAttribute('aria-hidden');
+        } else {
+            btn.setAttribute('aria-label', '');
+            btn.title = '';
+            btn.tabIndex = -1;
+            btn.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    /** Two-step action click — uploading→pauseFile, paused→resumeFile,
+     *  error→retryFile. Other statuses are no-ops (the button is rendered
+     *  inert via `--hidden`). */
+    private handleUserActionClick(id: string): void {
+        const file = this.files.find(f => f.id === id);
+        if (!file) return;
+        const action = actionForStatus(file.status);
+        if (action === 'pause')  this.pauseFile(id);
+        if (action === 'resume') this.resumeFile(id);
+        if (action === 'retry')  this.retryFile(id);
+    }
+
     private renderListItem(file: FileState): string {
         return `
-            <div class="dz__file-item dz__file-item--list" data-file-id="${file.id}">
+            <div class="dz__file-item dz__file-item--list" data-file-id="${file.id}" data-status="${file.status}">
                 <span class="dz__file-item__name">${escapeHtml(file.name)}</span>
+                ${this.renderRowActionButton(file, 'dz__file-item__action')}
+                <div class="dz__file-item__progress">
+                    <div class="dz__file-item__progress-bar">
+                        <div class="dz__file-item__progress-fill" style="width: ${file.progress}%"></div>
+                    </div>
+                    <span class="dz__file-item__progress-text">${file.progress.toFixed(1)}%</span>
+                </div>
+                <span class="dz__file-item__status dz__file-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
                 <button type="button" ${this.removeButtonAttrs(file, 'dz__file-item__remove')}></button>
             </div>
         `;
@@ -1574,7 +1777,7 @@ export class WebDropzone {
         const inner = this.renderPlaceholderInner(file, useThumbnail);
 
         return `
-            <div class="dz__file-item dz__file-item--detailed" data-file-id="${file.id}">
+            <div class="dz__file-item dz__file-item--detailed" data-file-id="${file.id}" data-status="${file.status}">
                 <div class="dz__file-item__icon dz__file-item__icon--${category}">${inner}</div>
                 <div class="dz__file-item__info">
                     <div class="dz__file-item__name">${escapeHtml(file.name)}</div>
@@ -1582,7 +1785,15 @@ export class WebDropzone {
                         <span class="dz__file-item__size">${formatFileSize(file.size)}</span>
                         <span class="dz__file-item__type">${escapeHtml(file.type || 'Unknown')}</span>
                     </div>
+                    <div class="dz__file-item__progress">
+                        <div class="dz__file-item__progress-bar">
+                            <div class="dz__file-item__progress-fill" style="width: ${file.progress}%"></div>
+                        </div>
+                        <span class="dz__file-item__progress-text">${file.progress.toFixed(1)}%</span>
+                    </div>
                 </div>
+                ${this.renderRowActionButton(file, 'dz__file-item__action')}
+                <span class="dz__file-item__status dz__file-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
                 <button type="button" ${this.removeButtonAttrs(file, 'dz__file-item__remove')}></button>
             </div>
         `;
@@ -1600,12 +1811,20 @@ export class WebDropzone {
             : `<div class="dz__preview-item__placeholder">${escapeHtml(getFileIcon(file.file))}</div>`;
 
         return `
-            <div class="dz__preview-item ${isImage ? 'dz__preview-item--image' : ''}" data-file-id="${file.id}">
+            <div class="dz__preview-item ${isImage ? 'dz__preview-item--image' : ''}" data-file-id="${file.id}" data-status="${file.status}">
                 ${inner}
+                <div class="dz__preview-item__scrim" aria-hidden="true"></div>
                 <div class="dz__preview-item__overlay">
                     <span class="dz__preview-item__name">${escapeHtml(file.name)}</span>
                 </div>
-                <button type="button" ${this.removeButtonAttrs(file, 'dz__preview-item__remove')}></button>
+                <span class="dz__preview-item__status dz__preview-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
+                <div class="dz__preview-item__progress-bar">
+                    <div class="dz__preview-item__progress-fill" style="width: ${file.progress}%"></div>
+                </div>
+                <div class="dz__preview-item__hover-actions">
+                    ${this.renderRowActionButton(file, 'dz__preview-item__action')}
+                    <button type="button" ${this.removeButtonAttrs(file, 'dz__preview-item__remove')}></button>
+                </div>
             </div>
         `;
     }
@@ -1629,7 +1848,6 @@ export class WebDropzone {
         const useThumbnail = this.shouldShowThumbnails('popover');
         const inner = this.renderPlaceholderInner(file, useThumbnail);
         const statusClass = `dz__popover__status--${file.status}`;
-        const statusText = file.status.charAt(0).toUpperCase() + file.status.slice(1);
         const isUploading = file.status === 'uploading';
 
         // X button is ALWAYS rendered — column width stays stable as files
@@ -1651,7 +1869,7 @@ export class WebDropzone {
                     <span class="dz__popover__progress-text">${file.progress.toFixed(1)}%</span>
                 </td>
                 <td class="dz__popover__cell dz__popover__cell--status">
-                    <span class="dz__popover__status ${statusClass}">${statusText}</span>
+                    <span class="dz__popover__status ${statusClass}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
                 </td>
                 <td class="dz__popover__cell dz__popover__cell--actions">
                     <button type="button" ${this.removeButtonAttrs(file, 'dz__popover__remove')}></button>
@@ -2341,8 +2559,9 @@ export class WebDropzone {
     }
 
     private handleClick(e: MouseEvent): void {
-        // Don't trigger if clicking on remove button
+        // Don't trigger if clicking on remove or row-action button
         if ((e.target as HTMLElement).closest('[data-action="remove"]')) return;
+        if ((e.target as HTMLElement).closest('[data-action="row-action"]')) return;
 
         // The hidden input sits inside the dropzone, so when we open the file
         // picker programmatically (popover's "Add more", the dropzone's own

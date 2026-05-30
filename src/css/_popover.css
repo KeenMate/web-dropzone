@@ -301,47 +301,32 @@
    STATUS COLUMN
    ========================================================================== */
 .dz__popover__cell--status {
-  width: calc(7 * var(--dz-rem));
+  width: calc(2.4 * var(--dz-rem));
   text-align: center;
 }
 
 .dz__popover__status {
-  display: inline-block;
-  padding: calc(0.2 * var(--dz-rem)) calc(0.6 * var(--dz-rem));
-  font-size: var(--dz-font-size-xs);
-  font-weight: 500;
-  border-radius: var(--dz-border-radius-sm);
-  text-transform: capitalize;
-}
-
-.dz__popover__status--pending {
-  background: color-mix(in srgb, var(--dz-text-color-3) 15%, transparent);
-  color: var(--dz-text-color-2);
-}
-
-.dz__popover__status--uploading {
-  background: color-mix(in srgb, var(--dz-accent-color) 15%, transparent);
-  color: var(--dz-accent-color);
-}
-
-.dz__popover__status--complete {
-  background: color-mix(in srgb, var(--dz-success-color) 15%, transparent);
-  color: var(--dz-success-color);
-}
-
-.dz__popover__status--error {
-  background: color-mix(in srgb, var(--dz-error-color) 15%, transparent);
-  color: var(--dz-error-color);
-}
-
-.dz__popover__status--paused {
-  background: color-mix(in srgb, var(--dz-warning-color) 15%, transparent);
-  color: var(--dz-warning-color);
-}
-
-.dz__popover__status--cancelled {
-  background: color-mix(in srgb, var(--dz-text-color-3) 15%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--dz-text-color-3);
+}
+
+.dz__popover__status > svg {
+  width: var(--dz-status-icon-size);
+  height: var(--dz-status-icon-size);
+  display: block;
+}
+
+.dz__popover__status--pending   { color: var(--dz-text-color-3); }
+.dz__popover__status--uploading { color: var(--dz-accent-color); }
+.dz__popover__status--complete  { color: var(--dz-success-color); }
+.dz__popover__status--error     { color: var(--dz-error-color); }
+.dz__popover__status--paused    { color: var(--dz-warning-color); }
+.dz__popover__status--cancelled { color: var(--dz-text-color-3); }
+
+.dz__popover__status--uploading > svg {
+  animation: dz-status-spin var(--dz-status-spin-duration) linear infinite;
 }
 
 /* Uploading row animation */

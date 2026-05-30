@@ -222,6 +222,14 @@
   --dz-item-meta-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
   --dz-item-meta-color: var(--dz-text-color-3);
 
+  /* File Item Progress + Status — reserved widths so layout stays stable
+     across status transitions on `list` / `detailed` modes. */
+  --dz-item-progress-width: calc(10 * var(--dz-rem));
+  --dz-item-progress-text-width: calc(3.6 * var(--dz-rem));
+  --dz-item-status-width: calc(2 * var(--dz-rem));
+  --dz-status-icon-size: calc(1.6 * var(--dz-rem));
+  --dz-status-spin-duration: 1s;
+
   /* File Item Remove Button — empty button with × glyph painted via CSS
      mask of --dz-icon-remove on the ::before (matches .dz__badge-remove
      and .ms__badge-remove). */
@@ -231,6 +239,17 @@
   --dz-item-remove-color: var(--dz-text-color-3);
   --dz-item-remove-color-hover: var(--dz-error-color);
   --dz-item-remove-icon-size: calc(1.2 * var(--dz-rem));
+
+  /* File Item Action Button (pause / resume / retry) — same footprint
+     as the remove button so list / detailed rows align cleanly. Color
+     idles neutral and goes accent on hover; the status-icon column
+     carries the state colour, the action button is just a control. */
+  --dz-item-action-size: calc(2.4 * var(--dz-rem));
+  --dz-item-action-bg: transparent;
+  --dz-item-action-bg-hover: color-mix(in srgb, var(--dz-accent-color) 10%, transparent);
+  --dz-item-action-color: var(--dz-text-color-3);
+  --dz-item-action-color-hover: var(--dz-accent-color);
+  --dz-item-action-icon-size: calc(1.4 * var(--dz-rem));
 
   /* ==========================================================================
      PREVIEW (Grid Mode)
@@ -255,6 +274,23 @@
   --dz-preview-remove-color: #ffffff;
   --dz-preview-remove-icon-size: calc(1 * var(--dz-rem));
   --dz-preview-remove-offset: calc(0.6 * var(--dz-rem));
+
+  /* Grid-tile hover scrim — dark full-cover overlay that fades in over
+     the thumbnail so the action / remove buttons read cleanly without
+     each one needing its own pill backdrop. */
+  --dz-preview-scrim-bg: rgba(0, 0, 0, 0.72);
+
+  /* Grid-tile hover action buttons — big, centered controls that live
+     inside the hover scrim. Much bigger than the corner remove glyph
+     (which previously had to fit in the top-right corner without
+     covering the thumbnail). Border-radius matches the grid cell so
+     the controls read as part of the same geometry; override to 50%
+     for a circular look. */
+  --dz-preview-action-button-size: calc(4.4 * var(--dz-rem));
+  --dz-preview-action-icon-size: calc(2.2 * var(--dz-rem));
+  --dz-preview-action-gap: calc(1.2 * var(--dz-rem));
+  --dz-preview-action-bg-hover: rgba(255, 255, 255, 0.15);
+  --dz-preview-action-button-border-radius: var(--dz-preview-item-border-radius);
 
   /* ==========================================================================
      COMPACT MODE SUMMARY

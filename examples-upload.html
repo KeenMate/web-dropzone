@@ -134,6 +134,7 @@
         }
         .resume-log__tag--start  { color: #60a5fa; }
         .resume-log__tag--resume { color: #fbbf24; }
+        .resume-log__tag--retry  { color: #c084fc; }
         .resume-log__tag--done   { color: #4ade80; }
         .resume-log__tag--fail   { color: #f87171; }
         .resume-log__file {
@@ -174,15 +175,44 @@ dropzone.autoUpload   = true    // start uploads on add (default)</code></pre>
 
         <!-- PLAYGROUND -->
         <div class="card">
-            <h2>0 · Playground</h2>
-            <p>Tweak the controls, drop a few files, watch the worker pool behave. Manual mode lets you stage files and click <strong>Start uploads</strong> when ready — useful for "stage everything, submit on form submit" patterns.</p>
+            <h2>Playground</h2>
+            <p>One dropzone, all the knobs — selector + list appearance, success rate, concurrency, per-file duration, auto vs. manual upload. Every control persists to <code>localStorage</code> under the <code>dz-upload-</code> prefix so your last setup survives a reload. Manual mode lets you stage files and click <strong>Start uploads</strong> when ready — useful for "stage everything, submit on form submit" patterns.</p>
+            <p>The handler is <strong>resume-aware</strong> — it honors <code>context.startBytes</code> and stashes an attempt counter in <code>file.metadata</code> via <code>context.setMetadata</code>. Pause + Resume continues from where the bar stopped; per-row Retry (or "Retry all") restarts a failed upload from <code>0</code>. The log panel below distinguishes <strong>fresh starts</strong>, <strong>resumes</strong> (mid-stream after pause), and <strong>retries</strong> (fresh start after a failure) so you can verify the metadata flows correctly across each transition. Drop the success rate to ~30% and you'll see the failure → retry loop in action.</p>
 
             <div class="playground-controls">
+                <div class="control">
+                    <label for="playground-selector">Selector appearance</label>
+                    <select id="playground-selector">
+                        <option value="card">card — drop zone</option>
+                        <option value="button">button — accent CTA</option>
+                        <option value="minimal">minimal — icon trigger</option>
+                    </select>
+                </div>
+
+                <div class="control">
+                    <label for="playground-list">List appearance</label>
+                    <select id="playground-list">
+                        <option value="list">list — plain rows</option>
+                        <option value="detailed">detailed — icon + meta</option>
+                        <option value="grid">grid — thumbnails</option>
+                        <option value="badges">badges — pill row</option>
+                        <option value="popover">popover — table in panel</option>
+                    </select>
+                </div>
+
                 <div class="control">
                     <label>Upload mode</label>
                     <div class="playground-radio-row">
                         <label><input type="radio" name="playground-mode" value="auto" checked> Auto (on add)</label>
                         <label><input type="radio" name="playground-mode" value="manual"> Manual (Start button)</label>
+                    </div>
+                </div>
+
+                <div class="control">
+                    <label>Resume support</label>
+                    <div class="playground-radio-row">
+                        <label><input type="radio" name="playground-resume" value="on" checked> On (honor startBytes)</label>
+                        <label><input type="radio" name="playground-resume" value="off"> Off (restart from 0)</label>
                     </div>
                 </div>
 
@@ -194,9 +224,9 @@ dropzone.autoUpload   = true    // start uploads on add (default)</code></pre>
                 <div class="control">
                     <label for="playground-concurrency">Concurrency</label>
                     <select id="playground-concurrency">
-                        <option value="1" selected>1 (sequential)</option>
+                        <option value="1">1 (sequential)</option>
                         <option value="2">2 in parallel</option>
-                        <option value="3">3 in parallel</option>
+                        <option value="3" selected>3 in parallel</option>
                         <option value="5">5 in parallel</option>
                     </select>
                 </div>
@@ -215,137 +245,14 @@ dropzone.autoUpload   = true    // start uploads on add (default)</code></pre>
             <web-dropzone id="upload-playground"
                 list-appearance="popover"
                 accept="*/*"
-                max-file-count="20">
+                max-file-count="20"
+                icon="📎">
             </web-dropzone>
 
             <div class="playground-actions">
                 <button type="button" class="playground-go" id="playground-go" hidden>Start uploads</button>
                 <span class="playground-pending" id="playground-pending"></span>
             </div>
-        </div>
-
-        <!-- RANDOM -->
-        <div class="card">
-            <h2>1 · Random success / failure (~70% success)</h2>
-            <p>Like FluentUI's reference demo. Each file uploads at a steady tick and flips to <code>complete</code> or <code>error</code> based on a coin flip.</p>
-
-            <div class="scenario-row">
-                <div class="form-group">
-                    <label>Popover view (see the bar + status column)</label>
-                    <web-dropzone id="upload-random-popover"
-                        list-appearance="popover"
-                        accept="*/*"
-                        max-file-count="10"
-                        select-files-text="Pick files">
-                    </web-dropzone>
-                    <small class="form-text">Click the summary to open the popover and watch the progress bars + status badges update in real time.</small>
-                </div>
-
-                <div class="form-group">
-                    <label>Card + badges (status border colour)</label>
-                    <web-dropzone id="upload-random-badges"
-                        list-appearance="badges"
-                        accept="*/*"
-                        max-file-count="10">
-                    </web-dropzone>
-                    <small class="form-text">Badge text-half border colour reflects status — accent (uploading), success (complete), error (failed).</small>
-                </div>
-            </div>
-        </div>
-
-        <!-- HAPPY PATH -->
-        <div class="card">
-            <h2>2 · Always succeed</h2>
-            <p>Happy path — every upload finishes at 100% and lands on <code>complete</code>.</p>
-
-            <div class="form-group">
-                <label>Popover view</label>
-                <web-dropzone id="upload-success"
-                    list-appearance="popover"
-                    accept="*/*"
-                    max-file-count="10">
-                </web-dropzone>
-                <small class="form-text">Notice the <em>Pending → Uploading → Complete</em> status transition.</small>
-            </div>
-        </div>
-
-        <!-- ALWAYS FAIL -->
-        <div class="card">
-            <h2>3 · Always fail (server returns 500)</h2>
-            <p>Every upload runs to 100% then flips to <code>error</code> with a fake server message. Useful for verifying your error-toast / retry UI.</p>
-
-            <div class="form-group">
-                <label>Popover view</label>
-                <web-dropzone id="upload-error"
-                    list-appearance="popover"
-                    accept="*/*"
-                    max-file-count="10">
-                </web-dropzone>
-                <small class="form-text">Toast also fires on every failure (see the bottom-right corner).</small>
-            </div>
-        </div>
-
-        <!-- SLOW -->
-        <div class="card">
-            <h2>4 · Slow uploads (10s per file, 2 in parallel)</h2>
-            <p>Same code path, just slower — enough time to watch the progress bars fill smoothly. <code>concurrency = 2</code> so two files upload at once; drop 5+ files to see the queue drain in pairs. Try the <strong>Pause all</strong> / <strong>Resume all</strong> buttons in the overall progress strip mid-upload.</p>
-
-            <div class="form-group">
-                <label>Popover view</label>
-                <web-dropzone id="upload-slow"
-                    list-appearance="popover"
-                    accept="*/*"
-                    max-file-count="10">
-                </web-dropzone>
-                <small class="form-text">Each file takes ~10s. Drop several to see them progress in parallel.</small>
-            </div>
-        </div>
-
-        <!-- BYTES-PER-SECOND -->
-        <div class="card">
-            <h2>5 · Bytes-per-second simulation (3 in parallel)</h2>
-            <p>Realistic-ish speed: each file uploads at a fixed rate so a 5 MB file takes 5× longer than a 1 MB file. <code>concurrency = 3</code> so three files upload in parallel; mix file sizes to see differential completion.</p>
-
-            <div class="form-group">
-                <label>Popover view (rate: ~500 kB/s)</label>
-                <web-dropzone id="upload-bytes"
-                    list-appearance="popover"
-                    accept="*/*"
-                    max-file-count="10">
-                </web-dropzone>
-                <small class="form-text">Small files finish quickly, large files trail behind.</small>
-            </div>
-        </div>
-
-        <!-- TOOLBAR + POPOVER -->
-        <div class="card">
-            <h2>6 · Toolbar icon — minimal + popover with uploads in-flight</h2>
-            <p>The compact attachment pattern from <a href="examples-classic.html">Classic</a> — now with live uploads.</p>
-
-            <div class="form-group">
-                <label>Click the icon to pick · click again to inspect the popover</label>
-                <web-dropzone id="upload-toolbar"
-                    selector-appearance="minimal"
-                    list-appearance="popover"
-                    accept="*/*"
-                    max-file-count="10"
-                    icon="📎">
-                </web-dropzone>
-                <small class="form-text">Count badge on the icon tracks the live selection. Open the popover to see per-file progress.</small>
-            </div>
-        </div>
-
-        <!-- RESUME -->
-        <div class="card">
-            <h2>7 · Resume after pause (mid-stream)</h2>
-            <p>Slow (15s) uploads with a resume-aware handler that honors <code>context.startBytes</code>. <strong>Try it:</strong> drop a file, let the bar climb partway, hit <strong>Pause all</strong>, wait, then hit <strong>Resume all</strong>. The bar continues from where it stopped instead of restarting at 0%.</p>
-            <p>Each handler invocation logs to the panel below — fresh starts vs. resumes are clearly distinguished, and the attempt counter is stashed in <code>file.metadata</code> via <code>context.setMetadata</code> so it survives across the pause. Open the popover (click the summary) to also see per-file progress bars.</p>
-
-            <web-dropzone id="upload-resume"
-                list-appearance="popover"
-                accept="*/*"
-                max-file-count="5">
-            </web-dropzone>
 
             <div class="resume-log" id="resume-log">
                 <div class="resume-log__empty">Handler invocations will appear here…</div>
@@ -430,86 +337,6 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
 
     <script src="examples-shared-toast.js"></script>
     <script type="module">
-        /**
-         * makeFakeUploadHandler — returns a FileUploadHandler the component
-         * can drive directly. Mirrors FluentUI's `simulateUpload` shape:
-         * resolves on success, rejects on failure, ticks progress via
-         * `onProgress(percent)`, and bails out on `signal.aborted`.
-         *
-         * The component's worker pool awaits this Promise per file, so
-         * uploads sequence naturally (or run N-at-a-time with `concurrency`)
-         * instead of clustering at the same setInterval boundary.
-         *
-         * @param opts.ms      — total upload duration in ms (default 2000)
-         * @param opts.successRate — 0..1 probability of success (default 1)
-         * @param opts.ticks   — number of progress steps (default 20)
-         * @param opts.bytesPerSecond — alternative to opts.ms; computes
-         *                       duration from the file's size
-         * @param opts.errorMessage — used when a run rolls a failure
-         */
-        function makeFakeUploadHandler(opts = {}) {
-            return (file, onProgress, signal, context) => new Promise((resolve, reject) => {
-                const ticks = opts.ticks ?? 20
-                let duration = opts.ms ?? 2000
-                if (opts.bytesPerSecond) {
-                    duration = Math.max(400, (file.size / opts.bytesPerSecond) * 1000)
-                }
-                const tickMs = duration / ticks
-                const successRate = opts.successRate ?? 1
-                const errorMessage = opts.errorMessage ?? 'Upload failed (HTTP 500)'
-
-                // Honor the context's startPercent so resume picks up where
-                // the previous pause stopped. A real handler would do
-                // `file.slice(context.startBytes)` and post with a
-                // Content-Range header (or hit a tus.io PATCH endpoint with
-                // the offset from context.metadata.uploadUrl).
-                let percent = context?.startPercent ?? 0
-                // First tick on resume — report the resume point so the bar
-                // doesn't briefly snap back to 0 before climbing.
-                if (percent > 0) onProgress(percent)
-
-                // Stash a fake "session URL" the first time we see this file
-                // so a real tus.io handler could find it via context.metadata
-                // on resume. Only set it once.
-                if (!context?.metadata?.uploadUrl) {
-                    const uploadUrl = `/api/tus/${Math.random().toString(36).slice(2, 10)}`
-                    context?.setMetadata?.({ uploadUrl })
-                }
-
-                const interval = setInterval(() => {
-                    if (signal.aborted) {
-                        clearInterval(interval)
-                        reject(new DOMException('Aborted', 'AbortError'))
-                        return
-                    }
-                    percent += 100 / ticks
-                    if (percent < 100) {
-                        onProgress(percent)
-                        return
-                    }
-                    clearInterval(interval)
-                    if (Math.random() < successRate) {
-                        onProgress(100)
-                        // Return a fake server payload so apps can see
-                        // metadata + downloadUrl flow through to the
-                        // file-deleted event when the user removes the file.
-                        const serverGuid = `srv-${Math.random().toString(36).slice(2, 10)}`
-                        resolve({
-                            metadata: { serverGuid, uploadedAt: new Date().toISOString() },
-                            downloadUrl: `/api/files/${serverGuid}`
-                        })
-                    } else {
-                        reject(new Error(errorMessage))
-                    }
-                }, tickMs)
-
-                signal.addEventListener('abort', () => {
-                    clearInterval(interval)
-                    reject(new DOMException('Aborted', 'AbortError'))
-                })
-            })
-        }
-
         // Surface rejection events (from validation, dedupe, etc.) as toasts.
         const REJECTION_LABEL = {
             count:     'Too many files',
@@ -535,155 +362,59 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
             })
         }
 
-        function wireUpload(id, opts, { concurrency = 1 } = {}) {
-            const dz = document.getElementById(id)
-            if (!dz) return
-            wireRejections(dz)
-            // Component drives the worker pool — handler is called per file
-            // with progress + abort wiring.
-            dz.uploadFileCallback = makeFakeUploadHandler(opts)
-            dz.concurrency = concurrency
-            // Surface successes / failures as toasts. file-uploaded fires
-            // once the Promise resolves; file-rejected won't reach here, but
-            // setFileStatus('error') (the failure path) doesn't fire its own
-            // event yet — listen for the resulting status flip via 'change'
-            // instead, or hook into the error toast at the handler level.
-            dz.addEventListener('file-uploaded', (e) => {
-                toast.success(e.detail.file.name, { title: 'Upload complete' })
-            })
-            // file-deleted fires whenever the user removes an already-completed
-            // file (or "Clear all" sweeps one). file.metadata carries whatever
-            // the upload handler returned — apps wire this to their server
-            // DELETE endpoint.
-            dz.addEventListener('file-deleted', (e) => {
-                const guid = e.detail.file.metadata?.serverGuid ?? '(no guid)'
-                toast.info(`${e.detail.file.name} · ${guid}`, { title: 'Would DELETE on server' })
-            })
-            // Listen for status flips so the error toast fires once per failed file.
-            const erroredIds = new Set()
-            dz.addEventListener('change', (e) => {
-                for (const f of e.detail.files) {
-                    if (f.status === 'error' && !erroredIds.has(f.id)) {
-                        erroredIds.add(f.id)
-                        toast.error(`${f.name} — ${f.error}`, { title: 'Upload failed' })
-                    } else if (f.status !== 'error' && erroredIds.has(f.id)) {
-                        // Retry / removal clears the error — let it toast again
-                        // if it fails next time.
-                        erroredIds.delete(f.id)
-                    }
-                }
-            })
+        /**
+         * Playground demo — every control reactively reconfigures the
+         * dropzone (selector / list appearance, mode, success rate,
+         * concurrency, duration) and persists to localStorage under the
+         * `dz-upload-` prefix so the user's last setup survives a reload.
+         * The handler closure reads the latest control values at the moment
+         * each upload starts, so live edits land on the next file rather
+         * than a stale closure.
+         */
+        const PLAYGROUND_STORAGE_PREFIX = 'dz-upload-'
+        const loadPref = (key, fallback) => {
+            const v = localStorage.getItem(PLAYGROUND_STORAGE_PREFIX + key)
+            return v !== null ? v : fallback
+        }
+        const savePref = (key, value) => {
+            localStorage.setItem(PLAYGROUND_STORAGE_PREFIX + key, String(value))
         }
 
-        /**
-         * Playground demo — the control panel above the dropzone reactively
-         * reconfigures the pipeline (mode / success rate / concurrency /
-         * duration). The handler closure reads the latest control values at
-         * the moment each upload starts, so changing a control mid-batch
-         * affects the next file to enter the worker pool.
-         */
         function wirePlayground() {
             const dz = document.getElementById('upload-playground')
             if (!dz) return
             wireRejections(dz)
 
-            const modeRadios = document.querySelectorAll('input[name="playground-mode"]')
-            const rateInput  = document.getElementById('playground-rate')
-            const rateLabel  = document.getElementById('playground-rate-label')
-            const concSelect = document.getElementById('playground-concurrency')
-            const durSelect  = document.getElementById('playground-duration')
-            const goBtn      = document.getElementById('playground-go')
-            const pendingEl  = document.getElementById('playground-pending')
+            const selectorSelect = document.getElementById('playground-selector')
+            const listSelect     = document.getElementById('playground-list')
+            const modeRadios     = document.querySelectorAll('input[name="playground-mode"]')
+            const resumeRadios   = document.querySelectorAll('input[name="playground-resume"]')
+            const rateInput      = document.getElementById('playground-rate')
+            const rateLabel      = document.getElementById('playground-rate-label')
+            const concSelect     = document.getElementById('playground-concurrency')
+            const durSelect      = document.getElementById('playground-duration')
+            const goBtn          = document.getElementById('playground-go')
+            const pendingEl      = document.getElementById('playground-pending')
+            const logEl          = document.getElementById('resume-log')
 
-            // Build a handler that reads control values at call time. Each
-            // pool iteration calls the handler afresh, so live edits land on
-            // the next file rather than a stale closure.
-            dz.uploadFileCallback = (file, onProgress, signal) => {
-                const opts = {
-                    successRate: parseInt(rateInput.value, 10) / 100,
-                    ms: parseInt(durSelect.value, 10)
-                }
-                return makeFakeUploadHandler(opts)(file, onProgress, signal)
-            }
+            // Hydrate controls from localStorage (or fall back to the HTML
+            // defaults). Done BEFORE applying to the dropzone so the first
+            // sync uses the persisted values.
+            selectorSelect.value = loadPref('selector', selectorSelect.value)
+            listSelect.value     = loadPref('list',     'popover')
+            rateInput.value      = loadPref('rate',     rateInput.value)
+            rateLabel.textContent = `${rateInput.value}%`
+            concSelect.value     = loadPref('concurrency', concSelect.value)
+            durSelect.value      = loadPref('duration',    durSelect.value)
+            const savedMode = loadPref('mode', 'auto')
+            const modeRadio = document.querySelector(`input[name="playground-mode"][value="${savedMode}"]`)
+            if (modeRadio) modeRadio.checked = true
+            const savedResume = loadPref('resume', 'on')
+            const resumeRadio = document.querySelector(`input[name="playground-resume"][value="${savedResume}"]`)
+            if (resumeRadio) resumeRadio.checked = true
 
-            // Toast outcomes (same pattern as wireUpload).
-            dz.addEventListener('file-uploaded', (e) => {
-                toast.success(e.detail.file.name, { title: 'Upload complete' })
-            })
-            dz.addEventListener('file-deleted', (e) => {
-                const guid = e.detail.file.metadata?.serverGuid ?? '(no guid)'
-                toast.info(`${e.detail.file.name} · ${guid}`, { title: 'Would DELETE on server' })
-            })
-            const erroredIds = new Set()
-            dz.addEventListener('change', (e) => {
-                for (const f of e.detail.files) {
-                    if (f.status === 'error' && !erroredIds.has(f.id)) {
-                        erroredIds.add(f.id)
-                        toast.error(`${f.name} — ${f.error}`, { title: 'Upload failed' })
-                    } else if (f.status !== 'error' && erroredIds.has(f.id)) {
-                        erroredIds.delete(f.id)
-                    }
-                }
-                refreshActions()
-            })
-
-            // Auto vs. manual mode toggle. Manual mode reveals the Start
-            // button and the pending count.
-            const applyMode = () => {
-                const mode = document.querySelector('input[name="playground-mode"]:checked').value
-                const isManual = mode === 'manual'
-                dz.autoUpload = !isManual
-                goBtn.hidden = !isManual
-                refreshActions()
-            }
-
-            // Pending count + Start-button enabled state.
-            const refreshActions = () => {
-                const mode = document.querySelector('input[name="playground-mode"]:checked').value
-                const isManual = mode === 'manual'
-                const pendingCount = dz.files.filter(f => f.status === 'pending').length
-                if (isManual && pendingCount > 0) {
-                    pendingEl.textContent = `${pendingCount} file${pendingCount === 1 ? '' : 's'} waiting to upload`
-                } else {
-                    pendingEl.textContent = ''
-                }
-                goBtn.disabled = pendingCount === 0
-            }
-
-            // Listeners
-            modeRadios.forEach(r => r.addEventListener('change', applyMode))
-            rateInput.addEventListener('input', () => {
-                rateLabel.textContent = `${rateInput.value}%`
-            })
-            concSelect.addEventListener('change', () => {
-                dz.concurrency = parseInt(concSelect.value, 10)
-            })
-            goBtn.addEventListener('click', () => {
-                dz.uploadAll()
-                refreshActions()
-            })
-
-            // Initial sync
-            dz.concurrency = parseInt(concSelect.value, 10)
-            applyMode()
-        }
-        /**
-         * Resume demo — uses a logging handler that records every invocation
-         * to a panel under the dropzone. Mirrors the fake-upload pipeline but
-         * with extra visibility:
-         *   - `[Start]`  — fresh upload (startBytes = 0)
-         *   - `[Resume]` — resume after pause (startBytes > 0). Logs the
-         *                  byte offset and attempt count so you can see the
-         *                  metadata flowing through.
-         *   - `[Done]`   — handler resolved, final attempt count in metadata
-         *   - `[Fail]`   — handler rejected
-         */
-        function wireResumeDemo() {
-            const dz = document.getElementById('upload-resume')
-            const logEl = document.getElementById('resume-log')
-            if (!dz || !logEl) return
-            wireRejections(dz)
-
+            // Append a row to the handler-invocation log. Tag drives the
+            // color class (start/resume/retry/done/fail).
             const appendLog = (tag, file, detail) => {
                 const empty = logEl.querySelector('.resume-log__empty')
                 if (empty) empty.remove()
@@ -700,23 +431,66 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
                 logEl.scrollTop = logEl.scrollHeight
             }
 
+            // Resume-aware handler that ALSO rolls failures based on the
+            // success-rate slider, so the same demo covers both flows:
+            //   - Pause/Resume → `[Resume]` with startBytes > 0 (mid-stream)
+            //   - Retry        → `[Retry]`  with startBytes = 0, attempts > 1
+            //   - First start  → `[Start]`  with startBytes = 0, attempts = 1
+            // The attempt counter is persisted via context.setMetadata so it
+            // survives across pause AND across the cancellation that a retry
+            // wraps. Reads the success-rate / duration / resume controls at
+            // call time so live edits land on the next file the worker pool
+            // picks up.
+            //
+            // When "Resume support" is OFF the handler ignores context.startBytes
+            // and starts from 0 — simulating a single-shot endpoint without
+            // Content-Range / tus.io support. The bar visibly snaps back to 0
+            // on resume, which is the point of the demo.
             dz.uploadFileCallback = (file, onProgress, signal, context) => new Promise((resolve, reject) => {
+                const successRate = parseInt(rateInput.value, 10) / 100
+                const duration    = parseInt(durSelect.value,  10)
+                const resumeOn    = document.querySelector('input[name="playground-resume"]:checked').value === 'on'
+                const ticks       = 20
+                const tickMs      = duration / ticks
+
                 const attempts = (context.metadata?.attempts ?? 0) + 1
                 context.setMetadata({ attempts })
 
-                if (context.startBytes > 0) {
+                const isResume = resumeOn && context.startBytes > 0
+                const handlerStartPercent = isResume ? (context.startPercent ?? 0) : 0
+
+                if (isResume) {
                     appendLog('Resume', file,
                         `attempt #${attempts} · startBytes=${context.startBytes.toLocaleString()} (${Math.round(context.startPercent)}%) · metadata.attempts=${attempts}`)
+                } else if (context.startBytes > 0) {
+                    // Resume disabled but the component preserved the offset
+                    // — handler is explicitly discarding it. Surface that so
+                    // the log makes the cause of the snap-back obvious.
+                    appendLog('Retry', file,
+                        `attempt #${attempts} · resume disabled · ignoring startBytes=${context.startBytes.toLocaleString()} · metadata.attempts=${attempts}`)
+                } else if (attempts > 1) {
+                    appendLog('Retry', file,
+                        `attempt #${attempts} · fresh start after failure · metadata.attempts=${attempts}`)
                 } else {
                     appendLog('Start', file,
                         `attempt #${attempts} · fresh upload`)
                 }
 
-                // 15-second total upload — long enough that pause/resume is
-                // easy to time without rushing.
-                const ticks = 30
-                const tickMs = 15000 / ticks
-                let percent = context.startPercent
+                let percent = handlerStartPercent
+                // First tick on resume — report the resume point so the bar
+                // doesn't briefly snap back to 0 before climbing.
+                if (percent > 0) onProgress(percent)
+
+                // Decide the OUTCOME for this attempt up front, and if
+                // failing, pick a random failure point so failures land
+                // mid-stream instead of always at 100%. failAt is guaranteed
+                // to be AHEAD of the current percent (with ~10% headroom)
+                // so a retry can't instantly fail again at the same point.
+                const willSucceed = Math.random() < successRate
+                const minFail = Math.min(percent + 10, 90)
+                const failAt = willSucceed
+                    ? Infinity
+                    : minFail + Math.random() * (95 - minFail)
 
                 const interval = setInterval(() => {
                     if (signal.aborted) {
@@ -725,6 +499,14 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
                         return
                     }
                     percent += 100 / ticks
+                    if (percent >= failAt) {
+                        clearInterval(interval)
+                        // Report the failure point so the bar doesn't overshoot
+                        // the visible offset before the rejection lands.
+                        onProgress(failAt)
+                        reject(new Error(`Upload failed (HTTP 500) at ${Math.round(failAt)}%`))
+                        return
+                    }
                     if (percent < 100) {
                         onProgress(percent)
                         return
@@ -743,24 +525,90 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
                     reject(new DOMException('Aborted', 'AbortError'))
                 })
             })
-            dz.concurrency = 2
 
+            // Toast outcomes + log success / failure.
             dz.addEventListener('file-uploaded', (e) => {
                 const attempts = e.detail.file.metadata?.attempts ?? '?'
                 appendLog('Done', e.detail.file,
                     `total attempts=${attempts} · serverGuid=${e.detail.file.metadata?.serverGuid ?? '?'}`)
+                toast.success(e.detail.file.name, { title: 'Upload complete' })
             })
+            dz.addEventListener('file-deleted', (e) => {
+                const guid = e.detail.file.metadata?.serverGuid ?? '(no guid)'
+                toast.info(`${e.detail.file.name} · ${guid}`, { title: 'Would DELETE on server' })
+            })
+            const erroredIds = new Set()
             dz.addEventListener('change', (e) => {
-                // Use change to catch error transitions (same pattern as
-                // wireUpload — the pipeline doesn't fire a dedicated error
-                // event today).
                 for (const f of e.detail.files) {
-                    if (f.status === 'error' && !f._loggedError) {
-                        f._loggedError = true
+                    if (f.status === 'error' && !erroredIds.has(f.id)) {
+                        erroredIds.add(f.id)
                         appendLog('Fail', f, f.error ?? 'unknown error')
+                        toast.error(`${f.name} — ${f.error}`, { title: 'Upload failed' })
+                    } else if (f.status !== 'error' && erroredIds.has(f.id)) {
+                        // File left the error state (retry / remove) — clear
+                        // the dedupe guard so the next failure logs again.
+                        erroredIds.delete(f.id)
                     }
                 }
+                refreshActions()
             })
+
+            // Auto vs. manual mode toggle. Manual reveals the Start button.
+            const applyMode = () => {
+                const mode = document.querySelector('input[name="playground-mode"]:checked').value
+                const isManual = mode === 'manual'
+                dz.autoUpload = !isManual
+                goBtn.hidden = !isManual
+                refreshActions()
+            }
+
+            const refreshActions = () => {
+                const mode = document.querySelector('input[name="playground-mode"]:checked').value
+                const isManual = mode === 'manual'
+                const pendingCount = dz.files.filter(f => f.status === 'pending').length
+                pendingEl.textContent = (isManual && pendingCount > 0)
+                    ? `${pendingCount} file${pendingCount === 1 ? '' : 's'} waiting to upload`
+                    : ''
+                goBtn.disabled = pendingCount === 0
+            }
+
+            // Listeners — every change persists to localStorage.
+            selectorSelect.addEventListener('change', () => {
+                dz.setAttribute('selector-appearance', selectorSelect.value)
+                savePref('selector', selectorSelect.value)
+            })
+            listSelect.addEventListener('change', () => {
+                dz.setAttribute('list-appearance', listSelect.value)
+                savePref('list', listSelect.value)
+            })
+            modeRadios.forEach(r => r.addEventListener('change', () => {
+                applyMode()
+                savePref('mode', document.querySelector('input[name="playground-mode"]:checked').value)
+            }))
+            resumeRadios.forEach(r => r.addEventListener('change', () => {
+                savePref('resume', document.querySelector('input[name="playground-resume"]:checked').value)
+            }))
+            rateInput.addEventListener('input', () => {
+                rateLabel.textContent = `${rateInput.value}%`
+                savePref('rate', rateInput.value)
+            })
+            concSelect.addEventListener('change', () => {
+                dz.concurrency = parseInt(concSelect.value, 10)
+                savePref('concurrency', concSelect.value)
+            })
+            durSelect.addEventListener('change', () => {
+                savePref('duration', durSelect.value)
+            })
+            goBtn.addEventListener('click', () => {
+                dz.uploadAll()
+                refreshActions()
+            })
+
+            // Initial sync — push hydrated values into the dropzone.
+            dz.setAttribute('selector-appearance', selectorSelect.value)
+            dz.setAttribute('list-appearance', listSelect.value)
+            dz.concurrency = parseInt(concSelect.value, 10)
+            applyMode()
         }
 
         // Wait for the custom element to be defined before wiring. The
@@ -772,19 +620,6 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
         // the handler.
         customElements.whenDefined('web-dropzone').then(() => {
             wirePlayground()
-
-            // Wire each demo with its own profile. concurrency=1 (default)
-            // means uploads run one at a time — toasts arrive paced rather
-            // than all at once. Bump it (e.g. concurrency: 3) to run N in
-            // parallel.
-            wireUpload('upload-random-popover', { successRate: 0.7, ms: 2200 })
-            wireUpload('upload-random-badges',  { successRate: 0.7, ms: 2200 })
-            wireUpload('upload-success',        { successRate: 1.0, ms: 1800 })
-            wireUpload('upload-error',          { successRate: 0.0, ms: 1500 })
-            wireUpload('upload-slow',           { successRate: 0.8, ms: 10000 }, { concurrency: 2 })
-            wireUpload('upload-bytes',          { successRate: 0.85, bytesPerSecond: 500 * 1024 }, { concurrency: 3 })
-            wireUpload('upload-toolbar',        { successRate: 0.8, ms: 2500 })
-            wireResumeDemo()
         })
     </script>
 
