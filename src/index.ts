@@ -3,9 +3,27 @@ import './css/main.css';
 
 // Import for export and global API
 import { getAllInstances, DropzoneElement } from './web-component';
+import { DropzonePickerElement } from './web-component-picker';
+import { DropzoneListElement } from './web-component-list';
+import { DropzoneIndicatorElement } from './web-component-indicator';
 
-// Export the web component
-export { DropzoneElement };
+// Export the web component + satellite renderers (see ARCHITECTURE.md)
+export {
+    DropzoneElement,
+    DropzonePickerElement,
+    DropzoneListElement,
+    DropzoneIndicatorElement
+};
+
+// Public surface for users writing custom status-surface templates
+// (indicator + rolling block share this contract). See ARCHITECTURE.md.
+export type {
+    StatusSurfaceArgs,
+    StatusSurfaceCallback,
+    StatusSurfaceResult,
+    StatusAggregate
+} from './status-surface';
+export { createDropzoneSpinner, STATUS_ICONS, STATUS_LABELS } from './icons';
 
 // Export the base class if users want direct access
 export { WebDropzone, formatFileSize, getFileTypeCategory, getFileIcon, isImageFile, createImagePreview } from './dropzone';
@@ -25,7 +43,10 @@ export type {
     FilesRejectedEventDetail,
     ChangeEventDetail,
     DropzoneEventDetail,
-    FileTypeCategory
+    FileTypeCategory,
+    AddFilesOptions,
+    FileProgressEventDetail,
+    FileStatusChangedEventDetail
 } from './types';
 
 export { FILE_TYPE_ICONS } from './types';
@@ -43,8 +64,13 @@ export {
     interactionLogger
 } from './logger';
 
-// Auto-register the custom element
+// Auto-register the custom elements (store + satellite renderers).
+// Each module self-registers via customElements.define inside its file —
+// importing here is what triggers that side effect.
 import './web-component';
+import './web-component-picker';
+import './web-component-list';
+import './web-component-indicator';
 
 // Type declarations for build-time constants
 declare const __VERSION__: string;

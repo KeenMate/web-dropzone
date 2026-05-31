@@ -191,9 +191,13 @@
   opacity: var(--dz-disabled-opacity);
   cursor: not-allowed;
 }
-/* Count badge on the button selector — same top-right placement as the
-   minimal selector's badge, but a darker accent fill so it stands out from
-   the button's own accent background. */
+/* Count badge on the button selector. Rectangular by default (matches
+   the parent button's corner) — override --dz-button-badge-border-radius
+   to 999px for the classic pill shape. Background is driven by
+   data-status (uploading / paused / error / complete) so the badge
+   echoes the overall-progress bar's state palette — that way a hidden
+   errored file still surfaces as a red badge on the closed button.
+   Falls back to the darker accent when no upload activity has started. */
 .dz__button__badge {
   position: absolute;
   top: calc(-0.4 * var(--dz-rem));
@@ -204,14 +208,21 @@
   background: var(--dz-accent-color-active);
   color: var(--dz-text-on-accent);
   border: 2px solid var(--dz-background);
-  border-radius: 999px;
+  border-radius: var(--dz-button-badge-border-radius);
   font-size: calc(1.1 * var(--dz-rem));
   font-weight: var(--dz-font-weight-semibold);
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy);
 }
+
+.dz__button__badge[data-status="uploading"] { background: var(--dz-accent-color); }
+.dz__button__badge[data-status="paused"]    { background: var(--dz-warning-color); }
+.dz__button__badge[data-status="error"]     { background: var(--dz-error-color); }
+.dz__button__badge[data-status="complete"]  { background: var(--dz-success-color); }
 
 /* ==========================================================================
    MINIMAL SELECTOR (selectorAppearance='minimal')

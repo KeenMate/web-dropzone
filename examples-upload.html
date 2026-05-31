@@ -196,7 +196,17 @@ dropzone.autoUpload   = true    // start uploads on add (default)</code></pre>
                         <option value="detailed">detailed — icon + meta</option>
                         <option value="grid">grid — thumbnails</option>
                         <option value="badges">badges — pill row</option>
+                        <option value="rolling">rolling — front file + queue button</option>
                         <option value="popover">popover — table in panel</option>
+                    </select>
+                </div>
+
+                <div class="control">
+                    <label for="playground-rolling-rotation">Rolling rotation</label>
+                    <select id="playground-rolling-rotation">
+                        <option value="slide-in" selected>slide-in — snap + slide from right</option>
+                        <option value="horizontal">horizontal — right → left conveyor</option>
+                        <option value="vertical">vertical — bottom → top stack</option>
                     </select>
                 </div>
 
@@ -247,6 +257,24 @@ dropzone.autoUpload   = true    // start uploads on add (default)</code></pre>
                         <option value="6000">6s</option>
                         <option value="12000">12s (slow)</option>
                     </select>
+                </div>
+
+                <div class="control">
+                    <label for="playground-attempts">Auto-retries on failure</label>
+                    <select id="playground-attempts">
+                        <option value="0" selected>0 (no auto-retry)</option>
+                        <option value="1">1 retry</option>
+                        <option value="2">2 retries</option>
+                        <option value="4">4 retries</option>
+                    </select>
+                </div>
+
+                <div class="control">
+                    <label>Progress mode</label>
+                    <div class="playground-radio-row">
+                        <label><input type="radio" name="playground-progress" value="optimistic" checked> Optimistic (snap back on fail)</label>
+                        <label><input type="radio" name="playground-progress" value="pessimistic"> Pessimistic (forward only)</label>
+                    </div>
                 </div>
             </div>
 
@@ -396,6 +424,7 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
 
             const selectorSelect = document.getElementById('playground-selector')
             const listSelect     = document.getElementById('playground-list')
+            const rotationSelect = document.getElementById('playground-rolling-rotation')
             const modeRadios     = document.querySelectorAll('input[name="playground-mode"]')
             const resumeRadios   = document.querySelectorAll('input[name="playground-resume"]')
             const reorderRadios  = document.querySelectorAll('input[name="playground-reorder"]')
@@ -403,6 +432,8 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
             const rateLabel      = document.getElementById('playground-rate-label')
             const concSelect     = document.getElementById('playground-concurrency')
             const durSelect      = document.getElementById('playground-duration')
+            const attemptsSelect = document.getElementById('playground-attempts')
+            const progressRadios = document.querySelectorAll('input[name="playground-progress"]')
             const goBtn          = document.getElementById('playground-go')
             const pendingEl      = document.getElementById('playground-pending')
             const logEl          = document.getElementById('resume-log')
@@ -412,10 +443,12 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
             // sync uses the persisted values.
             selectorSelect.value = loadPref('selector', selectorSelect.value)
             listSelect.value     = loadPref('list',     'popover')
+            rotationSelect.value = loadPref('rollingRotation', 'slide-in')
             rateInput.value      = loadPref('rate',     rateInput.value)
             rateLabel.textContent = `${rateInput.value}%`
             concSelect.value     = loadPref('concurrency', concSelect.value)
             durSelect.value      = loadPref('duration',    durSelect.value)
+            attemptsSelect.value = loadPref('attempts',    attemptsSelect.value)
             const savedMode = loadPref('mode', 'auto')
             const modeRadio = document.querySelector(`input[name="playground-mode"][value="${savedMode}"]`)
             if (modeRadio) modeRadio.checked = true
@@ -425,6 +458,9 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
             const savedReorder = loadPref('reorder', 'off')
             const reorderRadio = document.querySelector(`input[name="playground-reorder"][value="${savedReorder}"]`)
             if (reorderRadio) reorderRadio.checked = true
+            const savedProgress = loadPref('progress', 'optimistic')
+            const progressRadio = document.querySelector(`input[name="playground-progress"][value="${savedProgress}"]`)
+            if (progressRadio) progressRadio.checked = true
 
             // Append a row to the handler-invocation log. Tag drives the
             // color class (start/resume/retry/done/fail).
@@ -463,6 +499,7 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
                 const successRate = parseInt(rateInput.value, 10) / 100
                 const duration    = parseInt(durSelect.value,  10)
                 const resumeOn    = document.querySelector('input[name="playground-resume"]:checked').value === 'on'
+                const isPessimistic = document.querySelector('input[name="playground-progress"]:checked').value === 'pessimistic'
                 const ticks       = 20
                 const tickMs      = duration / ticks
 
@@ -514,9 +551,16 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
                     percent += 100 / ticks
                     if (percent >= failAt) {
                         clearInterval(interval)
-                        // Report the failure point so the bar doesn't overshoot
-                        // the visible offset before the rejection lands.
-                        onProgress(failAt)
+                        // Pessimistic contract: only emit onProgress AFTER a
+                        // chunk is acknowledged. The failing tick isn't, so
+                        // we just reject. The bar stays at the previous
+                        // successful tick's value — forward-only.
+                        // Optimistic contract: emit onProgress for the
+                        // attempted-but-failed offset so the bar visibly
+                        // peaks at the failure point before snapping back
+                        // to baseline (the snap-back is done by the
+                        // component).
+                        if (!isPessimistic) onProgress(failAt)
                         reject(new Error(`Upload failed (HTTP 500) at ${Math.round(failAt)}%`))
                         return
                     }
@@ -594,6 +638,10 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
                 dz.setAttribute('list-appearance', listSelect.value)
                 savePref('list', listSelect.value)
             })
+            rotationSelect.addEventListener('change', () => {
+                dz.setAttribute('rolling-rotation', rotationSelect.value)
+                savePref('rollingRotation', rotationSelect.value)
+            })
             modeRadios.forEach(r => r.addEventListener('change', () => {
                 applyMode()
                 savePref('mode', document.querySelector('input[name="playground-mode"]:checked').value)
@@ -606,6 +654,11 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
                 dz.reorderCompleted = v === 'on'
                 savePref('reorder', v)
             }))
+            progressRadios.forEach(r => r.addEventListener('change', () => {
+                const v = document.querySelector('input[name="playground-progress"]:checked').value
+                dz.progressMode = v
+                savePref('progress', v)
+            }))
             rateInput.addEventListener('input', () => {
                 rateLabel.textContent = `${rateInput.value}%`
                 savePref('rate', rateInput.value)
@@ -617,6 +670,15 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
             durSelect.addEventListener('change', () => {
                 savePref('duration', durSelect.value)
             })
+            // Control value is "retries" (0..N); retryPolicy.attempts counts
+            // the initial try too — so attempts = retries + 1. The component's
+            // auto-retry loop in runUpload picks up the new value on the next
+            // failure.
+            attemptsSelect.addEventListener('change', () => {
+                const retries = parseInt(attemptsSelect.value, 10)
+                dz.retryPolicy = { attempts: retries + 1 }
+                savePref('attempts', attemptsSelect.value)
+            })
             goBtn.addEventListener('click', () => {
                 dz.uploadAll()
                 refreshActions()
@@ -625,8 +687,11 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
             // Initial sync — push hydrated values into the dropzone.
             dz.setAttribute('selector-appearance', selectorSelect.value)
             dz.setAttribute('list-appearance', listSelect.value)
+            dz.setAttribute('rolling-rotation', rotationSelect.value)
             dz.concurrency = parseInt(concSelect.value, 10)
+            dz.retryPolicy = { attempts: parseInt(attemptsSelect.value, 10) + 1 }
             dz.reorderCompleted = document.querySelector('input[name="playground-reorder"]:checked').value === 'on'
+            dz.progressMode = document.querySelector('input[name="playground-progress"]:checked').value
             applyMode()
         }
 

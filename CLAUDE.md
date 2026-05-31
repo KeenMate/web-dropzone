@@ -8,6 +8,8 @@ A file upload web component with drag-drop support, file previews, validation, a
 
 **Current Status**: Pre-1.x — actively being aligned with the KM web-component family house style (web-multiselect, web-daterangepicker). Breaking API changes are expected until 1.0.
 
+> **Where we're heading**: see [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the store + satellite-renderers topology, multi-selector modes (A vs B), and the staged implementation plan. The sections below describe the current code; the architecture doc describes the target.
+
 ## Architecture
 
 ### Source Files

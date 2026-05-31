@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture — Web Dropzone</title>
+    <link rel="stylesheet" href="examples-shared.css">
+    <style>
+        .scenario-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .scenario-row { grid-template-columns: 1fr; }
+        }
+
+        .scenario-pillars {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .pillar {
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .pillar h4 {
+            margin: 0 0 0.4rem;
+            font-size: 0.95rem;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .pillar p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #475569;
+        }
+
+        .topology-diagram {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.6rem;
+            padding: 1rem 1.25rem;
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 8px;
+            font-family: 'SF Mono', 'Monaco', Consolas, monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        .topology-diagram .arrow { color: #64748b; }
+        .topology-diagram .tag-store { color: #60a5fa; }
+        .topology-diagram .tag-picker { color: #4ade80; }
+        .topology-diagram .tag-list { color: #fbbf24; }
+        .topology-diagram .tag-indicator { color: #c084fc; }
+        .topology-diagram .note { color: #94a3b8; font-style: italic; }
+
+        .satellite-stage {
+            padding: 1.25rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .satellite-stage[data-role='list'] {
+            min-height: 16rem;
+        }
+
+        .stage-label {
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-bottom: 0.6rem;
+        }
+
+        .form-shell {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            background: white;
+        }
+        .form-shell .row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .mode-b-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .event-log {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 8px;
+            font-family: 'SF Mono', 'Monaco', Consolas, monospace;
+            font-size: 0.82rem;
+            max-height: 12rem;
+            overflow-y: auto;
+        }
+        .event-log__empty {
+            color: #64748b;
+            font-style: italic;
+        }
+        .event-log__row {
+            padding: 0.2rem 0;
+            border-bottom: 1px solid #1e293b;
+            display: grid;
+            grid-template-columns: 7rem 9rem 1fr;
+            gap: 0.5rem;
+        }
+        .event-log__row:last-child { border-bottom: none; }
+        .event-log__time { color: #64748b; }
+        .event-log__type { font-weight: 600; }
+        .event-log__type--file-added         { color: #4ade80; }
+        .event-log__type--file-removed       { color: #f87171; }
+        .event-log__type--file-progress      { color: #60a5fa; }
+        .event-log__type--file-status-changed{ color: #fbbf24; }
+        .event-log__type--store-ready        { color: #a78bfa; }
+
+        .scenario-title {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.4rem;
+        }
+        .scenario-title h2 { margin: 0; }
+        .scenario-title .scenario-mode {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            background: #ede9fe;
+            color: #6d28d9;
+            font-weight: 600;
+        }
+        .scenario-title .scenario-mode--a { background: #dcfce7; color: #166534; }
+        .scenario-title .scenario-mode--b { background: #dbeafe; color: #1e40af; }
+        .scenario-title .scenario-mode--e { background: #ffedd5; color: #9a3412; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to examples</a>
+            <h1>Architecture: store + satellites</h1>
+            <p class="subtitle">Live demonstration of <code>&lt;web-dropzone&gt;</code> as a headless store with bound <code>&lt;web-dropzone-picker&gt;</code>, <code>&lt;web-dropzone-list&gt;</code>, and <code>&lt;web-dropzone-indicator&gt;</code> satellite renderers — see <code>ARCHITECTURE.md</code>.</p>
+        </header>
+
+        <section class="example-section">
+            <h2>The topology in one diagram</h2>
+            <p>Every renderer binds to <em>exactly one</em> store via <code>for="&lt;store-id&gt;"</code>. The store dispatches <code>CustomEvent</code>s with <code>bubbles + composed</code>, so satellites in their own shadow roots receive them without polling.</p>
+            <div class="topology-diagram">
+                <div><span class="tag-store">&lt;web-dropzone id="uploads"&gt;</span>   <span class="note">// the store — FileState[], upload loop, persistence</span></div>
+                <div><span class="arrow">  ├──</span> <span class="tag-picker">&lt;web-dropzone-picker for="uploads"&gt;</span>   <span class="note">// drag/click target</span></div>
+                <div><span class="arrow">  ├──</span> <span class="tag-list">&lt;web-dropzone-list for="uploads"&gt;</span>     <span class="note">// list / detailed / grid / badges</span></div>
+                <div><span class="arrow">  └──</span> <span class="tag-indicator">&lt;web-dropzone-indicator for="uploads"&gt;</span> <span class="note">// floating chip + slide-out drawer</span></div>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <section class="example-section">
+            <div class="scenario-title">
+                <h2>1 · Convenience form</h2>
+                <span class="scenario-mode">USE CASE A</span>
+            </div>
+            <p>Nothing new — the existing <code>&lt;web-dropzone&gt;</code> with renderer attributes mounts its own internal picker + list. This is the one-element form that still works unchanged after stage 2 + 3 landed.</p>
+            <div class="demo-area">
+                <web-dropzone
+                    id="dz-classic"
+                    selector-appearance="card"
+                    list-appearance="detailed"
+                    multiple
+                    max-file-count="5"
+                ></web-dropzone>
+            </div>
+            <div class="code-block">
+<pre>&lt;web-dropzone selector-appearance="card" list-appearance="detailed" multiple&gt;&lt;/web-dropzone&gt;</pre>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <section class="example-section">
+            <div class="scenario-title">
+                <h2>2 · Decoupled picker + list</h2>
+                <span class="scenario-mode">USE CASE C</span>
+            </div>
+            <p>The picker sits in a form; the file list lives somewhere else on the page. Both bind to the same headless store. Drop files on the left — the list on the right syncs via the store's bubbling events.</p>
+            <div class="scenario-pillars">
+                <div class="pillar">
+                    <h4>Store</h4>
+                    <p>Headless. No renderer attributes → renders nothing itself.</p>
+                </div>
+                <div class="pillar">
+                    <h4>Picker</h4>
+                    <p>Card appearance, no list — pure file selector.</p>
+                </div>
+                <div class="pillar">
+                    <h4>List</h4>
+                    <p>Detailed appearance, free-standing element.</p>
+                </div>
+            </div>
+
+            <web-dropzone id="dz-decoupled" multiple max-file-count="10"></web-dropzone>
+
+            <div class="scenario-row">
+                <div>
+                    <div class="stage-label">Picker (in a form)</div>
+                    <div class="form-shell">
+                        <div class="row">
+                            <label for="dz-decoupled-name" class="demo-label">Name</label>
+                            <input id="dz-decoupled-name" type="text" placeholder="Project title" style="flex:1; padding:0.6rem; border:1px solid #cbd5e0; border-radius:6px;">
+                        </div>
+                        <p style="font-size:0.85rem; color:#64748b; margin-top:0.75rem; margin-bottom:0.75rem;">Attachments:</p>
+                        <web-dropzone-picker
+                            for="dz-decoupled"
+                            selector-appearance="card"
+                            card-size="compact"
+                            label="Drop attachments here"
+                        ></web-dropzone-picker>
+                    </div>
+                </div>
+                <div>
+                    <div class="stage-label">List (elsewhere on the page)</div>
+                    <div class="satellite-stage" data-role="list">
+                        <web-dropzone-list
+                            for="dz-decoupled"
+                            list-appearance="detailed"
+                            empty-message="No attachments yet — drop some on the left."
+                        ></web-dropzone-list>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+<pre>&lt;web-dropzone id="uploads"&gt;&lt;/web-dropzone&gt;
+
+&lt;form&gt;
+  &lt;web-dropzone-picker for="uploads" selector-appearance="card"&gt;&lt;/web-dropzone-picker&gt;
+&lt;/form&gt;
+
+&lt;aside&gt;
+  &lt;web-dropzone-list for="uploads" list-appearance="detailed"&gt;&lt;/web-dropzone-list&gt;
+&lt;/aside&gt;</pre>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <section class="example-section">
+            <div class="scenario-title">
+                <h2>3 · Multiple independent contexts</h2>
+                <span class="scenario-mode scenario-mode--a">MODE A</span>
+            </div>
+            <p>An avatar uploader and a documents uploader on the same page. Each is its own store: own queue, own list, own validation, own (potential) upload endpoint. Nothing flows between them.</p>
+
+            <div class="scenario-row">
+                <div>
+                    <div class="stage-label">Avatar — single image only</div>
+                    <web-dropzone id="dz-avatar" accept="image/*"></web-dropzone>
+                    <web-dropzone-picker
+                        for="dz-avatar"
+                        selector-appearance="card"
+                        card-size="minimal"
+                        label="Drop avatar image"
+                        icon="🖼️"
+                    ></web-dropzone-picker>
+                    <div style="margin-top:1rem;">
+                        <web-dropzone-list for="dz-avatar" list-appearance="grid"></web-dropzone-list>
+                    </div>
+                </div>
+                <div>
+                    <div class="stage-label">Documents — up to 5 files</div>
+                    <web-dropzone id="dz-docs" multiple max-file-count="5"></web-dropzone>
+                    <web-dropzone-picker
+                        for="dz-docs"
+                        selector-appearance="button"
+                        label="Add documents"
+                    ></web-dropzone-picker>
+                    <div style="margin-top:1rem;">
+                        <web-dropzone-list for="dz-docs" list-appearance="list"></web-dropzone-list>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <section class="example-section">
+            <div class="scenario-title">
+                <h2>4 · Shared queue, per-picker upload routing</h2>
+                <span class="scenario-mode scenario-mode--b">MODE B</span>
+            </div>
+            <p>One store, one global list, one global indicator — but each picker stamps its own <code>uploadCallback</code> + <code>uploadMetadata</code> onto every file it contributes. The store's upload loop picks <code>file.uploadCallback ?? config.uploadFileCallback</code> per file, so two pickers feeding the same queue can still route to different endpoints / buckets / tenants.</p>
+
+            <web-dropzone id="dz-modeb" multiple></web-dropzone>
+
+            <div class="mode-b-grid">
+                <div class="satellite-stage">
+                    <div class="stage-label">Picker A — public bucket</div>
+                    <web-dropzone-picker
+                        id="picker-public"
+                        for="dz-modeb"
+                        selector-appearance="card"
+                        card-size="compact"
+                        label="Drop public files"
+                        icon="🌐"
+                    ></web-dropzone-picker>
+                </div>
+                <div class="satellite-stage">
+                    <div class="stage-label">Picker B — private bucket</div>
+                    <web-dropzone-picker
+                        id="picker-private"
+                        for="dz-modeb"
+                        selector-appearance="card"
+                        card-size="compact"
+                        label="Drop private files"
+                        icon="🔒"
+                    ></web-dropzone-picker>
+                </div>
+            </div>
+
+            <div class="stage-label">Shared queue</div>
+            <div class="satellite-stage" data-role="list">
+                <web-dropzone-list for="dz-modeb" list-appearance="detailed"></web-dropzone-list>
+            </div>
+
+            <div class="stage-label">Substrate event log (store fan-out)</div>
+            <div id="event-log" class="event-log">
+                <div class="event-log__empty">Drop files into either picker to see <code>file-added</code> / <code>file-progress</code> / <code>file-status-changed</code> dispatched by the store and consumed by every satellite.</div>
+            </div>
+
+            <div class="code-block">
+<pre>&lt;web-dropzone id="uploads"&gt;&lt;/web-dropzone&gt;
+
+&lt;web-dropzone-picker id="picker-public"  for="uploads" label="Public"&gt;&lt;/web-dropzone-picker&gt;
+&lt;web-dropzone-picker id="picker-private" for="uploads" label="Private"&gt;&lt;/web-dropzone-picker&gt;
+
+&lt;web-dropzone-list for="uploads"&gt;&lt;/web-dropzone-list&gt;
+
+&lt;script&gt;
+  document.getElementById('picker-public').uploadCallback  = (file, onProgress, signal, ctx) =&gt; uploadTo('/public',  file, onProgress, signal);
+  document.getElementById('picker-private').uploadCallback = (file, onProgress, signal, ctx) =&gt; uploadTo('/private', file, onProgress, signal);
+  // Each file remembers which picker contributed it — the store stamps
+  // uploadCallback onto FileState at addFiles time. Mode A files inherit
+  // the store-level handler; Mode B files use their own. No store-side
+  // routing logic required.
+&lt;/script&gt;</pre>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <section class="example-section">
+            <div class="scenario-title">
+                <h2>5 · Floating status indicator</h2>
+                <span class="scenario-mode scenario-mode--e">USE CASE E</span>
+            </div>
+            <p>The flagship UX: just a button in the form (button-appearance picker), plus a floating chip pinned to the viewport edge that summarizes the queue and opens a slide-out drawer with the full list. Drop files via the button to see the chip update in real time.</p>
+
+            <web-dropzone id="dz-indicator" multiple></web-dropzone>
+
+            <div class="form-shell">
+                <div class="row">
+                    <span>Files:</span>
+                    <web-dropzone-picker
+                        for="dz-indicator"
+                        selector-appearance="button"
+                        label="Add files"
+                    ></web-dropzone-picker>
+                </div>
+                <p style="font-size:0.85rem; color:#64748b; margin-top:1rem; margin-bottom:0;">↘ A floating chip is pinned to the right edge of the page. Click it to slide out the queue.</p>
+            </div>
+
+            <web-dropzone-indicator
+                for="dz-indicator"
+                position="right"
+                label="Uploads"
+            ></web-dropzone-indicator>
+        </section>
+
+        <!-- ============================================================ -->
+        <section class="example-section">
+            <div class="scenario-title">
+                <h2>6 · Indicator flexibility: inline, drawer-off, renderCallback</h2>
+                <span class="scenario-mode scenario-mode--e">USE CASE E+</span>
+            </div>
+            <p>The same <code>&lt;web-dropzone-indicator&gt;</code> covers a spectrum of UX when you mix <code>position="inline"</code>, <code>drawer="off"</code>, and a JS <code>renderCallback</code>. All four below bind to one store so a single drop fans out into every variant.</p>
+
+            <web-dropzone id="dz-flex" multiple></web-dropzone>
+
+            <div class="form-shell">
+                <div class="row">
+                    <span>Drop here:</span>
+                    <web-dropzone-picker
+                        for="dz-flex"
+                        selector-appearance="button"
+                        label="Pick files"
+                    ></web-dropzone-picker>
+                </div>
+            </div>
+
+            <div class="mode-b-grid" style="margin-top:1.5rem;">
+                <div class="satellite-stage">
+                    <div class="stage-label">A · Inline counter — <code>[Uploading 1/10]</code></div>
+                    <p style="font-size:0.85rem; color:#64748b; margin:0.5rem 0 0.75rem;">Inline placement, default drawer (click to expand), simple <code>renderCallback</code> returning a fraction.</p>
+                    <p>Status: <web-dropzone-indicator
+                        id="ind-counter"
+                        for="dz-flex"
+                        position="inline"
+                    ></web-dropzone-indicator></p>
+                </div>
+
+                <div class="satellite-stage">
+                    <div class="stage-label">B · Filename + speed — <code>[Uploading xyz.zip @ 12.6 MB/s]</code></div>
+                    <p style="font-size:0.85rem; color:#64748b; margin:0.5rem 0 0.75rem;">Inline + <code>drawer="off"</code>. Callback reads <code>currentUploadingFile</code> and tracks per-tick deltas for the speed.</p>
+                    <p>Now: <web-dropzone-indicator
+                        id="ind-speed"
+                        for="dz-flex"
+                        position="inline"
+                        drawer="off"
+                    ></web-dropzone-indicator></p>
+                </div>
+
+                <div class="satellite-stage">
+                    <div class="stage-label">C · Silent activity spinner</div>
+                    <p style="font-size:0.85rem; color:#64748b; margin:0.5rem 0 0.75rem;">Inline + <code>drawer="off"</code>, callback returns just a spinning glyph while anything is uploading and nothing otherwise.</p>
+                    <p>Sync: <web-dropzone-indicator
+                        id="ind-spinner"
+                        for="dz-flex"
+                        position="inline"
+                        drawer="off"
+                    ></web-dropzone-indicator></p>
+                </div>
+
+                <div class="satellite-stage">
+                    <div class="stage-label">D · Default chip (for reference)</div>
+                    <p style="font-size:0.85rem; color:#64748b; margin:0.5rem 0 0.75rem;">Inline + default drawer + no callback. Same element, no JS configuration — built-in icon + label + percent.</p>
+                    <p>Stock: <web-dropzone-indicator
+                        for="dz-flex"
+                        position="inline"
+                    ></web-dropzone-indicator></p>
+                </div>
+            </div>
+
+            <div class="code-block">
+<pre>import { createDropzoneSpinner } from '@keenmate/web-dropzone'
+
+// A · whole-body callback. `false` → hide the surface.
+counter.renderBodyCallback = ({ aggregate }) =&gt;
+  aggregate.total === 0
+    ? false
+    : aggregate.uploading &gt; 0
+      ? `&lt;strong&gt;Uploading ${aggregate.complete + 1} / ${aggregate.total}&lt;/strong&gt;`
+      : `${aggregate.complete} / ${aggregate.total} done`
+
+// B · split across the three slots. body decides visibility,
+// fileInfo names the file, progress computes the rate.
+speed.renderBodyCallback     = ({ aggregate }) =&gt; aggregate.uploading &gt; 0 ? null : false
+speed.renderFileInfoCallback = ({ currentFile: f }) =&gt; f ? `&lt;strong&gt;${esc(f.name)}&lt;/strong&gt;` : ''
+speed.renderProgressCallback = ({ currentFile: f }) =&gt; f ? `@ ${formatRate(rateOf(f))}` : ''
+
+// C · library's polished spinner, cached so the WAAPI rotation
+// never restarts. Identity-checked memoization no-ops every tick.
+let cached
+spinner.renderBodyCallback = ({ aggregate }) =&gt; {
+  if (aggregate.uploading === 0) return false
+  return (cached ??= createDropzoneSpinner({ ariaLabel: 'Syncing' }))
+}</pre>
+            </div>
+        </section>
+
+        <footer>
+            <p>Web Dropzone · <a href="https://github.com/keenmate/web-dropzone">GitHub</a> · <a href="ARCHITECTURE.md">ARCHITECTURE.md</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        // Library exports used by the structural-callback demos below.
+        // `createDropzoneSpinner` returns a polished WAAPI-driven spinner
+        // any user callback can return verbatim to inherit the OOB look.
+        import { createDropzoneSpinner } from '/src/index.ts';
+
+        // ============================================================
+        // Demo handlers — simulated uploads for all Mode B scenarios.
+        // The handlers are mode-aware: Picker A's handler labels its
+        // file-uploaded events "public", Picker B's labels them "private",
+        // so the event log can show the routing actually happened.
+        // ============================================================
+
+        function simulateUpload({ bucket, durationMs = 3500 } = {}) {
+            return (file, onProgress, signal) => new Promise((resolve, reject) => {
+                const start = performance.now();
+                let aborted = false;
+                signal?.addEventListener('abort', () => {
+                    aborted = true;
+                    reject(new DOMException('Aborted', 'AbortError'));
+                });
+                const tick = () => {
+                    if (aborted) return;
+                    const elapsed = performance.now() - start;
+                    const pct = Math.min(100, (elapsed / durationMs) * 100);
+                    onProgress(pct);
+                    if (pct >= 100) {
+                        resolve({ metadata: { bucket, uploadedAt: new Date().toISOString() } });
+                        return;
+                    }
+                    requestAnimationFrame(tick);
+                };
+                requestAnimationFrame(tick);
+            });
+        }
+
+        // Mode B wiring — each picker gets its own uploadCallback. Files
+        // contributed by picker-public route to the public bucket; files
+        // from picker-private to the private one. The store fans events
+        // out to every satellite regardless of which picker added the file.
+        const pickerPublic  = document.getElementById('picker-public');
+        const pickerPrivate = document.getElementById('picker-private');
+        if (pickerPublic)  pickerPublic.uploadCallback  = simulateUpload({ bucket: 'public',  durationMs: 3500 });
+        if (pickerPrivate) pickerPrivate.uploadCallback = simulateUpload({ bucket: 'private', durationMs: 4500 });
+        if (pickerPublic)  pickerPublic.uploadMetadata  = { bucket: 'public'  };
+        if (pickerPrivate) pickerPrivate.uploadMetadata = { bucket: 'private' };
+
+        // Indicator scenario — single shared handler.
+        const dzIndicator = document.getElementById('dz-indicator');
+        if (dzIndicator) dzIndicator.uploadFileCallback = simulateUpload({ bucket: 'shared', durationMs: 5000 });
+
+        // Indicator flexibility scenarios (#6) — shared store, three
+        // structural callback shapes + the default for reference.
+        const dzFlex = document.getElementById('dz-flex');
+        if (dzFlex) dzFlex.uploadFileCallback = simulateUpload({ bucket: 'flex', durationMs: 6000 });
+
+        // Helper used by the speed demo — formats bytes/sec into the
+        // best unit. Imported by feel (not from the library) because
+        // it's just demo glue.
+        function formatRate(bytesPerSec) {
+            if (!isFinite(bytesPerSec) || bytesPerSec <= 0) return '— B/s';
+            const units = ['B/s','KB/s','MB/s','GB/s'];
+            let i = 0, v = bytesPerSec;
+            while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+            return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
+        }
+
+        // A · Inline counter using renderBodyCallback. Returns `false`
+        // when idle → the indicator hides entirely (no empty pill
+        // hanging around). The body owns the whole chip, so it doesn't
+        // need to think about fileInfo / progress slots.
+        const indCounter = document.getElementById('ind-counter');
+        if (indCounter) {
+            indCounter.renderBodyCallback = ({ aggregate }) => {
+                if (aggregate.total === 0) return false;
+                if (aggregate.uploading > 0) {
+                    return `<strong>Uploading ${aggregate.complete + 1} / ${aggregate.total}</strong>`;
+                }
+                return `${aggregate.complete} / ${aggregate.total} done`;
+            };
+        }
+
+        // B · Filename + speed. Splits the work across the three
+        // callbacks: body returns `false` when idle (hides the chip);
+        // fileInfo shows the active file's name; progress computes the
+        // transfer rate from per-tick deltas. Memoization rules: each
+        // slot only writes to DOM when its string changes — the chip
+        // outer button is never disturbed.
+        const indSpeed = document.getElementById('ind-speed');
+        const speedSnapshots = new Map();
+        if (indSpeed) {
+            indSpeed.renderBodyCallback = ({ aggregate }) =>
+                aggregate.uploading > 0 ? null : false;
+            indSpeed.renderFileInfoCallback = ({ currentFile: f }) => {
+                if (!f) return '';
+                const safeName = f.name.replace(/[<>&]/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;' }[c]));
+                return `<strong>${safeName}</strong>`;
+            };
+            indSpeed.renderProgressCallback = ({ currentFile: f }) => {
+                if (!f) return '';
+                const now = performance.now();
+                const sent = f.size * (f.progress / 100);
+                const prev = speedSnapshots.get(f.id);
+                speedSnapshots.set(f.id, { bytes: sent, t: now });
+                const rate = prev && now > prev.t
+                    ? (sent - prev.bytes) / ((now - prev.t) / 1000)
+                    : 0;
+                return `@ ${formatRate(rate)}`;
+            };
+        }
+
+        // C · Silent activity spinner. Uses the library's polished
+        // spinner via `createDropzoneSpinner()` — cached OUTSIDE the
+        // callback so the same instance is returned every tick, which
+        // means the indicator's identity-checked memoization skips the
+        // DOM swap and WAAPI rotation never restarts. When idle, body
+        // returns `false` → indicator hides entirely.
+        const indSpinner = document.getElementById('ind-spinner');
+        let cachedSpinner = null;
+        if (indSpinner) {
+            indSpinner.renderBodyCallback = ({ aggregate }) => {
+                if (aggregate.uploading === 0) return false;
+                if (!cachedSpinner) cachedSpinner = createDropzoneSpinner({ ariaLabel: 'Syncing' });
+                return cachedSpinner;
+            };
+        }
+
+        // ============================================================
+        // Event log for Mode B — surfaces what the store dispatches.
+        // ============================================================
+        const log = document.getElementById('event-log');
+        const dzModeB = document.getElementById('dz-modeb');
+        const MAX_LOG_ROWS = 50;
+        let logRows = [];
+        const formatTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
+
+        function addLogRow(type, detail) {
+            if (logRows.length === 0 && log) log.innerHTML = '';
+            const row = document.createElement('div');
+            row.className = 'event-log__row';
+            row.innerHTML = `
+                <span class="event-log__time">${formatTime()}</span>
+                <span class="event-log__type event-log__type--${type}">${type}</span>
+                <span class="event-log__detail">${detail}</span>
+            `;
+            log.prepend(row);
+            logRows.push(row);
+            while (logRows.length > MAX_LOG_ROWS) {
+                logRows.shift()?.remove();
+            }
+        }
+
+        if (dzModeB) {
+            dzModeB.addEventListener('store-ready', () => addLogRow('store-ready', 'store initialized'));
+            dzModeB.addEventListener('file-added', (e) => {
+                const f = e.detail.file;
+                const bucket = f.uploadMetadata?.bucket ?? '?';
+                addLogRow('file-added', `${f.name} → bucket=${bucket}`);
+            });
+            dzModeB.addEventListener('file-removed', (e) => {
+                addLogRow('file-removed', e.detail.file.name);
+            });
+            dzModeB.addEventListener('file-status-changed', (e) => {
+                addLogRow('file-status-changed', `${e.detail.id.slice(-6)}: ${e.detail.prevStatus} → ${e.detail.nextStatus}`);
+            });
+            // Don't flood with file-progress — sample every 20%.
+            const lastProgress = new Map();
+            dzModeB.addEventListener('file-progress', (e) => {
+                const id = e.detail.id;
+                const bucket = Math.floor(e.detail.progress / 20);
+                if (lastProgress.get(id) === bucket) return;
+                lastProgress.set(id, bucket);
+                addLogRow('file-progress', `${id.slice(-6)}: ${e.detail.progress.toFixed(0)}%`);
+            });
+        }
+    </script>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>

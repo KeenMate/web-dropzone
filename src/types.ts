@@ -31,10 +31,24 @@ export type SelectorAppearance = 'card' | 'button' | 'minimal';
  * - 'detailed' — vertical rows with icon, name, size, type
  * - 'grid'     — image preview thumbnails in a CSS grid
  * - 'badges'   — inline composite badge pills (matches web-multiselect's badge surface)
+ * - 'rolling'  — single-row "front file" view + queue button that opens the popover.
+ *                The front file rolls out as it finishes and the next one rolls in.
+ *                Designed for tight surfaces where the user wants a glance at what's
+ *                currently in flight, with a click-through to the full queue.
  * - 'popover'  — list hidden in a popover anchored to the selector / summary
  * - 'none'     — list not rendered at all (caller handles via the .files getter)
  */
-export type ListAppearance = 'list' | 'detailed' | 'grid' | 'badges' | 'popover' | 'none';
+export type ListAppearance = 'list' | 'detailed' | 'grid' | 'badges' | 'rolling' | 'popover' | 'none';
+
+/**
+ * Rotation style for `listAppearance='rolling'`. Controls how the front
+ * file transitions when a new one takes the slot.
+ * - 'horizontal' — old slides out left, new slides in from right (conveyor)
+ * - 'vertical'   — old slides out top, new slides in from bottom (stack)
+ * - 'slide-in'   — old is removed instantly, new slides in from right
+ *                  (no overlap; cheapest / default)
+ */
+export type RollingRotation = 'horizontal' | 'vertical' | 'slide-in';
 
 /**
  * Card density (only meaningful when selectorAppearance='card').
@@ -54,6 +68,32 @@ export type CardSize = 'minimal' | 'compact' | 'big';
  * - `cancelled` — handler aborted; will not auto-resume (manual retry needed)
  */
 export type FileStatus = 'pending' | 'uploading' | 'complete' | 'error' | 'paused' | 'cancelled';
+
+/**
+ * Contract between the handler and the component about what
+ * `onProgress(p)` means, and what the component does with it when the
+ * upload attempt rejects. The handler always drives the bar — the mode
+ * controls whether the bar can go BACKWARDS on failure.
+ *
+ * - `optimistic` (default) — the handler is free to call
+ *   `onProgress(p)` BEFORE the bytes are confirmed (e.g. as soon as
+ *   they're flushed to the socket, or per simulated tick). If the
+ *   attempt ultimately rejects, the bar snaps back to the value it had
+ *   at the start of the attempt — those unconfirmed bytes never landed
+ *   on the server, and the next attempt resumes from the confirmed
+ *   offset. Best for most HTTP uploads where progress comes from
+ *   `XMLHttpRequest.upload.progress` and "sent" doesn't yet mean
+ *   "acknowledged".
+ *
+ * - `pessimistic` — the handler must only call `onProgress(p)` AFTER a
+ *   chunk has been confirmed by the server (or for whole-file uploads,
+ *   it just doesn't tick during the attempt and the bar jumps from the
+ *   baseline to 100% on resolve). The component won't snap back on
+ *   failure — the bar moves forward only, or stops. Best when the
+ *   handler can distinguish sent vs. acknowledged, so apparent
+ *   progress is always real.
+ */
+export type ProgressMode = 'optimistic' | 'pessimistic';
 
 /**
  * Per-file upload handler. Called once per file by the component's worker
@@ -110,6 +150,29 @@ export interface FileUploadContext {
      * learned from the first request and reused on resume.
      */
     setMetadata(patch: Record<string, unknown>): void;
+    /**
+     * Per-file metadata stamped at add-time by the contributing picker
+     * (Mode B — see ARCHITECTURE.md). Distinct from `metadata`, which the
+     * handler populates on success. Use this to carry bucket names,
+     * tenant ids, or any other "where does this file go" hint that the
+     * picker decided when the user dropped the file.
+     */
+    uploadMetadata: Readonly<Record<string, unknown>> | undefined;
+}
+
+/**
+ * Options accepted by `WebDropzone.addFiles(files, opts)`. Pickers use this
+ * to stamp Mode B routing info onto each new FileState — the same handler /
+ * metadata then survive through pause / resume / retry. Omitting opts (or
+ * passing `{}`) is Mode A: files inherit the store's `uploadFileCallback`.
+ */
+export interface AddFilesOptions {
+    /** Per-file upload handler override. Stamped onto every accepted file
+     *  in this batch as `FileState.uploadCallback`. */
+    uploadCallback?: FileUploadHandler;
+    /** Per-file metadata stamped onto every accepted file in this batch
+     *  as `FileState.uploadMetadata`. */
+    uploadMetadata?: Record<string, unknown>;
 }
 
 export type FileUploadHandler = (
@@ -173,6 +236,21 @@ export interface FileState {
      * list. Mirrors svelte-fluentui's `InputFileItem.metadata`.
      */
     metadata?: Record<string, unknown>;
+    /**
+     * Per-file upload handler override (Mode B — see ARCHITECTURE.md).
+     * Stamped at add-time by the contributing picker so a shared store can
+     * route different files to different endpoints. The upload loop calls
+     * `file.uploadCallback ?? store.config.uploadFileCallback`, so Mode A
+     * (single shared handler) is unchanged when this is undefined.
+     */
+    uploadCallback?: FileUploadHandler;
+    /**
+     * Per-file metadata stamped at add-time (Mode B). Distinct from
+     * `metadata`, which the upload handler populates after upload — this
+     * field carries inputs handed to the handler (e.g. bucket name,
+     * tenant id) and is exposed via `FileUploadContext.uploadMetadata`.
+     */
+    uploadMetadata?: Record<string, unknown>;
 }
 
 /**
@@ -294,6 +372,18 @@ export interface DropzoneConfig {
     dedupeMode?: DedupeMode;
     /** Whether the dropzone is disabled (HTML attr: `disabled`) */
     isDisabled?: boolean;
+    /**
+     * Headless mode — when true, the store renders nothing and skips drag /
+     * click / input wiring on its own host. It exists purely as a data
+     * source for satellite renderers (`<web-dropzone-picker for=>`,
+     * `<web-dropzone-list for=>`, `<web-dropzone-indicator for=>`).
+     *
+     * Set automatically by `<web-dropzone>` when none of `display-mode`,
+     * `selector-appearance`, or `list-appearance` is present on the host
+     * element — the convenience-form back-compat shortcut. See
+     * ARCHITECTURE.md.
+     */
+    isHeadless?: boolean;
 
     // ========================================================================
     // DISPLAY OPTIONS
@@ -309,6 +399,11 @@ export interface DropzoneConfig {
     selectorAppearance?: SelectorAppearance;
     /** List appearance — list | detailed | grid | badges | popover | none */
     listAppearance?: ListAppearance;
+    /**
+     * Rotation style for `listAppearance='rolling'` (HTML attr: `rolling-rotation`).
+     * Default: `'slide-in'`.
+     */
+    rollingRotation?: RollingRotation;
     /** Card density when selectorAppearance='card' — minimal | compact | big */
     cardSize?: CardSize;
     /**
@@ -413,6 +508,12 @@ export interface DropzoneConfig {
      */
     isAutoUploadEnabled?: boolean;
     /**
+     * Controls whether the progress bar reflects the handler's optimistic
+     * `onProgress` ticks (bytes sent) or only confirmed server-acknowledged
+     * progress. See {@link ProgressMode}. Defaults to `'optimistic'`.
+     */
+    progressMode?: ProgressMode;
+    /**
      * Retry policy applied when `uploadFileCallback` rejects. Defaults to a
      * single attempt (no retries). See {@link RetryPolicy}.
      */
@@ -442,6 +543,20 @@ export interface DropzoneConfig {
      * a long tail of green checkmarks).
      */
     isReorderCompletedEnabled?: boolean;
+    /**
+     * Delay in milliseconds between a file transitioning to `complete`
+     * and its row sliding to the completed bucket (when reorder is on).
+     * The row stays in place showing 100% / the success state for this
+     * long before moving — gives the user a beat to register WHICH file
+     * just finished, so subsequent files sliding up into the vacated
+     * slot aren't mistaken for the original one regressing.
+     *
+     * Per-file timer: each completing file counts down independently;
+     * the timer is cancelled if the file un-completes (e.g. retry) or
+     * is removed before it fires. Default: 1500ms when reorder is on,
+     * effectively 0 when it's off (the attribute has no effect).
+     */
+    reorderCompletedDelay?: number;
     /**
      * Callback fired when a file that had finished uploading
      * (`status === 'complete'`) is removed from the selection. Mirrors the
@@ -493,6 +608,20 @@ export interface DropzoneConfig {
     renderPromptCallback?: (() => string | HTMLElement) | null;
     /** Custom renderer for compact summary content */
     renderSummaryCallback?: ((files: FileState[]) => string | HTMLElement) | null;
+    /**
+     * Custom rendering for the rolling list appearance. Three structural
+     * callbacks share the same `StatusSurfaceCallback` contract as the
+     * `<web-dropzone-indicator>` element — see `./status-surface.ts`.
+     * Each part is replaceable piecemeal; `null` returns yield to the
+     * library's polished default. `false` from body hides the rolling
+     * block (useful while idle). Memoization rules: string equality
+     * skips DOM writes, element identity preserves WAAPI animations.
+     */
+    renderRollingBodyCallback?: import('./status-surface').StatusSurfaceCallback | null;
+    /** File-info slot inside the rolling current row — name, icon, status. */
+    renderRollingFileInfoCallback?: import('./status-surface').StatusSurfaceCallback | null;
+    /** Progress slot inside the rolling current row — bar + percent. */
+    renderRollingProgressCallback?: import('./status-surface').StatusSurfaceCallback | null;
     /** Callback to inject custom CSS into Shadow DOM */
     customStylesCallback?: (() => string) | null;
 
@@ -583,6 +712,41 @@ export interface FileDeletedEventDetail {
 }
 
 /**
+ * Event detail for file-progress — dispatched whenever a file's progress
+ * value changes. Substrate for satellite renderers (`<web-dropzone-list>`,
+ * `<web-dropzone-indicator>`, …) so they can subscribe to per-file ticks
+ * across shadow boundaries without polling. See ARCHITECTURE.md.
+ */
+export interface FileProgressEventDetail {
+    /** The id of the file whose progress changed */
+    id: string;
+    /** Current progress (0–100, clamped) */
+    progress: number;
+    /** Current status — included so progress-only subscribers don't also
+     *  need to listen to file-status-changed for the common case. */
+    status: FileState['status'];
+    /** Live reference to the full file state, post-mutation */
+    file: FileState;
+}
+
+/**
+ * Event detail for file-status-changed — dispatched whenever a file's
+ * status transitions (pending → uploading, uploading → complete, etc.).
+ * `prevStatus` and `nextStatus` are always different; no-op mutations
+ * are suppressed at the source. Substrate for satellite renderers.
+ */
+export interface FileStatusChangedEventDetail {
+    /** The id of the file whose status changed */
+    id: string;
+    /** Status before the transition */
+    prevStatus: FileState['status'];
+    /** Status after the transition */
+    nextStatus: FileState['status'];
+    /** Live reference to the full file state, post-transition */
+    file: FileState;
+}
+
+/**
  * Helper type for all dropzone event details
  */
 export type DropzoneEventDetail =
@@ -592,7 +756,9 @@ export type DropzoneEventDetail =
     | ChangeEventDetail
     | FileRetryEventDetail
     | FileUploadedEventDetail
-    | FileDeletedEventDetail;
+    | FileDeletedEventDetail
+    | FileProgressEventDetail
+    | FileStatusChangedEventDetail;
 
 /**
  * File type categories for icon mapping

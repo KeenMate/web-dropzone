@@ -1,0 +1,235 @@
+/*
+ * <web-dropzone-indicator> — floating status chip + slide-out drawer.
+ * Styles live in their own partial because the chip is a satellite-only
+ * surface (no equivalent inside the convenience-form <web-dropzone>).
+ */
+
+:host {
+    /* Fixed-edge mode (default): element is zero-size so it doesn't take
+       up flow space — the chip + drawer float via position: fixed. Inline
+       mode overrides this below so the chip participates in normal layout. */
+    display: contents;
+}
+
+:host([data-position='inline']) {
+    /* Inline mode: the host becomes the visible block. The chip flows
+       inside it (no position: fixed) and the user can sit it next to a
+       button, a heading, anywhere they like. */
+    display: inline-block;
+}
+
+:host([hidden]) {
+    display: none;
+}
+
+/* Chip — fixed-position by default; switches to inline-flow when the
+ * host is in inline mode. Cursor only points when the chip is actually
+ * interactive (drawer="auto"); status-only chips look like text. */
+.dz__indicator__chip {
+    position: fixed;
+    z-index: 100000;
+    display: inline-flex;
+    align-items: center;
+    gap: calc(0.6 * var(--dz-rem));
+    padding: calc(0.8 * var(--dz-rem)) calc(1.2 * var(--dz-rem));
+    border: 1px solid var(--dz-border-color, rgba(0,0,0,0.12));
+    border-radius: calc(2 * var(--dz-rem));
+    background: var(--dz-surface-color, #fff);
+    color: var(--dz-text-color, #1a1a1a);
+    font: inherit;
+    font-size: calc(1.3 * var(--dz-rem));
+    box-shadow: 0 calc(0.4 * var(--dz-rem)) calc(1.6 * var(--dz-rem)) rgba(0,0,0,0.12);
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+/* Explicit override for the `hidden` attribute. The chip's class rule
+ * sets `display: inline-flex`, which has the same specificity as the
+ * UA's `[hidden] { display: none }` rule and wins on source order — so
+ * `chipEl.hidden = true` from the body callback's `return false` path
+ * wouldn't hide the box without this. Same goes for the host element
+ * when it's been promoted to inline-block via `data-position='inline'`. */
+.dz__indicator__chip[hidden] { display: none; }
+:host([hidden]) { display: none; }
+:host([data-drawer='auto']) .dz__indicator__chip { cursor: pointer; }
+:host([data-drawer='off'])  .dz__indicator__chip { cursor: default; }
+:host([data-drawer='auto']) .dz__indicator__chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 calc(0.5 * var(--dz-rem)) calc(2 * var(--dz-rem)) rgba(0,0,0,0.16);
+}
+.dz__indicator__chip:focus-visible {
+    outline: 2px solid var(--dz-accent-color, #2563eb);
+    outline-offset: 2px;
+}
+
+/* Inline mode: drop the fixed positioning and shadow — the chip should
+ * feel like a sibling of the surrounding content, not a floating widget.
+ * Reset the hover transform too (no need to lift a chip that isn't
+ * floating off the page). */
+:host([data-position='inline']) .dz__indicator__chip {
+    position: static;
+    box-shadow: none;
+}
+:host([data-position='inline'][data-drawer='auto']) .dz__indicator__chip:hover {
+    transform: none;
+    box-shadow: 0 calc(0.2 * var(--dz-rem)) calc(0.6 * var(--dz-rem)) rgba(0,0,0,0.08);
+}
+
+/* State-coloured chip — same priority as the overall progress aggregate
+ * (error > uploading > paused > pending > complete). Drives the chip's
+ * background + border + text color via the existing dz status palette. */
+.dz__indicator__chip[data-status='error'] {
+    background: var(--dz-error-bg, #fee2e2);
+    border-color: var(--dz-error-color, #dc2626);
+    color: var(--dz-error-color, #dc2626);
+}
+.dz__indicator__chip[data-status='uploading'] {
+    background: var(--dz-accent-bg, #dbeafe);
+    border-color: var(--dz-accent-color, #2563eb);
+    color: var(--dz-accent-color, #2563eb);
+}
+.dz__indicator__chip[data-status='paused'] {
+    background: var(--dz-warning-bg, #fef3c7);
+    border-color: var(--dz-warning-color, #d97706);
+    color: var(--dz-warning-color, #d97706);
+}
+.dz__indicator__chip[data-status='complete'] {
+    background: var(--dz-success-bg, #dcfce7);
+    border-color: var(--dz-success-color, #16a34a);
+    color: var(--dz-success-color, #16a34a);
+}
+.dz__indicator__chip[data-empty='true'] {
+    opacity: 0.65;
+}
+
+/* Slot styles for the default body — three flex children: file-info,
+ * label, progress. Each is set as innerHTML / replaceChildren by its
+ * callback (or the library default) so the chip's outer button + click
+ * handler are never disturbed by inner content swaps. */
+.dz__indicator__file-info {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+.dz__indicator__file-info:empty {
+    /* Suppress flex gap when no current file — the chip looks like
+     * `[Label] [Percent]` instead of `[ ] [Label] [Percent]`. */
+    display: none;
+}
+.dz__indicator__file-info__icon {
+    display: inline-flex;
+    width: 1em;
+    height: 1em;
+}
+.dz__indicator__file-info__icon svg {
+    width: 100%;
+    height: 100%;
+}
+.dz__indicator__label {
+    font-weight: 500;
+}
+.dz__indicator__progress {
+    display: inline-flex;
+    align-items: center;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+.dz__indicator__progress:empty {
+    display: none;
+}
+.dz__indicator__percent {
+    opacity: 0.85;
+}
+/* Polished spinner — sized to 1em so it scales with --dz-rem. The
+ * rotation comes from WAAPI (set in createDropzoneSpinner()) so no
+ * @keyframes is needed inside the shadow root. */
+.dz__indicator__spinner {
+    color: currentColor;
+}
+
+/* Position anchors — each variant pins to its edge with a safe-area offset
+ * computed from --dz-rem. */
+:host([data-position='right'])  .dz__indicator__chip { top: 50%; right: calc(1.6 * var(--dz-rem)); transform: translateY(-50%); }
+:host([data-position='left'])   .dz__indicator__chip { top: 50%; left:  calc(1.6 * var(--dz-rem)); transform: translateY(-50%); }
+:host([data-position='top'])    .dz__indicator__chip { top: calc(1.6 * var(--dz-rem)); left: 50%;   transform: translateX(-50%); }
+:host([data-position='bottom']) .dz__indicator__chip { bottom: calc(1.6 * var(--dz-rem)); left: 50%; transform: translateX(-50%); }
+
+:host([data-position='right'])  .dz__indicator__chip:hover { transform: translateY(calc(-50% - 1px)); }
+:host([data-position='left'])   .dz__indicator__chip:hover { transform: translateY(calc(-50% - 1px)); }
+:host([data-position='top'])    .dz__indicator__chip:hover { transform: translateX(-50%) translateY(-1px); }
+:host([data-position='bottom']) .dz__indicator__chip:hover { transform: translateX(-50%) translateY(-1px); }
+
+/* Drawer — fixed-position panel that slides in from the same edge as the
+ * chip. Closed by default (translated off-screen + visibility hidden so it
+ * doesn't trap focus). */
+.dz__indicator__drawer {
+    position: fixed;
+    z-index: 99999;
+    background: var(--dz-surface-color, #fff);
+    border: 1px solid var(--dz-border-color, rgba(0,0,0,0.12));
+    box-shadow: 0 calc(0.8 * var(--dz-rem)) calc(3 * var(--dz-rem)) rgba(0,0,0,0.16);
+    display: flex;
+    flex-direction: column;
+    transition: transform 240ms ease, opacity 200ms ease;
+    visibility: hidden;
+    opacity: 0;
+}
+
+/* Per-edge drawer geometry: occupy a strip along the edge, slide off-screen
+ * in the closed state. */
+:host([data-position='right'])  .dz__indicator__drawer { top: 0; right: 0; bottom: 0; width: min(40rem, 90vw); transform: translateX(100%); border-right: none; }
+:host([data-position='left'])   .dz__indicator__drawer { top: 0; left: 0; bottom: 0;  width: min(40rem, 90vw); transform: translateX(-100%); border-left: none; }
+:host([data-position='top'])    .dz__indicator__drawer { top: 0; left: 0; right: 0;   height: min(60vh, 50rem); transform: translateY(-100%); border-top: none; }
+:host([data-position='bottom']) .dz__indicator__drawer { bottom: 0; left: 0; right: 0; height: min(60vh, 50rem); transform: translateY(100%); border-bottom: none; }
+
+/* Inline-mode drawer: behaves like a popover anchored to the chip rather
+ * than a viewport-edge slab. Drops down below the chip, fades in instead
+ * of sliding from off-screen (no off-screen position to slide from when
+ * the chip is mid-page). The host is `display: inline-block` so we can
+ * anchor with `position: absolute; top: 100%`. */
+:host([data-position='inline']) {
+    position: relative;
+}
+:host([data-position='inline']) .dz__indicator__drawer {
+    position: absolute;
+    top: calc(100% + calc(0.4 * var(--dz-rem)));
+    left: 0;
+    width: min(36rem, 92vw);
+    max-height: min(60vh, 40rem);
+    border-radius: calc(0.6 * var(--dz-rem));
+    transform: translateY(calc(-0.4 * var(--dz-rem)));
+}
+
+:host([data-drawer-open='true']) .dz__indicator__drawer {
+    transform: translate(0, 0);
+    visibility: visible;
+    opacity: 1;
+}
+
+.dz__indicator__drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(1.2 * var(--dz-rem)) calc(1.6 * var(--dz-rem));
+    border-bottom: 1px solid var(--dz-border-color, rgba(0,0,0,0.12));
+}
+.dz__indicator__drawer-title {
+    font-weight: 600;
+    font-size: calc(1.5 * var(--dz-rem));
+}
+.dz__indicator__drawer-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: calc(2 * var(--dz-rem));
+    line-height: 1;
+    padding: calc(0.2 * var(--dz-rem)) calc(0.6 * var(--dz-rem));
+    color: var(--dz-text-color, #1a1a1a);
+    border-radius: calc(0.4 * var(--dz-rem));
+}
+.dz__indicator__drawer-close:hover {
+    background: var(--dz-hover-bg, rgba(0,0,0,0.06));
+}
+.dz__indicator__drawer-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: calc(1.2 * var(--dz-rem)) calc(1.6 * var(--dz-rem));
+}

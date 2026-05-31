@@ -13,6 +13,7 @@ import type {
     DisplayMode,
     SelectorAppearance,
     ListAppearance,
+    RollingRotation,
     CardSize,
     ValueFormat,
     FileState
@@ -132,7 +133,9 @@ const ATTRIBUTE_TABLE: ReadonlyArray<AttrSpec> = [
     { attr: 'selector-appearance', key: 'selectorAppearance',    parser: 'enum',
       enumValues: ['card', 'button', 'minimal'] },
     { attr: 'list-appearance',     key: 'listAppearance',        parser: 'enum',
-      enumValues: ['list', 'detailed', 'grid', 'badges', 'popover', 'none'] },
+      enumValues: ['list', 'detailed', 'grid', 'badges', 'rolling', 'popover', 'none'] },
+    { attr: 'rolling-rotation',    key: 'rollingRotation',       parser: 'enum',
+      enumValues: ['horizontal', 'vertical', 'slide-in'], default: 'slide-in' },
     { attr: 'card-size',           key: 'cardSize',              parser: 'enum',
       enumValues: ['minimal', 'compact', 'big'] },
 
@@ -168,6 +171,9 @@ const ATTRIBUTE_TABLE: ReadonlyArray<AttrSpec> = [
     { attr: 'auto-upload',         key: 'isAutoUploadEnabled',   parser: 'bool-default-true' },
     { attr: 'uploaded-deletable',  key: 'isUploadedFileDeletable', parser: 'bool-default-true' },
     { attr: 'reorder-completed',   key: 'isReorderCompletedEnabled', parser: 'bool-default-false' },
+    { attr: 'reorder-completed-delay', key: 'reorderCompletedDelay', parser: 'int', default: 1500 },
+    { attr: 'progress-mode',       key: 'progressMode',          parser: 'enum',
+      enumValues: ['optimistic', 'pessimistic'], default: 'optimistic' },
 
     // Persistence — opaque key used to scope localStorage / persistStateCallback.
     // Empty / unset disables persistence entirely.
@@ -195,11 +201,12 @@ const UPGRADEABLE_PROPS: ReadonlyArray<string> = [
     // attribute / parseAttributesFromTable / config flow).
     'accept', 'multiple', 'maxFileSize', 'minFileSize', 'maxTotalSize',
     'maxFileCount', 'minFileCount', 'disabled', 'displayMode',
-    'selectorAppearance', 'listAppearance', 'cardSize', 'selectFilesText',
+    'selectorAppearance', 'listAppearance', 'rollingRotation', 'cardSize', 'selectFilesText',
     'showThumbnails', 'filesInside', 'icon', 'promptText', 'hintText',
     'dragActiveText', 'emptyMessage', 'summaryTemplate', 'popoverPlacement',
     'overlayTarget', 'overlayText', 'overlayIcon', 'name', 'valueFormat',
-    'concurrency', 'autoUpload', 'uploadedDeletable', 'storageKey',
+    'concurrency', 'autoUpload', 'uploadedDeletable', 'storageKey', 'progressMode',
+    'reorderCompleted', 'reorderCompletedDelay',
     // Persistence callbacks
     'persistStateCallback', 'loadStateCallback'
 ];
@@ -260,6 +267,18 @@ export class DropzoneElement extends BaseElement {
     private shadow: ShadowRoot;
     private internals?: ElementInternals;
     private customStyleSheet?: HTMLStyleElement;
+
+    /**
+     * Underlying store instance — accessor used by satellite renderers
+     * (`<web-dropzone-picker>`, `<web-dropzone-list>`, `<web-dropzone-indicator>`)
+     * to resolve their `for="<store-id>"` reference. Returns undefined before
+     * `connectedCallback` runs; satellites must handle the timing race
+     * (resolve in their own `connectedCallback` and re-resolve on
+     * `store-ready` if the lookup comes back empty).
+     */
+    getStore(): WebDropzone | undefined {
+        return this.dropzone;
+    }
 
     // Callback properties (set via JavaScript only — no HTML attribute equivalent)
     private _validateCallback: DropzoneConfig['validateCallback'] = null;
@@ -372,6 +391,24 @@ export class DropzoneElement extends BaseElement {
         const spec = ATTRIBUTE_TABLE_BY_ATTR.get(name);
         if (!spec) return;
 
+        // Headless detection (see buildConfig) depends on the *presence* of
+        // any of the three renderer-trigger attrs. Toggling presence on
+        // one of them can flip the headless calculation, which means the
+        // store needs to switch between rendering and not. updateConfig
+        // can't represent that — it patches config in place. Full reinit
+        // is the safe handler. Rare interaction in practice (apps don't
+        // typically toggle these dynamically) so the cost is negligible.
+        if (name === 'display-mode' || name === 'selector-appearance' || name === 'list-appearance') {
+            const wasHeadless = !!this.dropzone.getConfig().isHeadless;
+            const willBeHeadless = !this.hasAttribute('display-mode')
+                && !this.hasAttribute('selector-appearance')
+                && !this.hasAttribute('list-appearance');
+            if (wasHeadless !== willBeHeadless) {
+                this.initializeDropzone();
+                return;
+            }
+        }
+
         const value = parseAttrValue(spec, newValue);
         const partial = { [spec.key]: value } as Partial<DropzoneConfig>;
         this.dropzone.updateConfig(partial);
@@ -405,6 +442,16 @@ export class DropzoneElement extends BaseElement {
     private buildConfig(): DropzoneConfig {
         return {
             ...this.parseAttributesFromTable(),
+
+            // Headless detection — if none of the renderer-trigger
+            // attributes is present on the host, the element is treated as
+            // a headless store (renders nothing, satellites do the UI).
+            // This is the "back-compat shortcut" from ARCHITECTURE.md
+            // inverted: explicit renderer attrs → convenience-form
+            // rendering; absence → satellite-only store.
+            isHeadless: !this.hasAttribute('display-mode')
+                && !this.hasAttribute('selector-appearance')
+                && !this.hasAttribute('list-appearance'),
 
             // Callbacks (programmatic only — no HTML attribute equivalent)
             validateCallback: this._validateCallback,
@@ -448,6 +495,16 @@ export class DropzoneElement extends BaseElement {
 
         this.dropzone = new WebDropzone(this.container, config);
         this.syncFormValue();
+
+        // Notify satellite renderers (`<web-dropzone-picker for=>`, …) that
+        // the store is now resolvable via `getStore()`. Satellites that
+        // connected before the store called this listen for `store-ready`
+        // and complete their wiring then. Bubbles + composed so listeners
+        // in other shadow roots pick it up.
+        this.dispatchEvent(new CustomEvent('store-ready', {
+            bubbles: true,
+            composed: true
+        }));
 
         initLogger.debug('Dropzone initialized', { config });
     }
@@ -629,6 +686,14 @@ export class DropzoneElement extends BaseElement {
         else this.removeAttribute('list-appearance');
     }
 
+    get rollingRotation(): RollingRotation | '' {
+        return (this.getAttribute('rolling-rotation') as RollingRotation) || '';
+    }
+    set rollingRotation(value: RollingRotation | '') {
+        if (value) this.setAttribute('rolling-rotation', value);
+        else this.removeAttribute('rolling-rotation');
+    }
+
     get cardSize(): CardSize | '' {
         return (this.getAttribute('card-size') as CardSize) || '';
     }
@@ -792,6 +857,17 @@ export class DropzoneElement extends BaseElement {
         else this.removeAttribute('reorder-completed');
     }
 
+    /** Delay in ms between a file completing and its row sliding to the
+     *  completed bucket. Reflects the `reorder-completed-delay` HTML
+     *  attribute. Default 1500ms; only meaningful when reorder is on. */
+    get reorderCompletedDelay(): number {
+        const v = this.getAttribute('reorder-completed-delay');
+        return v ? Math.max(0, parseInt(v, 10) || 0) : 1500;
+    }
+    set reorderCompletedDelay(value: number) {
+        this.setAttribute('reorder-completed-delay', String(Math.max(0, value)));
+    }
+
     /** Retry policy applied when `uploadFileCallback` rejects. Defaults to a
      *  single attempt (no retries). */
     get retryPolicy(): DropzoneConfig['retryPolicy'] { return this._retryPolicy; }
@@ -818,6 +894,19 @@ export class DropzoneElement extends BaseElement {
     set autoUpload(value: boolean) {
         if (value) this.setAttribute('auto-upload', '');
         else this.setAttribute('auto-upload', 'false');
+    }
+
+    /** Progress reporting contract — `optimistic` (default) lets the
+     *  handler tick the bar before bytes are acknowledged and snaps back
+     *  on failure; `pessimistic` expects the handler to only tick after
+     *  server ACK and never snaps back. Reflects the `progress-mode`
+     *  HTML attribute. */
+    get progressMode(): 'optimistic' | 'pessimistic' {
+        const attr = this.getAttribute('progress-mode');
+        return attr === 'pessimistic' ? 'pessimistic' : 'optimistic';
+    }
+    set progressMode(value: 'optimistic' | 'pessimistic') {
+        this.setAttribute('progress-mode', value);
     }
 
     /** Opaque key used to scope persisted UI state (popover dimensions,

@@ -34,13 +34,19 @@
 
 /* Reorder-completed mode — flexbox `order` slides completed rows to the
    end of the visual list without mutating `this.files` or rebuilding the
-   DOM. The Show-more toggle and the badges "+N" counter always trail
-   everything (order: 2) so they stay below both buckets. patchFileRow
-   keeps `data-status` on each row in sync, so a file completing
-   mid-upload slides down LIVE instead of waiting for a full re-render.
-   Same rule applies to the in-card variant via .dz__files-inside--*. */
-.dz__file-list--reorder-completed > [data-status="complete"],
-.dz__files-inside--reorder-completed > [data-status="complete"] {
+   DOM. The trigger is `data-reorder-bucket="complete"` (NOT data-status)
+   so a configurable delay can sit between "file finished uploading" and
+   "row physically moves" — useful when failed rows sitting next to each
+   other could otherwise swap positions faster than the user can register
+   which one just succeeded. dropzone.ts sets the attribute on a per-file
+   setTimeout (config: `reorderCompletedDelay`, default 1500ms when
+   reorder is on); a delay of 0 schedules a microtask so the move still
+   happens "instantly" but cleanup hooks for retry / remove get a chance
+   to cancel. The Show-more toggle and the badges "+N" counter always
+   trail everything (order: 2) so they stay below both buckets. Same
+   rule applies to the in-card variant via .dz__files-inside--*. */
+.dz__file-list--reorder-completed > [data-reorder-bucket="complete"],
+.dz__files-inside--reorder-completed > [data-reorder-bucket="complete"] {
   order: 1;
 }
 
@@ -61,6 +67,139 @@
   flex-direction: row;
   flex-wrap: wrap;
   gap: var(--dz-badges-gap);
+}
+
+/* ==========================================================================
+   ROLLING APPEARANCE — stable container with rotating front-file slot
+   ==========================================================================
+   The container is the popover anchor (visible "current file" rectangle).
+   Inside, one or two `.dz__rolling__current` slots share a single CSS-grid
+   cell so they overlap during a transition: the outgoing slot animates
+   out while the incoming one animates in, no layout shift. The queue
+   count badge floats in the top-right corner as an absolute overlay.
+
+   Three rotation styles, driven by `data-rotation` on the container:
+     - slide-in   : default. Outgoing slot is snap-removed (no leaving
+                    element kept), incoming slides from the right.
+                    Cheapest and reads as "next up".
+     - horizontal : outgoing slides left, incoming slides from right.
+     - vertical   : outgoing slides up, incoming rises from the bottom. */
+
+.dz__file-list--rolling,
+.dz__files-inside--rolling {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr;
+  /* Reset flex defaults inherited from .dz__file-list. The container is a
+     1-column grid and the slot is what fills it. */
+  flex-direction: initial;
+  gap: 0;
+}
+
+/* Both `current` and any `current--leaving` share the single grid cell —
+   that's what lets them overlap during a transition. The cell auto-sizes
+   to the tallest child so the container is naturally as tall as one file
+   row, and the popover anchor (= container) has a sensible rectangle. */
+.dz__rolling__current {
+  grid-area: 1 / 1;
+  min-width: 0;
+  /* Reserve room on the right for the corner badge so the file-item's
+     remove button doesn't end up underneath it. Width matches the badge's
+     padding + count chip + a little breathing room. */
+  padding-right: calc(4.5 * var(--dz-rem));
+}
+
+/* Slide-in (default): only the incoming slot is mounted; old one was
+   replaced in-place by JS. */
+.dz__file-list--rolling[data-rotation="slide-in"]   .dz__rolling__current,
+.dz__files-inside--rolling[data-rotation="slide-in"] .dz__rolling__current {
+  animation: dz-roll-in-from-right var(--dz-rolling-animation-duration) var(--dz-easing-snappy) both;
+}
+
+/* Horizontal conveyor: incoming from the right, outgoing to the left. */
+.dz__file-list--rolling[data-rotation="horizontal"]   .dz__rolling__current,
+.dz__files-inside--rolling[data-rotation="horizontal"] .dz__rolling__current {
+  animation: dz-roll-in-from-right var(--dz-rolling-animation-duration) var(--dz-easing-snappy) both;
+}
+.dz__file-list--rolling[data-rotation="horizontal"]   .dz__rolling__current--leaving,
+.dz__files-inside--rolling[data-rotation="horizontal"] .dz__rolling__current--leaving {
+  animation: dz-roll-out-to-left var(--dz-rolling-animation-duration) var(--dz-easing-snappy) both;
+}
+
+/* Vertical stack: incoming rises from below, outgoing exits at the top. */
+.dz__file-list--rolling[data-rotation="vertical"]   .dz__rolling__current,
+.dz__files-inside--rolling[data-rotation="vertical"] .dz__rolling__current {
+  animation: dz-roll-in-from-bottom var(--dz-rolling-animation-duration) var(--dz-easing-snappy) both;
+}
+.dz__file-list--rolling[data-rotation="vertical"]   .dz__rolling__current--leaving,
+.dz__files-inside--rolling[data-rotation="vertical"] .dz__rolling__current--leaving {
+  animation: dz-roll-out-to-top var(--dz-rolling-animation-duration) var(--dz-easing-snappy) both;
+}
+
+@keyframes dz-roll-in-from-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes dz-roll-out-to-left {
+  from { transform: translateX(0);     opacity: 1; }
+  to   { transform: translateX(-100%); opacity: 0; }
+}
+@keyframes dz-roll-in-from-bottom {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes dz-roll-out-to-top {
+  from { transform: translateY(0);     opacity: 1; }
+  to   { transform: translateY(-100%); opacity: 0; }
+}
+
+/* Queue badge — small count pill in the top-right corner of the container.
+   Always-mounted (we toggle `--hidden` for the 1-file case) so the
+   container's hit area stays stable. */
+.dz__rolling__queue {
+  position: absolute;
+  top: var(--dz-rolling-queue-offset);
+  right: var(--dz-rolling-queue-offset);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--dz-rolling-queue-padding);
+  background: var(--dz-rolling-queue-bg);
+  color: var(--dz-rolling-queue-color);
+  border: var(--dz-rolling-queue-border);
+  border-radius: var(--dz-rolling-queue-border-radius);
+  font-size: var(--dz-rolling-queue-font-size);
+  font-weight: var(--dz-font-weight-semibold);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy),
+              color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+
+.dz__rolling__queue:hover {
+  background: var(--dz-rolling-queue-bg-hover);
+  color: var(--dz-rolling-queue-color-hover);
+}
+
+.dz__rolling__queue--hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.dz__rolling__queue-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(1.6 * var(--dz-rem));
+  height: calc(1.6 * var(--dz-rem));
+  padding: 0 calc(0.4 * var(--dz-rem));
+  background: var(--dz-rolling-queue-count-bg);
+  color: var(--dz-rolling-queue-count-color);
+  border-radius: var(--dz-border-radius-sm);
+  font-variant-numeric: tabular-nums;
+  font-size: calc(1.1 * var(--dz-rem));
 }
 
 /* Empty state */

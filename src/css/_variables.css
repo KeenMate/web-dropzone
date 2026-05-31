@@ -109,11 +109,37 @@
   --dz-button-padding: calc(0.8 * var(--dz-rem)) calc(1.6 * var(--dz-rem));
   --dz-button-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
 
+  /* Button-selector count badge. The radius is rectangular by default
+     (matches the parent button's corner) — set --dz-button-badge-border-radius
+     to 999px to bring back the pill shape. Background swaps via data-status
+     attribute, mirroring the overall progress bar's state palette
+     (--dz-accent-color / --dz-warning-color / --dz-error-color /
+     --dz-success-color). */
+  --dz-button-badge-border-radius: var(--dz-border-radius-sm);
+
   /* ==========================================================================
      MINIMAL SELECTOR
      ========================================================================== */
   --dz-minimal-size: calc(3.6 * var(--dz-rem));
   --dz-minimal-icon-size: calc(2 * var(--dz-rem));
+
+  /* ==========================================================================
+     ROLLING APPEARANCE — stable container + rotating front-file slot.
+     Container is the popover anchor. Queue badge is a corner overlay
+     (`--dz-rolling-queue-offset` from top-right).
+     ========================================================================== */
+  --dz-rolling-animation-duration: 0.35s;
+  --dz-rolling-queue-offset: calc(0.4 * var(--dz-rem));
+  --dz-rolling-queue-padding: calc(0.3 * var(--dz-rem)) calc(0.6 * var(--dz-rem));
+  --dz-rolling-queue-bg: var(--dz-primary-bg);
+  --dz-rolling-queue-bg-hover: var(--dz-primary-bg-hover);
+  --dz-rolling-queue-color: var(--dz-text-color-2);
+  --dz-rolling-queue-color-hover: var(--dz-accent-color);
+  --dz-rolling-queue-border: 1px solid var(--dz-border-color);
+  --dz-rolling-queue-border-radius: var(--dz-border-radius-sm);
+  --dz-rolling-queue-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
+  --dz-rolling-queue-count-bg: var(--dz-accent-color);
+  --dz-rolling-queue-count-color: var(--dz-text-on-accent);
 
   /* ==========================================================================
      BADGES LIST — composite badge (text half + remove half share radius)

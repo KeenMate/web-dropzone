@@ -18,11 +18,13 @@ import type {
     DisplayMode,
     SelectorAppearance,
     ListAppearance,
+    RollingRotation,
     CardSize,
     FileTypeCategory,
     FileStatus,
     FILE_TYPE_ICONS,
-    FileItemRenderContext
+    FileItemRenderContext,
+    AddFilesOptions
 } from './types';
 
 // Re-export FILE_TYPE_ICONS for use in this file
@@ -39,55 +41,32 @@ const FILE_ICONS: Record<FileTypeCategory, string> = {
     default: '📁'
 };
 
-// Lucide outline icons (24/24, currentColor stroke). Rendered as an inline
-// SVG inside the status span; size is controlled via CSS `width: 1em` so the
-// icon scales with --dz-rem.
-const STATUS_ICONS: Record<FileStatus, string> = {
-    pending:   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
-    uploading: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',
-    paused:    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>',
-    complete:  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
-    error:     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>',
-    cancelled: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>'
-};
-
-const STATUS_LABELS: Record<FileStatus, string> = {
-    pending:   'Pending',
-    uploading: 'Uploading',
-    paused:    'Paused',
-    complete:  'Complete',
-    error:     'Error',
-    cancelled: 'Cancelled'
-};
-
-// Per-row action button (pause/resume/retry). Drawn alongside the X so
-// the user can recover an in-flight file without reaching for the
-// overall Pause-all / Retry-all controls.
-type RowAction = 'pause' | 'resume' | 'retry';
-
-const ACTION_ICONS: Record<RowAction, string> = {
-    pause:  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="14" y="3" width="5" height="18" rx="1"/><rect x="5" y="3" width="5" height="18" rx="1"/></svg>',
-    resume: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></svg>',
-    retry:  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>'
-};
-
-const ACTION_LABELS: Record<RowAction, string> = {
-    pause:  'Pause',
-    resume: 'Resume',
-    retry:  'Retry'
-};
-
-function actionForStatus(status: FileStatus): RowAction | null {
-    if (status === 'uploading') return 'pause';
-    if (status === 'paused')    return 'resume';
-    if (status === 'error')     return 'retry';
-    return null;
-}
+// Status / action icons live in `./icons` so the satellite renderers and any
+// user-provided callbacks can share the same Lucide SVG family.
+import {
+    STATUS_ICONS,
+    STATUS_LABELS,
+    ACTION_ICONS,
+    ACTION_LABELS,
+    actionForStatus
+} from './icons';
+// Shared status-surface contract — the rolling list uses the same three
+// callbacks (body / fileInfo / progress) as the indicator satellite, so
+// templates port across surfaces unchanged. See ./status-surface.ts.
+import {
+    buildStatusSurfaceArgs,
+    applyStatusSurfaceResult
+} from './status-surface';
+import type {
+    StatusSurfaceArgs,
+    StatusSurfaceResult,
+    StatusSurfacePrev
+} from './status-surface';
 
 /**
  * Default configuration values
  */
-const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCallback' | 'removeCallback' | 'changeCallback' | 'rejectCallback' | 'retryCallback' | 'uploadFileCallback' | 'uploadedCallback' | 'deleteCallback' | 'renderFileItemCallback' | 'renderPromptCallback' | 'renderSummaryCallback' | 'customStylesCallback' | 'persistStateCallback' | 'loadStateCallback' | 'storageKey' | 'container' | 'hostElement' | 'overlayTarget' | 'selectorAppearance' | 'listAppearance' | 'cardSize' | 'isShowThumbnailsEnabled' | 'retryPolicy'>> = {
+const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCallback' | 'removeCallback' | 'changeCallback' | 'rejectCallback' | 'retryCallback' | 'uploadFileCallback' | 'uploadedCallback' | 'deleteCallback' | 'renderFileItemCallback' | 'renderPromptCallback' | 'renderSummaryCallback' | 'customStylesCallback' | 'persistStateCallback' | 'loadStateCallback' | 'storageKey' | 'container' | 'hostElement' | 'overlayTarget' | 'selectorAppearance' | 'listAppearance' | 'cardSize' | 'isShowThumbnailsEnabled' | 'retryPolicy' | 'rollingRotation' | 'isHeadless' | 'renderRollingBodyCallback' | 'renderRollingFileInfoCallback' | 'renderRollingProgressCallback'>> = {
     isMultipleEnabled: true,
     accept: '',
     maxFileSize: 0,
@@ -115,7 +94,9 @@ const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCal
     concurrency: 1,
     isAutoUploadEnabled: true,
     isUploadedFileDeletable: true,
-    isReorderCompletedEnabled: false
+    isReorderCompletedEnabled: false,
+    reorderCompletedDelay: 1500,
+    progressMode: 'optimistic'
 };
 
 /**
@@ -274,6 +255,13 @@ export class WebDropzone {
     private activeIds = new Set<string>();
     /** Re-entrancy guard so simultaneous uploadAll() calls collapse into one. */
     private isDrainingQueue = false;
+    /** Pending reorder timers per file id, used to delay the visual move of
+     *  a row from the "unresolved" bucket to the "complete" bucket (see
+     *  `reorderCompletedDelay`). A file with a pending timer is NOT yet
+     *  reorder-eligible — the timer firing IS the eligibility signal.
+     *  Cancelled if the file un-completes (retry) or is removed before
+     *  the timer fires. */
+    private reorderTimers = new Map<string, number>();
 
     // DOM elements
     private dropzoneEl: HTMLElement | null = null;
@@ -282,6 +270,14 @@ export class WebDropzone {
     private filesInsideEl: HTMLElement | null = null;
     private summaryEl: HTMLElement | null = null;
     private overallProgressEl: HTMLElement | null = null;
+
+    // Rolling list status-surface memoization snapshots. Each tracks the
+    // last applied result for the corresponding callback so identical
+    // results on subsequent ticks skip the DOM write — see
+    // `applyStatusSurfaceResult` in ./status-surface.ts.
+    private rollingBodyPrev: StatusSurfacePrev = undefined;
+    private rollingFileInfoPrev: StatusSurfacePrev = undefined;
+    private rollingProgressPrev: StatusSurfacePrev = undefined;
 
     // Drag overlay elements
     private overlayTarget: HTMLElement | null = null;
@@ -341,11 +337,16 @@ export class WebDropzone {
     }
 
     /**
-     * Add files programmatically
+     * Add files programmatically. The optional `opts` (Mode B — see
+     * ARCHITECTURE.md) carries per-file routing the contributing picker
+     * wants stamped onto each new FileState: `uploadCallback` overrides
+     * the store-level handler for these specific files, `uploadMetadata`
+     * is handed to the handler via `FileUploadContext.uploadMetadata`.
+     * Omit `opts` for Mode A — files inherit the store's handler.
      */
-    addFiles(fileList: FileList | File[]): void {
+    addFiles(fileList: FileList | File[], opts?: AddFilesOptions): void {
         const files = Array.from(fileList);
-        this.processFiles(files);
+        this.processFiles(files, opts);
     }
 
     /**
@@ -360,6 +361,13 @@ export class WebDropzone {
         // from flipping the (already-removed) file to 'paused'.
         this.pausedIds.delete(id);
         this.controllers.get(id)?.abort();
+        // Cancel any pending reorder timer — the row is going away, no
+        // point firing the deferred move after the row is gone.
+        const pendingReorder = this.reorderTimers.get(id);
+        if (pendingReorder !== undefined) {
+            clearTimeout(pendingReorder);
+            this.reorderTimers.delete(id);
+        }
 
         const file = this.files[index];
         const hasServerState = this.hasServerSideState(file);
@@ -409,6 +417,7 @@ export class WebDropzone {
         const removedFiles = [...this.files];
         this.files = [];
         this.showAllList = false;
+        this.clearAllReorderTimers();
 
         fileLogger.debug('All files cleared', { count: removedFiles.length });
 
@@ -488,14 +497,17 @@ export class WebDropzone {
         const file = this.files.find(f => f.id === id);
         if (!file) return;
 
-        file.progress = Math.max(0, Math.min(100, progress));
-
-        // Auto-update status based on progress
-        if (file.progress > 0 && file.progress < 100 && file.status === 'pending') {
-            file.status = 'uploading';
-        } else if (file.progress === 100 && file.status === 'uploading') {
-            file.status = 'complete';
+        // Compute clamped progress + auto-flip status, then commit through
+        // the centralized mutator so file-progress / file-status-changed
+        // fire atomically (one mutator call → at most one of each event).
+        const clamped = Math.max(0, Math.min(100, progress));
+        let nextStatus = file.status;
+        if (clamped > 0 && clamped < 100 && file.status === 'pending') {
+            nextStatus = 'uploading';
+        } else if (clamped === 100 && file.status === 'uploading') {
+            nextStatus = 'complete';
         }
+        this.mutateFileState(file, { progress: clamped, status: nextStatus });
 
         fileLogger.debug('File progress updated', { id, progress: file.progress, status: file.status });
 
@@ -510,9 +522,13 @@ export class WebDropzone {
         const file = this.files.find(f => f.id === id);
         if (!file) return;
 
-        file.status = status;
         if (error) file.error = error;
-        if (status === 'complete') file.progress = 100;
+        // 'complete' implies progress=100 — bundle into one mutator call so
+        // the status-changed and progress events fire atomically.
+        this.mutateFileState(
+            file,
+            status === 'complete' ? { status, progress: 100 } : { status }
+        );
 
         fileLogger.debug('File status updated', { id, status, error });
 
@@ -542,15 +558,26 @@ export class WebDropzone {
         const file = this.files.find(f => f.id === id);
         if (!file) return;
         this.pausedIds.delete(id);
-        file.status = 'pending';
+        // Cancel any pending reorder + release the "complete" bucket
+        // immediately. Belt-and-braces: patchFileRow's boundary check
+        // also covers this when the row is in the rendered DOM, but
+        // calling scheduleReorder(id, false) directly handles the case
+        // where the row is hidden behind a Show-more cap (querySelector
+        // returns null and the inline branch skips).
+        if (this.config.isReorderCompletedEnabled) {
+            this.scheduleReorder(id, false);
+        }
         file.error = undefined;
+        this.mutateFileState(file, { status: 'pending' });
         fileLogger.debug('File retry requested', { id, name: file.name, startPercent: file.progress });
         this.patchFileRow(file);
         this.emitRetryEvent(file);
         // Component-driven mode: re-queue via the worker pool. The pool's
         // re-entrancy guard collapses simultaneous calls — retryAll calling
-        // retryFile in a loop still triggers one drain pass.
-        if (this.config.uploadFileCallback) {
+        // retryFile in a loop still triggers one drain pass. Mode B: a
+        // per-file handler also qualifies; uploadAll's per-worker filter
+        // skips files with neither.
+        if (file.uploadCallback || this.config.uploadFileCallback) {
             void this.uploadAll();
         }
     }
@@ -585,18 +612,24 @@ export class WebDropzone {
      * each worker re-queries `this.files` on every iteration.
      */
     async uploadAll(): Promise<void> {
-        if (!this.config.uploadFileCallback) return;
         if (this.isDrainingQueue) return;
 
         this.isDrainingQueue = true;
         const concurrency = Math.max(1, this.config.concurrency ?? 1);
+
+        // Mode B: skip files that have neither a per-file handler nor a
+        // store-level handler. Otherwise the worker spins picking up files
+        // that runUpload would immediately drop, never marking activeIds.
+        const hasHandler = (f: FileState) =>
+            !!(f.uploadCallback || this.config.uploadFileCallback);
 
         const worker = async (): Promise<void> => {
             while (true) {
                 const next = this.files.find(f =>
                     f.status === 'pending' &&
                     !this.pausedIds.has(f.id) &&
-                    !this.activeIds.has(f.id)
+                    !this.activeIds.has(f.id) &&
+                    hasHandler(f)
                 );
                 if (!next) return;
                 this.activeIds.add(next.id);
@@ -620,7 +653,12 @@ export class WebDropzone {
      * "upload-on-demand" UIs (e.g. each row has its own upload button).
      */
     async uploadFile(id: string): Promise<void> {
-        if (!this.config.uploadFileCallback) return;
+        // Mode B: a per-file handler is enough — the file might have come
+        // in via a picker that owns its own handler, even if the store
+        // itself has none.
+        const file = this.files.find(f => f.id === id);
+        if (!file) return;
+        if (!file.uploadCallback && !this.config.uploadFileCallback) return;
         if (this.activeIds.has(id)) return;
         this.activeIds.add(id);
         try {
@@ -638,13 +676,27 @@ export class WebDropzone {
         const ctrl = this.controllers.get(id);
         if (ctrl) {
             ctrl.abort();
-        } else {
-            // Not in flight — mark paused so the worker pool skips it.
-            const file = this.files.find(f => f.id === id);
-            if (file && (file.status === 'pending' || file.status === 'uploading')) {
-                file.status = 'paused';
-                this.patchFileRow(file);
-            }
+        }
+        // Always flip status to 'paused' synchronously when applicable.
+        // Two cases this covers:
+        //   1) Not in flight (no ctrl, status pending/uploading) — same as
+        //      the original `else` branch.
+        //   2) In flight under auto-retry, but paused during the retry
+        //      delay (between attempts) — the previous attempt's ctrl is
+        //      still in the controllers map (finally hasn't fired yet)
+        //      because the outer runUpload is awaiting setTimeout. We hit
+        //      the `if (ctrl)` branch above and abort, but the catch path
+        //      that would normally flip status to 'paused' is already
+        //      done — its delay-wakeup will see `pausedIds.has(id)` and
+        //      bail out early without touching status. So the file would
+        //      be left visibly "uploading" forever. Flipping here
+        //      synchronously is idempotent with the catch-path flip when
+        //      a handler IS in flight (status will already be 'paused' by
+        //      the time the catch runs; the catch's re-flip is a no-op).
+        const file = this.files.find(f => f.id === id);
+        if (file && (file.status === 'pending' || file.status === 'uploading')) {
+            this.mutateFileState(file, { status: 'paused' });
+            this.patchFileRow(file);
         }
         this.updateOverallProgress();
     }
@@ -665,14 +717,13 @@ export class WebDropzone {
         if (!file) return;
         if (file.status === 'paused') {
             // Preserve progress — handler resumes from context.startBytes.
-            file.status = 'pending';
             file.error = undefined;
+            this.mutateFileState(file, { status: 'pending' });
             this.patchFileRow(file);
         } else if (file.status === 'cancelled') {
             // Cancelled → user-initiated abort, server state is assumed lost.
-            file.status = 'pending';
-            file.progress = 0;
             file.error = undefined;
+            this.mutateFileState(file, { status: 'pending', progress: 0 });
             this.patchFileRow(file);
         }
         await this.uploadAll();
@@ -689,7 +740,7 @@ export class WebDropzone {
         } else {
             const file = this.files.find(f => f.id === id);
             if (file && (file.status === 'pending' || file.status === 'uploading')) {
-                file.status = 'cancelled';
+                this.mutateFileState(file, { status: 'cancelled' });
                 this.patchFileRow(file);
             }
         }
@@ -711,9 +762,9 @@ export class WebDropzone {
         for (const f of this.files) {
             if (f.status === 'paused') {
                 this.pausedIds.delete(f.id);
-                f.status = 'pending';
                 // Progress preserved — handler sees startBytes > 0.
                 f.error = undefined;
+                this.mutateFileState(f, { status: 'pending' });
                 this.patchFileRow(f);
             }
         }
@@ -727,11 +778,14 @@ export class WebDropzone {
      * stays consistent.
      */
     private async runUpload(id: string, attempt = 0): Promise<void> {
-        const handler = this.config.uploadFileCallback;
-        if (!handler) return;
         const file = this.files.find(f => f.id === id);
         if (!file) return;
         if (this.pausedIds.has(id)) return;
+        // Mode B precedence: a file-stamped handler (set by the contributing
+        // picker at add-time, see ARCHITECTURE.md) wins over the store-level
+        // handler. Mode A files just inherit `config.uploadFileCallback`.
+        const handler = file.uploadCallback ?? this.config.uploadFileCallback;
+        if (!handler) return;
 
         const ctrl = new AbortController();
         this.controllers.set(id, ctrl);
@@ -743,8 +797,17 @@ export class WebDropzone {
         // for any re-entry and can decide whether to continue or restart.
         // Cancel-then-resume (via resumeFile after a cancel) resets to 0,
         // matching the explicit-restart intent of cancellation.
-        file.status = 'uploading';
         file.error = undefined;
+        this.mutateFileState(file, { status: 'uploading' });
+        // Snapshot the pre-attempt progress as the "last known-good"
+        // baseline. The handler ticks onProgress optimistically (bytes
+        // SENT, not bytes ACKNOWLEDGED) as data flies up the wire — if
+        // the request ultimately rejects, those bytes never landed on
+        // the server, so the bar has to snap back to this baseline
+        // before the retry / error path takes over. Pause / cancel keep
+        // the optimistic value (user intent, not failure) — only the
+        // failure branch in the catch below uses this.
+        const baselineProgress = file.progress;
         this.patchFileRow(file);
 
         // Build the per-call context — startBytes/startPercent reflect the
@@ -758,7 +821,8 @@ export class WebDropzone {
             metadata: file.metadata,
             setMetadata: (patch) => {
                 file.metadata = { ...(file.metadata ?? {}), ...patch };
-            }
+            },
+            uploadMetadata: file.uploadMetadata
         };
 
         try {
@@ -785,42 +849,86 @@ export class WebDropzone {
                 if (result.previewUrl !== undefined) file.previewUrl = result.previewUrl;
                 if (result.name !== undefined) file.name = result.name;
             }
-            file.status = 'complete';
-            file.progress = 100;
+            this.mutateFileState(file, { status: 'complete', progress: 100 });
             this.patchFileRow(file);
             this.emitUploadedEvent(file);
         } catch (err) {
             if (ctrl.signal.aborted) {
                 // The signal fires for pause AND cancel — distinguish by which
                 // set holds the id. pause keeps it for resume; cancel doesn't.
-                if (this.pausedIds.has(id)) {
-                    file.status = 'paused';
-                } else {
-                    file.status = 'cancelled';
-                }
+                this.mutateFileState(file, {
+                    status: this.pausedIds.has(id) ? 'paused' : 'cancelled'
+                });
                 this.patchFileRow(file);
                 return;
             }
             const msg = err instanceof Error ? err.message : 'Upload failed';
             const policy = this.config.retryPolicy ?? {};
             const maxAttempts = Math.max(1, policy.attempts ?? 1);
+            // eslint-disable-next-line no-console
+            console.log(
+                `[dz auto-retry] handler rejected for "${file.name}" (id=${id}) ` +
+                `at progress=${file.progress.toFixed(1)}% on attempt ${attempt + 1}/${maxAttempts}: ${msg}`
+            );
+            // Snap-back behaviour is the contract of `progressMode`:
+            //   - optimistic: the handler may report onProgress before the
+            //     bytes are acknowledged; on failure those bytes never
+            //     landed, so we drop back to the pre-attempt baseline.
+            //   - pessimistic: the handler is contracted to only report
+            //     acknowledged bytes; the bar already reflects committed
+            //     state and must not go backwards (forward-only or stop).
+            const isOptimistic = (this.config.progressMode ?? 'optimistic') === 'optimistic';
+            if (isOptimistic && file.progress !== baselineProgress) {
+                // eslint-disable-next-line no-console
+                console.log(
+                    `[dz auto-retry] snapping "${file.name}" back from ${file.progress.toFixed(1)}% ` +
+                    `to baseline ${baselineProgress.toFixed(1)}% (optimistic mode — unacknowledged bytes)`
+                );
+                this.mutateFileState(file, { progress: baselineProgress });
+            }
             if (attempt + 1 < maxAttempts) {
                 const delay = (policy.delayMs ?? 1000) * Math.pow(policy.backoff ?? 2, attempt);
+                // eslint-disable-next-line no-console
+                console.log(
+                    `[dz auto-retry] scheduling next attempt for "${file.name}" in ${delay}ms ` +
+                    `(progress=${file.progress.toFixed(1)}% preserved → handler will see startBytes=` +
+                    `${Math.floor(file.size * (file.progress / 100))})`
+                );
                 await new Promise(r => setTimeout(r, delay));
                 // Bail out cleanly if the file was paused / removed during the
                 // backoff window.
-                if (this.pausedIds.has(id) || !this.files.find(f => f.id === id)) return;
-                // Auto-retry resets progress — server-side state from the
-                // failed attempt may be incoherent, so start from 0. Handlers
-                // that want smart retry should set retryPolicy.attempts=1 and
-                // handle resume in their own code (where they can check
-                // server state with HEAD before deciding).
-                file.progress = 0;
+                if (this.pausedIds.has(id) || !this.files.find(f => f.id === id)) {
+                    // eslint-disable-next-line no-console
+                    console.log(
+                        `[dz auto-retry] aborting retry for "${file.name}" — ` +
+                        `${this.pausedIds.has(id) ? 'paused' : 'removed'} during delay`
+                    );
+                    return;
+                }
+                // Auto-retry preserves `file.progress` to match the manual
+                // `retryFile` path — the COMPONENT keeps the partial offset
+                // and the HANDLER decides whether to continue (resume-aware,
+                // e.g. tus.io HEAD then PATCH from the server's offset) or
+                // reset and start fresh by calling `onProgress(0)` on its
+                // first tick. This makes the auto-retry path honor the same
+                // resume contract as Pause → Resume and per-row Retry, so a
+                // resume-aware handler gets consistent behaviour across all
+                // three recovery flows.
+                // eslint-disable-next-line no-console
+                console.log(
+                    `[dz auto-retry] starting attempt ${attempt + 2}/${maxAttempts} for "${file.name}" ` +
+                    `with progress=${file.progress.toFixed(1)}%`
+                );
                 this.patchFileRow(file);
                 return this.runUpload(id, attempt + 1);
             }
-            file.status = 'error';
+            // eslint-disable-next-line no-console
+            console.log(
+                `[dz auto-retry] giving up on "${file.name}" — exhausted ${maxAttempts} attempts ` +
+                `at progress=${file.progress.toFixed(1)}%`
+            );
             file.error = msg;
+            this.mutateFileState(file, { status: 'error' });
             this.patchFileRow(file);
         } finally {
             this.controllers.delete(id);
@@ -831,7 +939,7 @@ export class WebDropzone {
     // FILE PROCESSING
     // ========================================================================
 
-    private processFiles(files: File[]): void {
+    private processFiles(files: File[], opts?: AddFilesOptions): void {
         const acceptedFiles: FileState[] = [];
         const rejectedFiles: RejectedFile[] = [];
 
@@ -906,7 +1014,7 @@ export class WebDropzone {
 
             runningCount++;
             runningTotal += file.size;
-            acceptedFiles.push(this.createFileState(file));
+            acceptedFiles.push(this.createFileState(file, opts));
         }
 
         // Add accepted files
@@ -952,17 +1060,22 @@ export class WebDropzone {
         // Auto-upload kicks in once the new files are committed to state, the
         // UI has reflected the additions, and the file-added event has fired.
         // The worker pool's re-entrancy guard collapses overlapping calls.
+        // Mode B: a per-file handler stamped via opts.uploadCallback also
+        // qualifies — uploadAll's filter picks the right handler per file.
+        const hasAnyHandler =
+            !!this.config.uploadFileCallback ||
+            acceptedFiles.some(f => !!f.uploadCallback);
         if (
             acceptedFiles.length > 0 &&
-            this.config.uploadFileCallback &&
+            hasAnyHandler &&
             this.config.isAutoUploadEnabled !== false
         ) {
             void this.uploadAll();
         }
     }
 
-    private createFileState(file: File): FileState {
-        return {
+    private createFileState(file: File, opts?: AddFilesOptions): FileState {
+        const state: FileState = {
             id: generateFileId(),
             file,
             name: file.name,
@@ -971,6 +1084,13 @@ export class WebDropzone {
             status: 'pending',
             progress: 0
         };
+        // Mode B routing (see ARCHITECTURE.md). Stamped at add-time and
+        // preserved through pause / resume / retry — runUpload reads them
+        // on every attempt, so a Mode B file uses the same handler/metadata
+        // it was contributed with even after a re-queue.
+        if (opts?.uploadCallback) state.uploadCallback = opts.uploadCallback;
+        if (opts?.uploadMetadata) state.uploadMetadata = opts.uploadMetadata;
+        return state;
     }
 
     private async generatePreview(fileState: FileState): Promise<void> {
@@ -1086,6 +1206,14 @@ export class WebDropzone {
     // ========================================================================
 
     private render(): void {
+        // Headless store (see ARCHITECTURE.md): no rendering, no listener
+        // wiring, no input element. Satellite renderers do all the UI;
+        // this instance exists purely as a data + upload-loop source.
+        if (this.config.isHeadless) {
+            this.element.innerHTML = '';
+            uiLogger.debug('Component is headless — skipping render');
+            return;
+        }
         this.element.innerHTML = this.renderComponent();
         this.cacheElements();
         const r = resolveDisplayConfig(this.config);
@@ -1108,13 +1236,14 @@ export class WebDropzone {
         const needsSummary = listAppearance === 'popover' && selectorAppearance === 'card';
 
         // The standalone list area is rendered only for in-place list variants
-        // (list/detailed/grid/badges) and only when files-inside is off.
+        // (list/detailed/grid/badges/rolling) and only when files-inside is off.
         const needsListArea =
             !filesInside &&
             (listAppearance === 'list' ||
              listAppearance === 'detailed' ||
              listAppearance === 'grid' ||
-             listAppearance === 'badges');
+             listAppearance === 'badges' ||
+             listAppearance === 'rolling');
 
         // `--manual-upload` modifier hides the "pending" status icon across
         // all list appearances (per-row + the popover summary fallback) when
@@ -1264,21 +1393,104 @@ export class WebDropzone {
 
     /**
      * Return a snapshot of `this.files` ordered for rendering. When
-     * `isReorderCompletedEnabled` is on, completed files slide to the end
-     * via a stable sort (so within each bucket the original add order is
-     * preserved). Used by the popover render path; the inline list relies
-     * on CSS `order` instead so this snapshot is for surfaces that can't
-     * use flex ordering (the popover table being the main one).
+     * `isReorderCompletedEnabled` is on, reorder-eligible files (status
+     * 'complete' AND no pending reorder timer) slide to the end via a
+     * stable sort (so within each bucket the original add order is
+     * preserved). Used by the popover render path and the inline list's
+     * cap-render slice; the inline list itself uses CSS `order` for
+     * already-rendered rows.
+     *
+     * Eligibility (not raw `status === 'complete'`) means the popover
+     * sort respects the same `reorderCompletedDelay` window the inline
+     * CSS rule does — files mid-delay stay in the unresolved bucket.
      */
     private getOrderedFiles(): FileState[] {
         if (!this.config.isReorderCompletedEnabled) return this.files;
-        // Pair each file with its original index, sort by (isComplete asc,
-        // index asc), then map back. Native Array#sort is stable in modern
-        // browsers but the index pairing guards against any edge cases.
         return this.files
-            .map((f, i) => ({ f, i, complete: f.status === 'complete' ? 1 : 0 }))
+            .map((f, i) => ({ f, i, complete: this.isReorderEligible(f) ? 1 : 0 }))
             .sort((a, b) => (a.complete - b.complete) || (a.i - b.i))
             .map(x => x.f);
+    }
+
+    /** A file is reorder-eligible when its status is `complete` AND no
+     *  delay timer is pending for it. Used by the popover sort and by
+     *  the inline render functions to stamp `data-reorder-bucket`. */
+    private isReorderEligible(file: FileState): boolean {
+        if (!this.config.isReorderCompletedEnabled) return false;
+        if (file.status !== 'complete') return false;
+        return !this.reorderTimers.has(file.id);
+    }
+
+    /**
+     * Schedule (or cancel) the delayed reorder for a file. Called from
+     * `patchFileRow` whenever a row's status crosses the complete
+     * boundary, and from teardown paths (`removeFile`, `retryFile`,
+     * `clear`) to clean up.
+     *
+     * The visible row's `data-reorder-bucket` is the single source of
+     * truth for CSS — set when the timer fires, cleared when the file
+     * un-completes. The id-set `reorderEligibleIds` mirrors this for the
+     * non-DOM render paths (popover sort, cap re-render).
+     */
+    private scheduleReorder(id: string, becomingComplete: boolean): void {
+        // Always cancel any pending timer first; the caller's intent
+        // overrides whatever the previous transition queued.
+        const pending = this.reorderTimers.get(id);
+        if (pending !== undefined) {
+            clearTimeout(pending);
+            this.reorderTimers.delete(id);
+        }
+
+        if (!this.config.isReorderCompletedEnabled) return;
+
+        const apply = () => {
+            // The file may have been removed during the timer wait.
+            const stillExists = this.files.some(f => f.id === id);
+            if (!stillExists) return;
+
+            // Inline-list row: flip `data-reorder-bucket` so the CSS
+            // `order: 1` rule kicks in (or releases). Doubles as the
+            // visual state used by getOrderedFiles via isReorderEligible
+            // (which checks timer presence, now cleared).
+            const targetEl = this.config.isFilesInsideEnabled ? this.filesInsideEl : this.fileListEl;
+            const row = targetEl?.querySelector(`[data-file-id="${id}"]`) as HTMLElement | null;
+            if (row) {
+                if (becomingComplete) row.dataset.reorderBucket = 'complete';
+                else delete row.dataset.reorderBucket;
+            }
+
+            // Popover row: re-sort table via real DOM move (flex order
+            // doesn't work on <tr>).
+            if (this.popover) this.reorderPopoverRows();
+
+            // Inline list with max-visible-files cap: the completed row
+            // needs to drop out of the visible window and the next
+            // hidden file slides up. Same condition as the in-line
+            // boundary-cross trigger in patchFileRow.
+            if ((this.config.maxVisibleFiles ?? 0) > 0 && !this.showAllList) {
+                this.renderFileList();
+            }
+        };
+
+        const delay = Math.max(0, this.config.reorderCompletedDelay ?? 1500);
+        if (delay === 0) {
+            // Microtask so cleanup hooks (remove / retry called in the
+            // same tick) still get a chance to cancel.
+            queueMicrotask(apply);
+        } else {
+            const handle = window.setTimeout(() => {
+                this.reorderTimers.delete(id);
+                apply();
+            }, delay);
+            this.reorderTimers.set(id, handle);
+        }
+    }
+
+    /** Clear all pending reorder timers. Called from destroy / clear;
+     *  individual cancellation goes through scheduleReorder(id, false). */
+    private clearAllReorderTimers(): void {
+        for (const handle of this.reorderTimers.values()) clearTimeout(handle);
+        this.reorderTimers.clear();
     }
 
     /**
@@ -1399,6 +1611,10 @@ export class WebDropzone {
         if (targetEl) {
             const existing = targetEl.querySelector(`[data-file-id="${file.id}"]`) as HTMLElement | null;
             if (existing) {
+                // Capture status BEFORE the patch so we can detect a
+                // complete-boundary crossing for the (delayed) reorder.
+                const prevStatus = existing.dataset.status;
+
                 if (hasCustomRenderer) {
                     const next = this.htmlToElement(this.renderFileItem(file, index, false));
                     if (next) {
@@ -1407,6 +1623,35 @@ export class WebDropzone {
                     }
                 } else {
                     this.patchInlineRowInPlace(existing, file, listAppearance);
+                }
+
+                // Schedule the visual reorder on a delay (config:
+                // reorderCompletedDelay, default 1500ms). The delay
+                // helps the user track WHICH file just succeeded —
+                // without it, a row sliding away immediately makes the
+                // file underneath (with a different upload %) look like
+                // it regressed. The popover sort and the cap re-render
+                // are both deferred from inside scheduleReorder, so all
+                // three surfaces stay synchronised.
+                if (this.config.isReorderCompletedEnabled &&
+                    prevStatus !== file.status &&
+                    (prevStatus === 'complete' || file.status === 'complete')) {
+                    this.scheduleReorder(file.id, file.status === 'complete');
+                }
+            }
+
+            // Rolling appearance: the row in the DOM is the "front" file.
+            // When any file's status changes, the front candidate may
+            // shift (e.g. front uploading → complete, next uploading
+            // becomes the new front; or a pending file behind the
+            // scenes flips to uploading and overtakes a paused front).
+            // Cheap to check: just compare the stored front-id against
+            // getFrontFile(). Re-render only when they actually diverge.
+            if (listAppearance === 'rolling') {
+                const currentFrontEl = targetEl.querySelector('.dz__rolling__current') as HTMLElement | null;
+                const desiredFront = this.getFrontFile();
+                if (desiredFront && currentFrontEl?.dataset.frontId !== desiredFront.id) {
+                    this.renderFileList();
                 }
             }
         }
@@ -1445,15 +1690,12 @@ export class WebDropzone {
      * clicks land cleanly.
      */
     private patchPopoverRowInPlace(row: HTMLTableRowElement, file: FileState): void {
-        // Track previous status on the row so we can detect a transition
-        // across the complete boundary and slide the row visually — flex
-        // `order` doesn't work on <tr>, so this is a real DOM move (one
-        // tbody.appendChild call per transition; cheap).
-        const prevStatus = row.dataset.status;
-        const crossedCompleteBoundary =
-            this.config.isReorderCompletedEnabled &&
-            prevStatus !== file.status &&
-            (prevStatus === 'complete' || file.status === 'complete');
+        // Track previous status for downstream observers. The reorder
+        // move itself isn't triggered from here anymore — it's deferred
+        // through scheduleReorder (called by patchFileRow's inline-list
+        // branch) so the popover stays synchronised with the inline
+        // list's delay window. reorderPopoverRows is invoked from the
+        // timer's apply() callback.
         row.dataset.status = file.status;
 
         row.classList.toggle('dz__popover__row--uploading', file.status === 'uploading');
@@ -1484,8 +1726,6 @@ export class WebDropzone {
             file,
             'dz__popover__remove--hidden'
         );
-
-        if (crossedCompleteBoundary) this.reorderPopoverRows();
     }
 
     /**
@@ -1543,8 +1783,11 @@ export class WebDropzone {
             );
         }
 
-        // list / detailed have the popover-style triplet (bar fill, %, pill).
-        if (appearance === 'list' || appearance === 'detailed') {
+        // list / detailed / rolling all use the same `.dz__file-item--*`
+        // shape (rolling reuses renderListItem internally), so they share
+        // the same patch path: progress fill width, percent text, status
+        // pill, action button.
+        if (appearance === 'list' || appearance === 'detailed' || appearance === 'rolling') {
             const fill = row.querySelector('.dz__file-item__progress-fill') as HTMLElement | null;
             if (fill) fill.style.width = `${file.progress}%`;
 
@@ -1645,6 +1888,16 @@ export class WebDropzone {
         }
 
         const { listAppearance } = resolveDisplayConfig(this.config);
+
+        // Rolling appearance is a single-row "front file" view + a queue
+        // button that opens the popover. Bypasses the visible-files
+        // slice / show-more toggle entirely — only one row is ever in
+        // the DOM at a time.
+        if (listAppearance === 'rolling') {
+            this.renderRollingList(targetEl);
+            return;
+        }
+
         const visible = this.getVisibleFiles();
         const items = visible.map((file, index) => this.renderFileItem(file, index, false)).join('');
         const toggle = this.renderToggleButton(listAppearance);
@@ -1659,6 +1912,219 @@ export class WebDropzone {
             visible: visible.length,
             filesInside: this.config.isFilesInsideEnabled
         });
+    }
+
+    /**
+     * Pick the file currently occupying the "front" slot in the rolling
+     * appearance. Priority: first uploading → first pending → first
+     * paused/error/cancelled (needs attention) → last completed (so the
+     * user sees the result for a beat before the slot empties). Returns
+     * null only when `this.files` is empty.
+     */
+    private getFrontFile(): FileState | null {
+        if (this.files.length === 0) return null;
+        // Active first — what's literally in flight RIGHT NOW.
+        const uploading = this.files.find(f => f.status === 'uploading');
+        if (uploading) return uploading;
+        // Queued next — what the worker pool will pick up.
+        const pending = this.files.find(f => f.status === 'pending');
+        if (pending) return pending;
+        // Stalled — needs the user's attention before anything else can
+        // happen.
+        const needsAction = this.files.find(f =>
+            f.status === 'paused' || f.status === 'error' || f.status === 'cancelled'
+        );
+        if (needsAction) return needsAction;
+        // Everything finished — show the most recent completion so the
+        // slot doesn't suddenly go empty at 100%.
+        for (let i = this.files.length - 1; i >= 0; i--) {
+            if (this.files[i].status === 'complete') return this.files[i];
+        }
+        return this.files[0];
+    }
+
+    /**
+     * Render the rolling appearance — a stable container that acts as the
+     * popover anchor. Inside, the "current" front-file row overlaps with
+     * any outgoing one in the same grid cell so the rotation keyframes
+     * (slide-in / horizontal / vertical) can play simultaneously without
+     * shifting the container. The queue button floats in the container's
+     * top-right corner as a count badge.
+     *
+     * Same call serves both first render and front-changed re-render —
+     * previousCurrent is detected from the DOM. When the front file is
+     * unchanged we leave the inner row alone (patchInlineRowInPlace
+     * handles per-tick progress / status churn elsewhere) and just refresh
+     * the queue count.
+     */
+    private renderRollingList(targetEl: HTMLElement): void {
+        const rotation = (this.config.rollingRotation ?? 'slide-in') as RollingRotation;
+        targetEl.dataset.rotation = rotation;
+
+        // Status-surface body callback: lets users own the entire rolling
+        // container (no animation slots, no queue badge). Skipped when
+        // returns null (library default). `false` hides the rolling block.
+        const args = buildStatusSurfaceArgs(this.files);
+        const bodyResult = this.config.renderRollingBodyCallback
+            ? this.config.renderRollingBodyCallback(args)
+            : null;
+        if (bodyResult === false) {
+            this.rollingBodyPrev = applyStatusSurfaceResult(targetEl, false, this.rollingBodyPrev);
+            return;
+        }
+        if (bodyResult != null) {
+            targetEl.hidden = false;
+            this.rollingBodyPrev = applyStatusSurfaceResult(targetEl, bodyResult, this.rollingBodyPrev);
+            // Reset slot memoization — custom body replaces the default
+            // slots, so any per-slot prev state is stale.
+            this.rollingFileInfoPrev = undefined;
+            this.rollingProgressPrev = undefined;
+            return;
+        }
+        // Custom body returned null → fall through to default rendering.
+        // If we were previously in custom-body mode the targetEl still has
+        // the custom content; reset to a clean slate before the default
+        // path repopulates it.
+        if (this.rollingBodyPrev && this.rollingBodyPrev.kind !== 'default') {
+            targetEl.innerHTML = '';
+        }
+        this.rollingBodyPrev = { kind: 'default' };
+        targetEl.hidden = false;
+
+        const front = this.getFrontFile();
+        if (!front) {
+            targetEl.innerHTML = '';
+            this.rollingFileInfoPrev = undefined;
+            this.rollingProgressPrev = undefined;
+            return;
+        }
+
+        const queueCount = this.files.length;
+        const showQueueBtn = queueCount > 1;
+
+        // Find the "settled" current slot — not one already animating out.
+        // This is what we compare against to decide whether the front
+        // file actually changed.
+        const previousCurrent = targetEl.querySelector(
+            '.dz__rolling__current:not(.dz__rolling__current--leaving)'
+        ) as HTMLElement | null;
+        const previousFrontId = previousCurrent?.dataset.frontId;
+
+        if (previousCurrent && previousFrontId === front.id) {
+            // Same front, nothing to animate. Per-row tick updates land via
+            // patchInlineRowInPlace elsewhere; here we just keep the badge
+            // count fresh + refresh slot callbacks (so a re-render driven
+            // by file-status-changed picks up the new state).
+            this.applyRollingSlots(previousCurrent, args);
+            this.updateRollingQueueButton(targetEl, queueCount, showQueueBtn);
+            return;
+        }
+
+        // Build the new current slot.
+        const newCurrentEl = document.createElement('div');
+        newCurrentEl.className = 'dz__rolling__current';
+        newCurrentEl.dataset.frontId = front.id;
+        newCurrentEl.innerHTML = this.renderListItem(front);
+        // After the row HTML is in place, swap the file-info / progress
+        // slot subtrees if the user supplied callbacks. Reset memoization
+        // because this is a fresh slot — prev snapshots came from the
+        // OUTGOING row's subtrees.
+        this.rollingFileInfoPrev = undefined;
+        this.rollingProgressPrev = undefined;
+        this.applyRollingSlots(newCurrentEl, args);
+
+        if (previousCurrent && rotation !== 'slide-in') {
+            // True rotation — the outgoing slot stays mounted so its keyframe
+            // can play (translateX/Y out) in parallel with the incoming one.
+            // Both share the same grid cell, so they overlap visually.
+            previousCurrent.classList.add('dz__rolling__current--leaving');
+            targetEl.insertBefore(newCurrentEl, previousCurrent);
+            const toRemove = previousCurrent;
+            // Slightly longer than the animation so we don't yank the node
+            // mid-keyframe; the spare ~150ms is invisible.
+            setTimeout(() => { toRemove.remove(); }, 500);
+        } else if (previousCurrent) {
+            // slide-in: snap-replace the old slot; the new slot's keyframe
+            // is the only motion.
+            previousCurrent.replaceWith(newCurrentEl);
+        } else {
+            // First render. Insert at the top; the queue badge (added below
+            // / reused) sits after it but is absolute-positioned, so DOM
+            // order is purely cosmetic.
+            targetEl.insertBefore(newCurrentEl, targetEl.firstChild);
+        }
+
+        this.bindListRemoveHandlers(newCurrentEl);
+        this.updateRollingQueueButton(targetEl, queueCount, showQueueBtn);
+    }
+
+    /**
+     * Apply the rolling file-info + progress callbacks (if set) into the
+     * row inside `currentEl`. The row template's existing
+     * `.dz__file-item__name` span hosts the file-info slot; the
+     * `.dz__file-item__progress` block hosts the progress slot. Each is
+     * routed through the shared memoizer so cached element returns
+     * (e.g. WAAPI spinners) survive across ticks.
+     *
+     * When a callback isn't set or returns null, the corresponding slot
+     * keeps the polished default contents that `renderListItem` already
+     * generated — no DOM write.
+     */
+    private applyRollingSlots(currentEl: HTMLElement, args: StatusSurfaceArgs): void {
+        // File-info slot — replace the `.dz__file-item__name` with the
+        // callback's content. The library default leaves the existing
+        // name span alone (covers the common case where users only want
+        // to customize progress).
+        const fileInfoCb = this.config.renderRollingFileInfoCallback;
+        const fileInfoSlot = currentEl.querySelector<HTMLElement>('.dz__file-item__name');
+        if (fileInfoCb && fileInfoSlot) {
+            const result = fileInfoCb(args);
+            if (result !== null && result !== undefined) {
+                this.rollingFileInfoPrev = applyStatusSurfaceResult(
+                    fileInfoSlot, result, this.rollingFileInfoPrev
+                );
+            }
+        }
+
+        // Progress slot — replace the inner progress bar + percent text
+        // with the callback's content.
+        const progressCb = this.config.renderRollingProgressCallback;
+        const progressSlot = currentEl.querySelector<HTMLElement>('.dz__file-item__progress');
+        if (progressCb && progressSlot) {
+            const result = progressCb(args);
+            if (result !== null && result !== undefined) {
+                this.rollingProgressPrev = applyStatusSurfaceResult(
+                    progressSlot, result, this.rollingProgressPrev
+                );
+            }
+        }
+    }
+
+    /**
+     * Ensure the rolling queue badge exists inside `targetEl` and reflects
+     * the current file count. Created once and reused across re-renders so
+     * its click handler isn't repeatedly rebound (and so the badge doesn't
+     * flicker during a front-file swap).
+     */
+    private updateRollingQueueButton(targetEl: HTMLElement, queueCount: number, showQueueBtn: boolean): void {
+        let queueBtn = targetEl.querySelector('.dz__rolling__queue') as HTMLButtonElement | null;
+        if (!queueBtn) {
+            queueBtn = document.createElement('button');
+            queueBtn.type = 'button';
+            queueBtn.className = 'dz__rolling__queue';
+            queueBtn.dataset.action = 'open-queue';
+            queueBtn.innerHTML = '<span class="dz__rolling__queue-count"></span>';
+            queueBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.togglePopover();
+            });
+            targetEl.appendChild(queueBtn);
+        }
+        const countEl = queueBtn.querySelector('.dz__rolling__queue-count');
+        if (countEl) countEl.textContent = String(queueCount);
+        queueBtn.classList.toggle('dz__rolling__queue--hidden', !showQueueBtn);
+        queueBtn.setAttribute('aria-label', `Show full queue (${queueCount} files)`);
+        queueBtn.setAttribute('title', `Show all ${queueCount} files`);
     }
 
     /**
@@ -1859,8 +2325,9 @@ export class WebDropzone {
     }
 
     private renderListItem(file: FileState): string {
+        const reorderAttr = this.isReorderEligible(file) ? ' data-reorder-bucket="complete"' : '';
         return `
-            <div class="dz__file-item dz__file-item--list" data-file-id="${file.id}" data-status="${file.status}">
+            <div class="dz__file-item dz__file-item--list" data-file-id="${file.id}" data-status="${file.status}"${reorderAttr}>
                 <span class="dz__file-item__name">${escapeHtml(file.name)}</span>
                 ${this.renderRowActionButton(file, 'dz__file-item__action')}
                 <div class="dz__file-item__progress">
@@ -1879,9 +2346,10 @@ export class WebDropzone {
         const category = getFileTypeCategory(file.file);
         const useThumbnail = this.shouldShowThumbnails('detailed');
         const inner = this.renderPlaceholderInner(file, useThumbnail);
+        const reorderAttr = this.isReorderEligible(file) ? ' data-reorder-bucket="complete"' : '';
 
         return `
-            <div class="dz__file-item dz__file-item--detailed" data-file-id="${file.id}" data-status="${file.status}">
+            <div class="dz__file-item dz__file-item--detailed" data-file-id="${file.id}" data-status="${file.status}"${reorderAttr}>
                 <div class="dz__file-item__icon dz__file-item__icon--${category}">${inner}</div>
                 <div class="dz__file-item__info">
                     <div class="dz__file-item__name">${escapeHtml(file.name)}</div>
@@ -1913,9 +2381,10 @@ export class WebDropzone {
         const inner = useThumbnail && file.previewUrl
             ? `<img src="${file.previewUrl}" alt="${escapeHtml(file.name)}" class="dz__preview-item__image">`
             : `<div class="dz__preview-item__placeholder">${escapeHtml(getFileIcon(file.file))}</div>`;
+        const reorderAttr = this.isReorderEligible(file) ? ' data-reorder-bucket="complete"' : '';
 
         return `
-            <div class="dz__preview-item ${isImage ? 'dz__preview-item--image' : ''}" data-file-id="${file.id}" data-status="${file.status}">
+            <div class="dz__preview-item ${isImage ? 'dz__preview-item--image' : ''}" data-file-id="${file.id}" data-status="${file.status}"${reorderAttr}>
                 ${inner}
                 <div class="dz__preview-item__scrim" aria-hidden="true"></div>
                 <div class="dz__preview-item__overlay">
@@ -1937,8 +2406,9 @@ export class WebDropzone {
         const statusClass = file.status !== 'pending' ? `dz__badge--${file.status}` : '';
         const useThumbnail = this.shouldShowThumbnails('badges');
         const inner = this.renderPlaceholderInner(file, useThumbnail);
+        const reorderAttr = this.isReorderEligible(file) ? ' data-reorder-bucket="complete"' : '';
         return `
-            <span class="dz__badge ${statusClass}" data-file-id="${file.id}" data-status="${file.status}">
+            <span class="dz__badge ${statusClass}" data-file-id="${file.id}" data-status="${file.status}"${reorderAttr}>
                 <span class="dz__badge-text" title="${escapeHtml(file.name)}">
                     <span class="dz__badge-icon">${inner}</span>
                     <span class="dz__badge-name">${escapeHtml(file.name)}</span>
@@ -2084,6 +2554,19 @@ export class WebDropzone {
     private updateSelectorBadge(): void {
         if (!this.dropzoneEl) return;
 
+        const count = this.files.length;
+        // Same aggregate-state priority as the overall progress strip — so
+        // a hidden errored file shows as red on the button badge even when
+        // the user can't see the row itself. hasActivity is the gate: a
+        // freshly-added selection (all pending, nothing started yet) keeps
+        // the badge in its neutral state.
+        const { aggregateStatus, hasActivity, completedCount } = this.getOverallProgress();
+        // "X/Y" makes sense while uploads are mid-flight or stalled (paused
+        // / errored); once everything's complete the X==Y readout is
+        // redundant, so collapse back to a single count.
+        const showProgress = hasActivity && aggregateStatus !== 'complete';
+        const text = showProgress ? `${completedCount}/${count}` : String(count);
+
         for (const [hostClass, badgeClass] of [
             ['dz__minimal', 'dz__minimal__badge'],
             ['dz__button',  'dz__button__badge']
@@ -2091,7 +2574,6 @@ export class WebDropzone {
             const host = this.dropzoneEl.querySelector(`.${hostClass}`);
             if (!host) continue;
 
-            const count = this.files.length;
             let badge = host.querySelector(`.${badgeClass}`) as HTMLElement | null;
 
             if (count > 0) {
@@ -2100,7 +2582,11 @@ export class WebDropzone {
                     badge.className = badgeClass;
                     host.appendChild(badge);
                 }
-                badge.textContent = String(count);
+                badge.textContent = text;
+                // data-status drives the badge's background colour via CSS
+                // attribute selectors (see .dz__button__badge[data-status=…]).
+                if (hasActivity) badge.dataset.status = aggregateStatus;
+                else delete badge.dataset.status;
             } else if (badge) {
                 badge.remove();
             }
@@ -2533,6 +3019,10 @@ export class WebDropzone {
         // surfaces that don't render the inline progress strip (e.g. when
         // the strip is collapsed via :empty before any activity).
         this.patchSummaryIcon();
+        // Same reason for the button/minimal selector badge — it shows
+        // "X/Y · aggregateStatus" and needs to refresh every time a file
+        // transitions, not just when the file set changes.
+        this.updateSelectorBadge();
         if (!this.overallProgressEl) return;
         this.refreshOverallProgress(this.overallProgressEl);
     }
@@ -2724,6 +3214,15 @@ export class WebDropzone {
     private getPopoverAnchor(): HTMLElement | null {
         const summaryLine = this.summaryEl?.querySelector('.dz__summary__line') as HTMLElement | null;
         if (summaryLine) return summaryLine;
+        // Rolling appearance: anchor to the container itself (the visible
+        // "current file" rectangle) rather than the queue badge inside it.
+        // Container is stable across front-file swaps; the badge isn't a
+        // good positioning reference because it's a small corner overlay.
+        const targetEl = this.config.isFilesInsideEnabled ? this.filesInsideEl : this.fileListEl;
+        if (targetEl?.classList.contains('dz__file-list--rolling') ||
+            targetEl?.classList.contains('dz__files-inside--rolling')) {
+            return targetEl;
+        }
         const btn = this.dropzoneEl?.querySelector('.dz__button, .dz__minimal') as HTMLElement | null;
         return btn ?? this.dropzoneEl;
     }
@@ -3061,6 +3560,72 @@ export class WebDropzone {
 
         if (this.config.deleteCallback) {
             this.config.deleteCallback(file);
+        }
+    }
+
+    /**
+     * Substrate event for satellite renderers (`<web-dropzone-list>`,
+     * `<web-dropzone-indicator>`, …). Fires whenever a file's progress
+     * value changes — including the implicit 0→100 jump on `setFileStatus`
+     * → 'complete'. bubbles + composed so listeners in other shadow roots
+     * pick it up. See ARCHITECTURE.md.
+     */
+    private emitFileProgress(file: FileState): void {
+        const event = new CustomEvent('file-progress', {
+            detail: { id: file.id, progress: file.progress, status: file.status, file },
+            bubbles: true,
+            composed: true
+        });
+        this.element.dispatchEvent(event);
+    }
+
+    /**
+     * Substrate event — fires whenever a file's status transitions.
+     * `prevStatus !== nextStatus` is guaranteed (no-op mutations are
+     * suppressed in `mutateFileState`). bubbles + composed.
+     */
+    private emitFileStatusChanged(
+        file: FileState,
+        prevStatus: FileState['status'],
+        nextStatus: FileState['status']
+    ): void {
+        const event = new CustomEvent('file-status-changed', {
+            detail: { id: file.id, prevStatus, nextStatus, file },
+            bubbles: true,
+            composed: true
+        });
+        this.element.dispatchEvent(event);
+    }
+
+    /**
+     * Centralized status/progress mutator. **All** status and progress
+     * mutations must route through here so the substrate events
+     * (`file-progress`, `file-status-changed`) fire at every transition.
+     * Direct `file.status = …` / `file.progress = …` writes leave
+     * satellite renderers stale.
+     *
+     * `progress` is clamped to [0, 100]. No-op mutations (status equals
+     * prev, progress equals prev) do not emit. `file.error` is intentionally
+     * out of scope — events only carry status / progress; callers handle
+     * error inline.
+     */
+    private mutateFileState(
+        file: FileState,
+        patch: { status?: FileState['status']; progress?: number }
+    ): void {
+        const prevStatus = file.status;
+        const prevProgress = file.progress;
+
+        if (patch.status !== undefined) file.status = patch.status;
+        if (patch.progress !== undefined) {
+            file.progress = Math.max(0, Math.min(100, patch.progress));
+        }
+
+        if (file.status !== prevStatus) {
+            this.emitFileStatusChanged(file, prevStatus, file.status);
+        }
+        if (file.progress !== prevProgress) {
+            this.emitFileProgress(file);
         }
     }
 
