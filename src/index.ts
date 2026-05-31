@@ -23,7 +23,8 @@ export type {
     StatusSurfaceResult,
     StatusAggregate
 } from './status-surface';
-export { createDropzoneSpinner, STATUS_ICONS, STATUS_LABELS } from './icons';
+export { createDropzoneSpinner, STATUS_ICONS, STATUS_LABELS, ACTION_ICONS, ACTION_LABELS, actionForStatus } from './icons';
+export type { RowAction } from './icons';
 
 // Export the base class if users want direct access
 export { WebDropzone, formatFileSize, getFileTypeCategory, getFileIcon, isImageFile, createImagePreview } from './dropzone';

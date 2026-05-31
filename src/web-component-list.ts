@@ -21,6 +21,7 @@ import {
 import {
     formatFileSize,
     getFileIcon,
+    getFileTypeCategory,
     isImageFile,
     createImagePreview
 } from './dropzone';
@@ -48,6 +49,35 @@ function escapeHtml(text: string): string {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+/**
+ * Per-row action button (pause / resume / retry). Mirrors `WebDropzone`'s
+ * classic renderer: the slot is ALWAYS rendered so the row's column widths
+ * stay reserved as state transitions in/out of an active action. When no
+ * action applies (pending / complete / cancelled), the `--hidden` modifier
+ * hides the button visually and drops it from the tab order.
+ */
+function renderRowActionButton(file: FileState, baseClass: string): string {
+    const action = actionForStatus(file.status);
+    const hidden = !action;
+    const cls = hidden ? `${baseClass} ${baseClass}--hidden` : baseClass;
+    const inert = hidden ? ' tabindex="-1" aria-hidden="true"' : '';
+    const label = action ? `${ACTION_LABELS[action]} ${escapeHtml(file.name)}` : '';
+    const title = action ? ACTION_LABELS[action] : '';
+    const dataAction = action ?? '';
+    const icon = action ? ACTION_ICONS[action] : '';
+    return `<button type="button" class="${cls}" data-action="row-action" data-row-action="${dataAction}" data-file-id="${file.id}" aria-label="${label}" title="${title}"${inert}>${icon}</button>`;
+}
+
+/**
+ * Build the attribute block for the always-rendered remove button. The
+ * classic renderer hides it for complete files when the host opts out of
+ * post-upload deletion; the satellite has no equivalent config yet, so
+ * the button is always live here.
+ */
+function removeButtonAttrs(file: FileState, baseClass: string): string {
+    return `class="${baseClass}" data-action="remove" data-file-id="${file.id}" aria-label="Remove ${escapeHtml(file.name)}"`;
 }
 
 export class DropzoneListElement extends BaseElement {
@@ -168,11 +198,10 @@ export class DropzoneListElement extends BaseElement {
             return;
         }
 
-        const containerClass = appearance === 'grid'
-            ? 'dz__file-list dz__preview-grid'
-            : appearance === 'badges'
-                ? 'dz__file-list dz__file-list--badges'
-                : 'dz__file-list';
+        // Mirrors the classic renderer's container class so the BEM
+        // appearance-modifier rules in `_file-list.css` apply identically
+        // (`.dz__file-list--grid` sets up `display: grid` etc.).
+        const containerClass = `dz__file-list dz__file-list--${appearance}`;
         const rows = files.map(f => this.renderRow(f, appearance)).join('');
         this.container.innerHTML = `<div class="${containerClass}" data-list-appearance="${appearance}">${rows}</div>`;
         this.bindRowHandlers();
@@ -187,91 +216,91 @@ export class DropzoneListElement extends BaseElement {
     }
 
     private renderListRow(file: FileState): string {
-        const action = actionForStatus(file.status);
-        const actionBtn = action
-            ? `<button type="button" class="dz__file-item__action" data-file-action="${action}" data-file-id="${file.id}" aria-label="${ACTION_LABELS[action]}">${ACTION_ICONS[action]}</button>`
-            : '';
+        // Mirrors WebDropzone.renderListItem so both share `_file-item.css`.
         return `
             <div class="dz__file-item dz__file-item--list" data-file-id="${file.id}" data-status="${file.status}">
-                <div class="dz__file-item__icon">${getFileIcon(file.file)}</div>
-                <div class="dz__file-item__main">
-                    <div class="dz__file-item__name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
-                    <div class="dz__file-item__meta">${formatFileSize(file.size)}</div>
-                    <div class="dz__file-item__progress">
-                        <div class="dz__file-item__progress-fill" style="width:${file.progress}%"></div>
+                <span class="dz__file-item__name">${escapeHtml(file.name)}</span>
+                ${renderRowActionButton(file, 'dz__file-item__action')}
+                <div class="dz__file-item__progress">
+                    <div class="dz__file-item__progress-bar">
+                        <div class="dz__file-item__progress-fill" style="width: ${file.progress}%"></div>
                     </div>
+                    <span class="dz__file-item__progress-text">${file.progress.toFixed(1)}%</span>
                 </div>
-                <span class="dz__file-item__progress-text">${file.progress.toFixed(1)}%</span>
-                <span class="dz__file-item__status dz__file-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
-                ${actionBtn}
-                <button type="button" class="dz__file-item__remove" data-file-id="${file.id}" aria-label="Remove">×</button>
+                <span class="dz__file-item__status dz__file-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
+                <button type="button" ${removeButtonAttrs(file, 'dz__file-item__remove')}></button>
             </div>
         `;
     }
 
     private renderDetailedRow(file: FileState): string {
-        // Same DOM shape as list — that's what makes patchInlineRowInPlace
-        // share a code path in the convenience renderer too. The only
-        // visual difference is `--detailed` styling.
-        const action = actionForStatus(file.status);
-        const actionBtn = action
-            ? `<button type="button" class="dz__file-item__action" data-file-action="${action}" data-file-id="${file.id}" aria-label="${ACTION_LABELS[action]}">${ACTION_ICONS[action]}</button>`
-            : '';
+        // Mirrors WebDropzone.renderDetailedItem — same DOM, same classes,
+        // so the polished styling in `_file-item.css` lights up identically
+        // whether the rows are rendered by the satellite or by the
+        // convenience renderer inside `<web-dropzone>`.
+        const category = getFileTypeCategory(file.file);
+        const isImage = isImageFile(file.file);
+        const inner = isImage && file.previewUrl
+            ? `<img src="${file.previewUrl}" alt="${escapeHtml(file.name)}">`
+            : getFileIcon(file.file);
         return `
             <div class="dz__file-item dz__file-item--detailed" data-file-id="${file.id}" data-status="${file.status}">
-                <div class="dz__file-item__icon">${getFileIcon(file.file)}</div>
-                <div class="dz__file-item__main">
-                    <div class="dz__file-item__name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
-                    <div class="dz__file-item__meta">${formatFileSize(file.size)} · ${escapeHtml(file.type || 'unknown')}</div>
+                <div class="dz__file-item__icon dz__file-item__icon--${category}">${inner}</div>
+                <div class="dz__file-item__info">
+                    <div class="dz__file-item__name">${escapeHtml(file.name)}</div>
+                    <div class="dz__file-item__meta">
+                        <span class="dz__file-item__size">${formatFileSize(file.size)}</span>
+                        <span class="dz__file-item__type">${escapeHtml(file.type || 'Unknown')}</span>
+                    </div>
                     <div class="dz__file-item__progress">
-                        <div class="dz__file-item__progress-fill" style="width:${file.progress}%"></div>
+                        <div class="dz__file-item__progress-bar">
+                            <div class="dz__file-item__progress-fill" style="width: ${file.progress}%"></div>
+                        </div>
+                        <span class="dz__file-item__progress-text">${file.progress.toFixed(1)}%</span>
                     </div>
                 </div>
-                <span class="dz__file-item__progress-text">${file.progress.toFixed(1)}%</span>
-                <span class="dz__file-item__status dz__file-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
-                ${actionBtn}
-                <button type="button" class="dz__file-item__remove" data-file-id="${file.id}" aria-label="Remove">×</button>
+                ${renderRowActionButton(file, 'dz__file-item__action')}
+                <span class="dz__file-item__status dz__file-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
+                <button type="button" ${removeButtonAttrs(file, 'dz__file-item__remove')}></button>
             </div>
         `;
     }
 
     private renderGridRow(file: FileState): string {
         const isImage = isImageFile(file.file);
-        const action = actionForStatus(file.status);
-        const actionBtn = action
-            ? `<button type="button" class="dz__preview-item__action" data-file-action="${action}" data-file-id="${file.id}" aria-label="${ACTION_LABELS[action]}">${ACTION_ICONS[action]}</button>`
-            : '';
-        const thumb = isImage
-            ? (file.previewUrl
-                ? `<img class="dz__preview-item__image" src="${file.previewUrl}" alt="${escapeHtml(file.name)}">`
-                : `<div class="dz__preview-item__placeholder">${getFileIcon(file.file)}</div>`)
+        const inner = isImage && file.previewUrl
+            ? `<img src="${file.previewUrl}" alt="${escapeHtml(file.name)}" class="dz__preview-item__image">`
             : `<div class="dz__preview-item__placeholder">${getFileIcon(file.file)}</div>`;
         return `
             <div class="dz__preview-item ${isImage ? 'dz__preview-item--image' : ''}" data-file-id="${file.id}" data-status="${file.status}">
-                ${thumb}
+                ${inner}
+                <div class="dz__preview-item__scrim" aria-hidden="true"></div>
                 <div class="dz__preview-item__overlay">
-                    <div class="dz__preview-item__name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
+                    <span class="dz__preview-item__name">${escapeHtml(file.name)}</span>
                 </div>
-                <div class="dz__preview-item__progress">
-                    <div class="dz__preview-item__progress-fill" style="width:${file.progress}%"></div>
+                <span class="dz__preview-item__status dz__preview-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
+                <div class="dz__preview-item__progress-bar">
+                    <div class="dz__preview-item__progress-fill" style="width: ${file.progress}%"></div>
                 </div>
-                <span class="dz__preview-item__status dz__preview-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
-                ${actionBtn}
-                <button type="button" class="dz__preview-item__remove" data-file-id="${file.id}" aria-label="Remove">×</button>
+                <div class="dz__preview-item__hover-actions">
+                    ${renderRowActionButton(file, 'dz__preview-item__action')}
+                    <button type="button" ${removeButtonAttrs(file, 'dz__preview-item__remove')}></button>
+                </div>
             </div>
         `;
     }
 
     private renderBadgeRow(file: FileState): string {
-        const statusClass = `dz__badge--${file.status}`;
+        const statusClass = file.status !== 'pending' ? `dz__badge--${file.status}` : '';
         return `
             <span class="dz__badge ${statusClass}" data-file-id="${file.id}" data-status="${file.status}">
-                <span class="dz__badge-icon">${getFileIcon(file.file)}</span>
-                <span class="dz__badge-text">
-                    <span class="dz__badge-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
-                    <span class="dz__badge-status dz__badge-status--${file.status}" title="${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
+                <span class="dz__badge-text" title="${escapeHtml(file.name)}">
+                    <span class="dz__badge-icon">${getFileIcon(file.file)}</span>
+                    <span class="dz__badge-name">${escapeHtml(file.name)}</span>
+                    ${renderRowActionButton(file, 'dz__badge-action')}
+                    <span class="dz__badge-status dz__badge-status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
                 </span>
-                <button type="button" class="dz__badge-remove" data-file-id="${file.id}" aria-label="Remove">×</button>
+                <button type="button" ${removeButtonAttrs(file, 'dz__badge-remove')}></button>
             </span>
         `;
     }
@@ -291,11 +320,13 @@ export class DropzoneListElement extends BaseElement {
         const target = e.target as HTMLElement | null;
         if (!target) return;
 
-        // Action button (pause / resume / retry)
-        const actionBtn = target.closest<HTMLElement>('[data-file-action]');
+        // Action button (pause / resume / retry). Slot is always in the DOM;
+        // only react when `data-row-action` is set (i.e. not the hidden /
+        // inert placeholder shape).
+        const actionBtn = target.closest<HTMLElement>('[data-action="row-action"]');
         if (actionBtn) {
             const id = actionBtn.getAttribute('data-file-id');
-            const action = actionBtn.getAttribute('data-file-action');
+            const action = actionBtn.getAttribute('data-row-action');
             if (!id || !action) return;
             if (action === 'pause')  this.store.pauseFile(id);
             if (action === 'resume') this.store.resumeFile(id);
@@ -303,10 +334,8 @@ export class DropzoneListElement extends BaseElement {
             return;
         }
 
-        // Remove button
-        const removeBtn = target.closest<HTMLElement>(
-            '.dz__file-item__remove, .dz__preview-item__remove, .dz__badge-remove'
-        );
+        // Remove button (also always in the DOM).
+        const removeBtn = target.closest<HTMLElement>('[data-action="remove"]');
         if (removeBtn) {
             const id = removeBtn.getAttribute('data-file-id');
             if (id) this.store.removeFile(id);
@@ -373,36 +402,38 @@ export class DropzoneListElement extends BaseElement {
     }
 
     private patchActionButton(row: HTMLElement, file: FileState): void {
+        // The action button is ALWAYS in the DOM (slot is reserved). We just
+        // toggle the `--hidden` modifier + swap the glyph as state changes,
+        // so column widths stay stable across uploading → paused → complete.
+        const btn = row.querySelector<HTMLElement>('[data-action="row-action"]');
+        if (!btn) return;
+
         const next = actionForStatus(file.status);
-        const existing = row.querySelector<HTMLElement>('[data-file-action]');
-        if (!next && existing) {
-            existing.remove();
-            return;
-        }
-        if (next && !existing) {
-            // Insert a new action button before the remove button so the
-            // tab order stays sensible.
-            const removeBtn = row.querySelector<HTMLElement>(
-                '.dz__file-item__remove, .dz__preview-item__remove, .dz__badge-remove'
-            );
-            const cls = row.classList.contains('dz__preview-item')
-                ? 'dz__preview-item__action'
+        const current = btn.dataset.rowAction || '';
+        const target = next ?? '';
+        if (current === target) return;
+
+        const baseClass = row.classList.contains('dz__preview-item')
+            ? 'dz__preview-item__action'
+            : row.classList.contains('dz__badge')
+                ? 'dz__badge-action'
                 : 'dz__file-item__action';
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = cls;
-            btn.setAttribute('data-file-action', next);
-            btn.setAttribute('data-file-id', file.id);
-            btn.setAttribute('aria-label', ACTION_LABELS[next]);
-            btn.innerHTML = ACTION_ICONS[next];
-            if (removeBtn) row.insertBefore(btn, removeBtn);
-            else row.appendChild(btn);
-            return;
-        }
-        if (next && existing && existing.getAttribute('data-file-action') !== next) {
-            existing.setAttribute('data-file-action', next);
-            existing.setAttribute('aria-label', ACTION_LABELS[next]);
-            existing.innerHTML = ACTION_ICONS[next];
+
+        btn.dataset.rowAction = target;
+        const hidden = !next;
+        btn.className = hidden ? `${baseClass} ${baseClass}--hidden` : baseClass;
+        btn.innerHTML = next ? ACTION_ICONS[next] : '';
+
+        if (next) {
+            btn.setAttribute('aria-label', `${ACTION_LABELS[next]} ${file.name}`);
+            btn.title = ACTION_LABELS[next];
+            btn.removeAttribute('tabindex');
+            btn.removeAttribute('aria-hidden');
+        } else {
+            btn.setAttribute('aria-label', '');
+            btn.title = '';
+            btn.tabIndex = -1;
+            btn.setAttribute('aria-hidden', 'true');
         }
     }
 

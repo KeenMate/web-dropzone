@@ -151,6 +151,78 @@
         .scenario-title .scenario-mode--a { background: #dcfce7; color: #166534; }
         .scenario-title .scenario-mode--b { background: #dbeafe; color: #1e40af; }
         .scenario-title .scenario-mode--e { background: #ffedd5; color: #9a3412; }
+
+        /* ----------------------------------------------------------------
+         * Scenario 6 — each indicator gets a distinct visual theme via
+         * the same CSS custom properties the library exposes on :host.
+         * Variables inherit through the shadow boundary, so no ::part or
+         * external selectors are needed — the chip inside each shadow
+         * root reads its own host's vars.
+         * ---------------------------------------------------------------- */
+
+        /* 6A · Counter — pure inline text, no pill. `::part(chip)` reaches
+         * through the shadow boundary to strip the chip's border /
+         * background / padding / shadow. The accent color still drives the
+         * text colour while uploading is in flight, so the reader gets a
+         * coloured "Uploading 3/10" inline with the surrounding copy. */
+        #ind-counter::part(chip) {
+            background: transparent;
+            border: none;
+            padding: 0;
+            box-shadow: none;
+            color: #6d28d9;
+        }
+        #ind-counter::part(chip):hover {
+            background: transparent;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* 6B · Filename + speed — dark terminal strip, monospace, slim. */
+        #ind-speed {
+            --dz-rem: 9px;
+            --dz-accent-bg: #0f172a;
+            --dz-accent-color: #4ade80;
+            --dz-border-color: #334155;
+            --dz-surface-color: #1e293b;
+            --dz-text-color: #e2e8f0;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            letter-spacing: 0.02em;
+        }
+
+        /* 6C · Silent spinner — amber, compact, looks like a status LED. */
+        #ind-spinner {
+            --dz-rem: 10px;
+            --dz-accent-bg: #fef3c7;
+            --dz-accent-color: #b45309;
+            --dz-border-color: #fbbf24;
+        }
+
+        /* 6D · Default — leave untouched as the reference baseline. */
+
+        /* ----------------------------------------------------------------
+         * Scenario 7 — top-right floating progress indicator. `position="right"`
+         * defaults to vertically-centred right edge; we re-anchor it to the
+         * top via `::part(chip)` (chip exposes itself via `part="chip"`).
+         * The body is fully owned by the user's `renderBodyCallback` — count,
+         * progress track, ETA. Inner styles live on the returned HTMLElement
+         * itself (inline) because light-DOM rules can't reach into the chip's
+         * shadow root.
+         * ---------------------------------------------------------------- */
+        #ind-grid::part(chip) {
+            top: 1.6rem;
+            right: 1.6rem;
+            transform: none;
+            min-width: 9rem;
+            background: #1e1b4b;
+            border-color: #312e81;
+            color: #e0e7ff;
+            padding-right: 0.6rem;
+            transition: min-width 220ms ease;
+        }
+        #ind-grid::part(chip):hover {
+            transform: none;
+        }
     </style>
 </head>
 <body>
@@ -413,8 +485,8 @@
 
             <div class="mode-b-grid" style="margin-top:1.5rem;">
                 <div class="satellite-stage">
-                    <div class="stage-label">A · Inline counter — <code>[Uploading 1/10]</code></div>
-                    <p style="font-size:0.85rem; color:#64748b; margin:0.5rem 0 0.75rem;">Inline placement, default drawer (click to expand), simple <code>renderCallback</code> returning a fraction.</p>
+                    <div class="stage-label">A · Inline counter — pure text, no pill</div>
+                    <p style="font-size:0.85rem; color:#64748b; margin:0.5rem 0 0.75rem;">Inline placement, default drawer (click to expand). The chip's wrapper is stripped via <code>::part(chip)</code> so the callback's output reads as inline body text — the line below is one continuous sentence.</p>
                     <p>Status: <web-dropzone-indicator
                         id="ind-counter"
                         for="dz-flex"
@@ -481,6 +553,61 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
             </div>
         </section>
 
+        <!-- ============================================================ -->
+        <section class="example-section">
+            <div class="scenario-title">
+                <h2>7 · Image grid — picker + grid list satellite</h2>
+                <span class="scenario-mode scenario-mode--a">USE CASE B</span>
+            </div>
+            <p>The list satellite renders the same polished appearances as the convenience form. Here the picker accepts images and the grid list satellite generates thumbnails on the fly — same DOM, same CSS, same hover-action overlay as <code>list-appearance="grid"</code> on a classic <code>&lt;web-dropzone&gt;</code>.</p>
+
+            <web-dropzone id="dz-grid" multiple accept="image/*" max-file-count="12"></web-dropzone>
+
+            <!-- Floating progress indicator, anchored to the viewport's top-right
+                 corner. Hidden when nothing is uploading (renderBodyCallback
+                 returns `false`); otherwise shows "N files" + an overall progress
+                 track. Same satellite as scenarios 5 / 6, drawer disabled. -->
+            <web-dropzone-indicator
+                id="ind-grid"
+                for="dz-grid"
+                position="right"
+                drawer="off"
+            ></web-dropzone-indicator>
+
+            <div class="scenario-row">
+                <div>
+                    <div class="stage-label">Picker</div>
+                    <div class="form-shell">
+                        <web-dropzone-picker
+                            for="dz-grid"
+                            selector-appearance="card"
+                            card-size="compact"
+                            accept="image/*"
+                            label="Drop images here"
+                        ></web-dropzone-picker>
+                    </div>
+                </div>
+                <div>
+                    <div class="stage-label">Grid list (satellite)</div>
+                    <div class="satellite-stage" data-role="list">
+                        <web-dropzone-list
+                            for="dz-grid"
+                            list-appearance="grid"
+                            empty-message="No images yet — drop some on the left."
+                            style="--dz-preview-grid-columns: repeat(auto-fill, minmax(6rem, 1fr)); --dz-preview-grid-gap: 0.5rem;"
+                        ></web-dropzone-list>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+<pre>&lt;web-dropzone id="gallery" multiple accept="image/*"&gt;&lt;/web-dropzone&gt;
+
+&lt;web-dropzone-picker for="gallery" selector-appearance="card" accept="image/*"&gt;&lt;/web-dropzone-picker&gt;
+&lt;web-dropzone-list   for="gallery" list-appearance="grid"&gt;&lt;/web-dropzone-list&gt;</pre>
+            </div>
+        </section>
+
         <footer>
             <p>Web Dropzone · <a href="https://github.com/keenmate/web-dropzone">GitHub</a> · <a href="ARCHITECTURE.md">ARCHITECTURE.md</a></p>
         </footer>
@@ -490,7 +617,11 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
         // Library exports used by the structural-callback demos below.
         // `createDropzoneSpinner` returns a polished WAAPI-driven spinner
         // any user callback can return verbatim to inherit the OOB look.
-        import { createDropzoneSpinner } from '/src/index.ts';
+        // `ACTION_ICONS` are the same pause/resume/retry SVGs the list
+        // satellite uses for per-row actions — reused here for the
+        // floating indicator's control buttons so the visual language is
+        // consistent across surfaces.
+        import { createDropzoneSpinner, ACTION_ICONS, ACTION_LABELS } from '/src/index.ts';
 
         // ============================================================
         // Demo handlers — simulated uploads for all Mode B scenarios.
@@ -500,7 +631,19 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
         // ============================================================
 
         function simulateUpload({ bucket, durationMs = 3500 } = {}) {
-            return (file, onProgress, signal) => new Promise((resolve, reject) => {
+            return (file, onProgress, signal, context) => new Promise((resolve, reject) => {
+                // The store hands us `context.startPercent` on every (re)entry
+                // — non-zero whenever we're resuming after pause / retry. The
+                // simulator scales the remaining duration proportionally so a
+                // resume-from-50% finishes in ~half the original duration,
+                // and progress continues from 50% instead of restarting at 0.
+                const startPct = context?.startPercent ?? 0;
+                if (startPct >= 100) {
+                    resolve({ metadata: { bucket, uploadedAt: new Date().toISOString() } });
+                    return;
+                }
+                const remainingPct = 100 - startPct;
+                const remainingMs = durationMs * (remainingPct / 100);
                 const start = performance.now();
                 let aborted = false;
                 signal?.addEventListener('abort', () => {
@@ -510,7 +653,8 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
                 const tick = () => {
                     if (aborted) return;
                     const elapsed = performance.now() - start;
-                    const pct = Math.min(100, (elapsed / durationMs) * 100);
+                    const pctOfRemaining = Math.min(1, elapsed / remainingMs);
+                    const pct = Math.min(100, startPct + remainingPct * pctOfRemaining);
                     onProgress(pct);
                     if (pct >= 100) {
                         resolve({ metadata: { bucket, uploadedAt: new Date().toISOString() } });
@@ -541,6 +685,327 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
         // structural callback shapes + the default for reference.
         const dzFlex = document.getElementById('dz-flex');
         if (dzFlex) dzFlex.uploadFileCallback = simulateUpload({ bucket: 'flex', durationMs: 6000 });
+
+        // Grid satellite scenario (#7) — slow upload to keep the per-tile
+        // progress visible while the thumbnail loads in.
+        const dzGrid = document.getElementById('dz-grid');
+        if (dzGrid) dzGrid.uploadFileCallback = simulateUpload({ bucket: 'gallery', durationMs: 5000 });
+
+        // Top-right floating chip for scenario 7. The body returns the SAME
+        // cached HTMLElement on every tick — identity-checked by the
+        // indicator's memoization, so the DOM swap is a no-op and the inner
+        // `transition: width` on the bar animates smoothly between updates.
+        // Styles are inline because light-DOM CSS can't pierce the shadow root.
+        const indGrid = document.getElementById('ind-grid');
+        if (indGrid) {
+            // Cached element so the memoized indicator skips DOM swaps and
+            // the bar's `transition: width` animates between ticks.
+            let chipRoot = null;
+            let stateDot, stateLabel, countSpan, barFill, etaSpan;
+            // Primary action button — swaps icon + handler based on
+            // overallStatus: uploading → pause, paused → resume, error →
+            // retry. Hidden via the `--hidden` opacity pattern when there's
+            // nothing actionable (pending / completing). The cancel button
+            // is always visible while the chip is up.
+            let primaryBtn, cancelBtn;
+            // The action currently mapped to primaryBtn — tracked so we
+            // only rewrite innerHTML / aria when the binding actually
+            // changes (otherwise WAAPI / focus would churn each tick).
+            let primaryAction = null;
+            // Active-time accumulator — only advances while overallStatus is
+            // 'uploading', so the ETA doesn't inflate during paused / error
+            // periods when no bytes are flowing.
+            let activeMs = 0;
+            let lastUploadingTickAt = null;
+            // Monotonic clamp on the displayed ETA — once we show "11s left"
+            // we never bounce back up. Resets per batch.
+            let lastShownSec = null;
+
+            // Per-state palette + label. `overallStatus` is computed by the
+            // store with priority: error > uploading > paused > pending > complete.
+            const STATE_COLORS = {
+                uploading: '#a5b4fc',
+                paused:    '#fbbf24',
+                error:     '#f87171',
+                pending:   '#94a3b8',
+                complete:  '#86efac',
+                cancelled: '#94a3b8',
+                idle:      '#94a3b8'
+            };
+            const STATE_LABELS = {
+                uploading: 'Uploading',
+                paused:    'Paused',
+                error:     'Failed',
+                pending:   'Queued',
+                complete:  'Done',
+                cancelled: 'Cancelled',
+                idle:      'Idle'
+            };
+
+            const resetBatch = () => {
+                activeMs = 0;
+                lastUploadingTickAt = null;
+                lastShownSec = null;
+            };
+
+            // Shared style for the round icon buttons. Pause / resume / retry
+            // icons inherit size from the button's `font-size` (the SVGs use
+            // `width: 1em`). Both button and icon shrink together so the
+            // proportions stay consistent — 20% smaller than the first cut.
+            const ICON_BTN_STYLE =
+                'display:inline-flex;align-items:center;justify-content:center;' +
+                'width:1.45rem;height:1.45rem;border-radius:999px;border:none;' +
+                'background:rgba(255,255,255,0.10);color:inherit;cursor:pointer;' +
+                'font-size:0.78rem;line-height:1;transition:background 120ms ease, opacity 120ms ease;' +
+                'flex-shrink:0;padding:0;';
+
+            // Library ACTION_ICONS have no explicit width/height attrs so they
+            // default to 100% of the button. Force them to 1em so font-size
+            // controls the glyph size.
+            const sizeSvgIn = (el) => {
+                const svg = el.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('width', '1em');
+                    svg.setAttribute('height', '1em');
+                }
+            };
+
+            const makeIconBtn = (label) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.style.cssText = ICON_BTN_STYLE;
+                btn.setAttribute('aria-label', label);
+                btn.title = label;
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.background = 'rgba(255,255,255,0.22)';
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.background = 'rgba(255,255,255,0.10)';
+                });
+                return btn;
+            };
+
+            // Tracks the current view so we only swap visibility when it
+            // actually changes (avoids per-tick layout work).
+            let isExpanded = false;
+            // Compact-view nodes — built once, populated each tick.
+            let compactView, expandedView, compactPctSpan, compactPrimaryBtn;
+
+            // Single click handler for both primary buttons (compact + expanded)
+            // — they always trigger whatever the current overallStatus maps to.
+            const triggerPrimary = () => {
+                const store = indGrid.getStore?.();
+                if (!store) return;
+                if (primaryAction === 'pause')  store.pauseAll();
+                if (primaryAction === 'resume') store.resumeAll();
+                if (primaryAction === 'retry')  store.retryAll();
+            };
+
+            const buildChipRoot = () => {
+                const root = document.createElement('span');
+                root.style.cssText = 'display:flex;align-items:center;gap:0.8rem;flex:1 1 auto;';
+
+                // ---- Compact view: big percentage + primary action ----
+                compactView = document.createElement('span');
+                compactView.style.cssText = 'display:flex;align-items:center;gap:0.6rem;flex:1 1 auto;';
+
+                compactPctSpan = document.createElement('span');
+                // `line-height: 1` flattens the percentage's rendered box to
+                // exactly its font-size. Without it the percentage's normal
+                // line-height (~1.4×) makes the compact view ~4px TALLER than
+                // the expanded view (where the 1.45rem button is the tallest
+                // child). When the chip shrinks vertically on hover, a cursor
+                // near the bottom edge falls outside → collapse → cursor back
+                // inside → expand → infinite loop.
+                compactPctSpan.style.cssText = 'font-size:1.15rem;line-height:1;font-weight:700;font-variant-numeric:tabular-nums;flex:1 1 auto;';
+
+                compactPrimaryBtn = makeIconBtn('Pause');
+                compactPrimaryBtn.addEventListener('click', triggerPrimary);
+
+                compactView.appendChild(compactPctSpan);
+                compactView.appendChild(compactPrimaryBtn);
+
+                // ---- Expanded view: full status + controls ----
+                expandedView = document.createElement('span');
+                expandedView.style.cssText = 'display:none;align-items:center;gap:0.8rem;flex:1 1 auto;';
+
+                // State pill — coloured dot + uppercase label.
+                const stateWrap = document.createElement('span');
+                stateWrap.style.cssText = 'display:inline-flex;align-items:center;gap:0.4rem;font-size:0.78em;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;';
+                stateDot = document.createElement('span');
+                stateDot.style.cssText = 'width:0.55rem;height:0.55rem;border-radius:999px;background:#a5b4fc;flex-shrink:0;';
+                stateLabel = document.createElement('span');
+                stateWrap.appendChild(stateDot);
+                stateWrap.appendChild(stateLabel);
+
+                countSpan = document.createElement('span');
+                countSpan.style.cssText = 'font-weight:600;white-space:nowrap;';
+
+                const bar = document.createElement('span');
+                bar.style.cssText = 'position:relative;flex:1 1 auto;min-width:4rem;height:0.5rem;border-radius:999px;background:rgba(255,255,255,0.18);overflow:hidden;';
+                barFill = document.createElement('span');
+                barFill.style.cssText = 'position:absolute;inset:0 auto 0 0;width:0%;background:#a5b4fc;transition:width 200ms linear, background 200ms ease;';
+                bar.appendChild(barFill);
+
+                etaSpan = document.createElement('span');
+                etaSpan.style.cssText = 'font-variant-numeric:tabular-nums;opacity:0.85;white-space:nowrap;font-size:0.9em;';
+
+                primaryBtn = makeIconBtn('Pause');
+                primaryBtn.addEventListener('click', triggerPrimary);
+
+                cancelBtn = makeIconBtn('Cancel all');
+                cancelBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="1em" height="1em" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+                cancelBtn.addEventListener('click', () => {
+                    indGrid.getStore?.()?.clear();
+                });
+
+                expandedView.appendChild(stateWrap);
+                expandedView.appendChild(countSpan);
+                expandedView.appendChild(bar);
+                expandedView.appendChild(etaSpan);
+                expandedView.appendChild(primaryBtn);
+                expandedView.appendChild(cancelBtn);
+
+                root.appendChild(compactView);
+                root.appendChild(expandedView);
+
+                // Expand trigger is the percentage label only — NOT the chip
+                // as a whole. Hovering the compact pause/resume button keeps
+                // the chip compact so the click can land. Collapse listens
+                // on the chip root so the cursor is free to roam the
+                // expanded view's controls without the chip snapping shut.
+                //
+                // The chip's `min-width` is also JS-driven here (not via a
+                // `::part(chip):hover` CSS rule) so it only grows when we've
+                // actually swapped to the expanded view — hovering the
+                // compact button must not widen the chip.
+                const getChip = () =>
+                    indGrid.shadowRoot?.querySelector('.dz__indicator__chip');
+                compactPctSpan.addEventListener('mouseenter', () => {
+                    if (isExpanded) return;
+                    isExpanded = true;
+                    compactView.style.display = 'none';
+                    expandedView.style.display = 'flex';
+                    const chip = getChip();
+                    if (chip) chip.style.minWidth = '30rem';
+                });
+                root.addEventListener('mouseleave', () => {
+                    if (!isExpanded) return;
+                    isExpanded = false;
+                    compactView.style.display = 'flex';
+                    expandedView.style.display = 'none';
+                    const chip = getChip();
+                    if (chip) chip.style.minWidth = '';
+                });
+
+                return root;
+            };
+
+            // Map overallStatus → primary action. `null` means the primary
+            // button has no useful action and should be hidden via opacity.
+            const PRIMARY_FOR_STATUS = {
+                uploading: 'pause',
+                paused:    'resume',
+                error:     'retry',
+                pending:   null,
+                complete:  null,
+                cancelled: null,
+                idle:      null
+            };
+
+            // Apply a primary-action binding to one button — used for both
+            // the compact and expanded primary buttons so they stay in sync.
+            const applyPrimaryToBtn = (btn, next) => {
+                if (next === null) {
+                    btn.style.opacity = '0';
+                    btn.style.pointerEvents = 'none';
+                    btn.setAttribute('aria-hidden', 'true');
+                    btn.tabIndex = -1;
+                    btn.innerHTML = '';
+                } else {
+                    btn.style.opacity = '1';
+                    btn.style.pointerEvents = 'auto';
+                    btn.removeAttribute('aria-hidden');
+                    btn.removeAttribute('tabindex');
+                    btn.innerHTML = ACTION_ICONS[next];
+                    sizeSvgIn(btn);
+                    const lbl = ACTION_LABELS[next];
+                    btn.setAttribute('aria-label', lbl);
+                    btn.title = lbl;
+                }
+            };
+
+            const syncPrimaryAction = (overallStatus) => {
+                const next = PRIMARY_FOR_STATUS[overallStatus] ?? null;
+                if (next === primaryAction) return;
+                primaryAction = next;
+                applyPrimaryToBtn(primaryBtn, next);
+                applyPrimaryToBtn(compactPrimaryBtn, next);
+            };
+
+            const formatEta = (overallPercent) => {
+                if (overallPercent < 1 || activeMs < 200) return 'estimating…';
+                const totalEstMs = activeMs / (overallPercent / 100);
+                const remainingMs = Math.max(0, totalEstMs - activeMs);
+                const rawSec = Math.ceil(remainingMs / 1000);
+                const sec = lastShownSec === null ? rawSec : Math.min(lastShownSec, rawSec);
+                lastShownSec = sec;
+                if (sec < 1) return 'finishing…';
+                if (sec < 60) return `~${sec}s left`;
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                return `~${m}m ${s}s left`;
+            };
+
+            indGrid.renderBodyCallback = ({ aggregate, overallPercent, overallStatus }) => {
+                // Show while ANY file is still incomplete — pending, uploading,
+                // paused, or errored. Hidden only when nothing remains to act on.
+                const incomplete = aggregate.pending + aggregate.uploading
+                    + aggregate.paused + aggregate.error;
+                if (incomplete === 0) {
+                    resetBatch();
+                    return false;
+                }
+                if (chipRoot === null) chipRoot = buildChipRoot();
+
+                // Active-time clock — runs only while bytes are flowing.
+                const now = performance.now();
+                const isUploading = overallStatus === 'uploading';
+                if (isUploading && lastUploadingTickAt !== null) {
+                    activeMs += now - lastUploadingTickAt;
+                }
+                lastUploadingTickAt = isUploading ? now : null;
+                // Re-baseline the monotonic ETA clamp on every state exit
+                // from `uploading`. Without this, a lastShownSec that dropped
+                // to 0 right before pause would lock the display at
+                // "finishing…" forever — `min(0, anything) === 0`. Pause →
+                // resume now produces a fresh estimate.
+                if (!isUploading) lastShownSec = null;
+
+                const color = STATE_COLORS[overallStatus] ?? STATE_COLORS.uploading;
+                stateDot.style.background = color;
+                barFill.style.background = color;
+                stateLabel.textContent = STATE_LABELS[overallStatus] ?? overallStatus;
+
+                countSpan.textContent = `${aggregate.complete} / ${aggregate.total} files`;
+                barFill.style.width = `${overallPercent}%`;
+                compactPctSpan.textContent = `${overallPercent.toFixed(1)}%`;
+                compactPctSpan.style.color = color;
+                syncPrimaryAction(overallStatus);
+
+                if (overallStatus === 'paused') {
+                    etaSpan.textContent = `${aggregate.paused} paused`;
+                } else if (overallStatus === 'error') {
+                    etaSpan.textContent = `${aggregate.error} failed`;
+                } else if (overallStatus === 'pending') {
+                    etaSpan.textContent = 'waiting…';
+                } else {
+                    etaSpan.textContent = formatEta(overallPercent);
+                }
+
+                return chipRoot;
+            };
+        }
 
         // Helper used by the speed demo — formats bytes/sec into the
         // best unit. Imported by feel (not from the library) because
@@ -576,12 +1041,22 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
         // outer button is never disturbed.
         const indSpeed = document.getElementById('ind-speed');
         const speedSnapshots = new Map();
+        // Middle-truncate so the extension stays visible — a 60-char
+        // upload like `message_log_…_095640.eml` reads as a name + type
+        // hint instead of overflowing the chip and wrapping the rate.
+        const truncateMiddle = (s, max = 28) => {
+            if (s.length <= max) return s;
+            const keepEnd = 10;
+            const keepStart = max - keepEnd - 1;
+            return `${s.slice(0, keepStart)}…${s.slice(-keepEnd)}`;
+        };
         if (indSpeed) {
             indSpeed.renderBodyCallback = ({ aggregate }) =>
                 aggregate.uploading > 0 ? null : false;
             indSpeed.renderFileInfoCallback = ({ currentFile: f }) => {
                 if (!f) return '';
-                const safeName = f.name.replace(/[<>&]/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;' }[c]));
+                const trimmed = truncateMiddle(f.name);
+                const safeName = trimmed.replace(/[<>&]/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;' }[c]));
                 return `<strong>${safeName}</strong>`;
             };
             indSpeed.renderProgressCallback = ({ currentFile: f }) => {

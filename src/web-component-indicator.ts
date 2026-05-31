@@ -265,6 +265,15 @@ export class DropzoneIndicatorElement extends BaseElement {
         this.storeEl = null;
     }
 
+    /**
+     * Resolved store for callbacks that need to mutate (e.g. an indicator
+     * with built-in pause / resume / retry / cancel control buttons in the
+     * body callback). Returns `null` until the store has connected.
+     */
+    getStore(): WebDropzone | null {
+        return this.store;
+    }
+
     // ========================================================================
     // POSITION + DRAWER MODE
     // ========================================================================
@@ -316,11 +325,16 @@ export class DropzoneIndicatorElement extends BaseElement {
             this.chipEl = div;
         }
         this.chipEl.className = 'dz__indicator__chip';
+        // `part="chip"` lets consumers reach the chip wrapper from outside the
+        // shadow root via `::part(chip)` — needed when they want to strip the
+        // pill (border / background / padding) and render plain inline text.
+        this.chipEl.setAttribute('part', 'chip');
         this.shadow.appendChild(this.chipEl);
 
         if (mode === 'auto') {
             this.drawerEl = document.createElement('div');
             this.drawerEl.className = 'dz__indicator__drawer';
+            this.drawerEl.setAttribute('part', 'drawer');
             this.drawerEl.setAttribute('role', 'dialog');
             this.drawerEl.setAttribute('aria-label', 'Upload queue');
             this.populateDrawer();
