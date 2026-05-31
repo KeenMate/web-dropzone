@@ -18,13 +18,7 @@ import {
     whenStoreReady,
     subscribeStoreEvents
 } from './satellite-base';
-import {
-    formatFileSize,
-    getFileIcon,
-    getFileTypeCategory,
-    isImageFile,
-    createImagePreview
-} from './dropzone';
+import { isImageFile, createImagePreview } from './dropzone';
 import {
     STATUS_ICONS,
     STATUS_LABELS,
@@ -32,6 +26,12 @@ import {
     ACTION_LABELS,
     actionForStatus
 } from './icons';
+import {
+    renderListItem,
+    renderDetailedItem,
+    renderGridItem,
+    renderBadgeItem
+} from './row-templates';
 import type { WebDropzone } from './dropzone';
 import type { FileState, ListAppearance } from './types';
 
@@ -49,35 +49,6 @@ function escapeHtml(text: string): string {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-}
-
-/**
- * Per-row action button (pause / resume / retry). Mirrors `WebDropzone`'s
- * classic renderer: the slot is ALWAYS rendered so the row's column widths
- * stay reserved as state transitions in/out of an active action. When no
- * action applies (pending / complete / cancelled), the `--hidden` modifier
- * hides the button visually and drops it from the tab order.
- */
-function renderRowActionButton(file: FileState, baseClass: string): string {
-    const action = actionForStatus(file.status);
-    const hidden = !action;
-    const cls = hidden ? `${baseClass} ${baseClass}--hidden` : baseClass;
-    const inert = hidden ? ' tabindex="-1" aria-hidden="true"' : '';
-    const label = action ? `${ACTION_LABELS[action]} ${escapeHtml(file.name)}` : '';
-    const title = action ? ACTION_LABELS[action] : '';
-    const dataAction = action ?? '';
-    const icon = action ? ACTION_ICONS[action] : '';
-    return `<button type="button" class="${cls}" data-action="row-action" data-row-action="${dataAction}" data-file-id="${file.id}" aria-label="${label}" title="${title}"${inert}>${icon}</button>`;
-}
-
-/**
- * Build the attribute block for the always-rendered remove button. The
- * classic renderer hides it for complete files when the host opts out of
- * post-upload deletion; the satellite has no equivalent config yet, so
- * the button is always live here.
- */
-function removeButtonAttrs(file: FileState, baseClass: string): string {
-    return `class="${baseClass}" data-action="remove" data-file-id="${file.id}" aria-label="Remove ${escapeHtml(file.name)}"`;
 }
 
 export class DropzoneListElement extends BaseElement {
@@ -209,100 +180,10 @@ export class DropzoneListElement extends BaseElement {
     }
 
     private renderRow(file: FileState, appearance: ListAppearance): string {
-        if (appearance === 'badges')   return this.renderBadgeRow(file);
-        if (appearance === 'grid')     return this.renderGridRow(file);
-        if (appearance === 'detailed') return this.renderDetailedRow(file);
-        return this.renderListRow(file);
-    }
-
-    private renderListRow(file: FileState): string {
-        // Mirrors WebDropzone.renderListItem so both share `_file-item.css`.
-        return `
-            <div class="dz__file-item dz__file-item--list" data-file-id="${file.id}" data-status="${file.status}">
-                <span class="dz__file-item__name">${escapeHtml(file.name)}</span>
-                ${renderRowActionButton(file, 'dz__file-item__action')}
-                <div class="dz__file-item__progress">
-                    <div class="dz__file-item__progress-bar">
-                        <div class="dz__file-item__progress-fill" style="width: ${file.progress}%"></div>
-                    </div>
-                    <span class="dz__file-item__progress-text">${file.progress.toFixed(1)}%</span>
-                </div>
-                <span class="dz__file-item__status dz__file-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
-                <button type="button" ${removeButtonAttrs(file, 'dz__file-item__remove')}></button>
-            </div>
-        `;
-    }
-
-    private renderDetailedRow(file: FileState): string {
-        // Mirrors WebDropzone.renderDetailedItem — same DOM, same classes,
-        // so the polished styling in `_file-item.css` lights up identically
-        // whether the rows are rendered by the satellite or by the
-        // convenience renderer inside `<web-dropzone>`.
-        const category = getFileTypeCategory(file.file);
-        const isImage = isImageFile(file.file);
-        const inner = isImage && file.previewUrl
-            ? `<img src="${file.previewUrl}" alt="${escapeHtml(file.name)}">`
-            : getFileIcon(file.file);
-        return `
-            <div class="dz__file-item dz__file-item--detailed" data-file-id="${file.id}" data-status="${file.status}">
-                <div class="dz__file-item__icon dz__file-item__icon--${category}">${inner}</div>
-                <div class="dz__file-item__info">
-                    <div class="dz__file-item__name">${escapeHtml(file.name)}</div>
-                    <div class="dz__file-item__meta">
-                        <span class="dz__file-item__size">${formatFileSize(file.size)}</span>
-                        <span class="dz__file-item__type">${escapeHtml(file.type || 'Unknown')}</span>
-                    </div>
-                    <div class="dz__file-item__progress">
-                        <div class="dz__file-item__progress-bar">
-                            <div class="dz__file-item__progress-fill" style="width: ${file.progress}%"></div>
-                        </div>
-                        <span class="dz__file-item__progress-text">${file.progress.toFixed(1)}%</span>
-                    </div>
-                </div>
-                ${renderRowActionButton(file, 'dz__file-item__action')}
-                <span class="dz__file-item__status dz__file-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
-                <button type="button" ${removeButtonAttrs(file, 'dz__file-item__remove')}></button>
-            </div>
-        `;
-    }
-
-    private renderGridRow(file: FileState): string {
-        const isImage = isImageFile(file.file);
-        const inner = isImage && file.previewUrl
-            ? `<img src="${file.previewUrl}" alt="${escapeHtml(file.name)}" class="dz__preview-item__image">`
-            : `<div class="dz__preview-item__placeholder">${getFileIcon(file.file)}</div>`;
-        return `
-            <div class="dz__preview-item ${isImage ? 'dz__preview-item--image' : ''}" data-file-id="${file.id}" data-status="${file.status}">
-                ${inner}
-                <div class="dz__preview-item__scrim" aria-hidden="true"></div>
-                <div class="dz__preview-item__overlay">
-                    <span class="dz__preview-item__name">${escapeHtml(file.name)}</span>
-                </div>
-                <span class="dz__preview-item__status dz__preview-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
-                <div class="dz__preview-item__progress-bar">
-                    <div class="dz__preview-item__progress-fill" style="width: ${file.progress}%"></div>
-                </div>
-                <div class="dz__preview-item__hover-actions">
-                    ${renderRowActionButton(file, 'dz__preview-item__action')}
-                    <button type="button" ${removeButtonAttrs(file, 'dz__preview-item__remove')}></button>
-                </div>
-            </div>
-        `;
-    }
-
-    private renderBadgeRow(file: FileState): string {
-        const statusClass = file.status !== 'pending' ? `dz__badge--${file.status}` : '';
-        return `
-            <span class="dz__badge ${statusClass}" data-file-id="${file.id}" data-status="${file.status}">
-                <span class="dz__badge-text" title="${escapeHtml(file.name)}">
-                    <span class="dz__badge-icon">${getFileIcon(file.file)}</span>
-                    <span class="dz__badge-name">${escapeHtml(file.name)}</span>
-                    ${renderRowActionButton(file, 'dz__badge-action')}
-                    <span class="dz__badge-status dz__badge-status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
-                </span>
-                <button type="button" ${removeButtonAttrs(file, 'dz__badge-remove')}></button>
-            </span>
-        `;
+        if (appearance === 'badges')   return renderBadgeItem(file);
+        if (appearance === 'grid')     return renderGridItem(file);
+        if (appearance === 'detailed') return renderDetailedItem(file);
+        return renderListItem(file);
     }
 
     // ========================================================================

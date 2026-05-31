@@ -50,6 +50,12 @@ import {
     ACTION_LABELS,
     actionForStatus
 } from './icons';
+// Row templates (list / detailed / grid / badges) are shared with the
+// `<web-dropzone-list>` satellite via `./row-templates` — single source of
+// truth so the polished styling in `_file-item.css` applies identically
+// regardless of which renderer emits the row.
+import * as RowTemplate from './row-templates';
+import type { RowTemplateOptions } from './row-templates';
 // Shared status-surface contract — the rolling list uses the same three
 // callbacks (body / fileInfo / progress) as the indicator satellite, so
 // templates port across surfaces unchanged. See ./status-surface.ts.
@@ -2220,19 +2226,6 @@ export class WebDropzone {
         return listAppearance === 'grid';
     }
 
-    /**
-     * Render the placeholder slot's inner content — either an `<img>` for
-     * image files when thumbnails are enabled, or the file-type icon glyph.
-     * The slot's box dimensions (width/height/background) come from CSS — set
-     * the relevant `--dz-*-icon-size` variable to 0 to collapse the slot.
-     */
-    private renderPlaceholderInner(file: FileState, useThumbnail: boolean): string {
-        if (useThumbnail && file.previewUrl) {
-            return `<img src="${file.previewUrl}" alt="">`;
-        }
-        return escapeHtml(getFileIcon(file.file));
-    }
-
     /** Reverse-map listAppearance → DisplayMode for backward-compatible callbacks. */
     private deriveLegacyDisplayMode(listAppearance: ListAppearance): DisplayMode {
         switch (listAppearance) {
@@ -2254,34 +2247,6 @@ export class WebDropzone {
     private isFileUserRemovable(file: FileState): boolean {
         if (file.status !== 'complete') return true;
         return this.config.isUploadedFileDeletable !== false;
-    }
-
-    /** Build the `class=""` / `aria-hidden` / `tabindex` attrs used by every
-     *  per-row remove button. Hidden buttons stay in the DOM (layout
-     *  reserved) but are inert. */
-    private removeButtonAttrs(file: FileState, baseClass: string): string {
-        const hidden = !this.isFileUserRemovable(file);
-        const cls = hidden ? `${baseClass} ${baseClass}--hidden` : baseClass;
-        const inert = hidden ? ' tabindex="-1" aria-hidden="true"' : '';
-        return `class="${cls}" data-action="remove" data-file-id="${file.id}" aria-label="Remove ${escapeHtml(file.name)}"${inert}`;
-    }
-
-    /** Render the per-row action button (pause / resume / retry). The slot
-     *  is ALWAYS in the DOM so column / cell widths stay reserved; when
-     *  there's no applicable action (pending, complete, cancelled) the
-     *  `--hidden` modifier hides it visually but keeps the space. Use the
-     *  same `data-action="row-action"` handle that bindListRemoveHandlers
-     *  binds the click on. */
-    private renderRowActionButton(file: FileState, baseClass: string): string {
-        const action = actionForStatus(file.status);
-        const hidden = !action;
-        const cls = hidden ? `${baseClass} ${baseClass}--hidden` : baseClass;
-        const inert = hidden ? ' tabindex="-1" aria-hidden="true"' : '';
-        const label = action ? `${ACTION_LABELS[action]} ${escapeHtml(file.name)}` : '';
-        const title = action ? ACTION_LABELS[action] : '';
-        const dataAction = action ?? '';
-        const icon = action ? ACTION_ICONS[action] : '';
-        return `<button type="button" class="${cls}" data-action="row-action" data-row-action="${dataAction}" data-file-id="${file.id}" aria-label="${label}" title="${title}"${inert}>${icon}</button>`;
     }
 
     /** In-place patch the action button as file.status transitions
@@ -2324,107 +2289,44 @@ export class WebDropzone {
         if (action === 'retry')  this.retryFile(id);
     }
 
+    /**
+     * Pack per-row knobs for the shared template module. The shared module
+     * has no view of the store's config — `isReorderEligible` /
+     * `isFileUserRemovable` / `shouldShowThumbnails` live here because they
+     * read config-driven state (reorder mode, post-upload deletion flag,
+     * thumbnail policy per appearance). We compute the booleans here and
+     * hand them to the template as plain data.
+     */
+    private rowOpts(file: FileState, appearance: ListAppearance): RowTemplateOptions {
+        return {
+            reorderEligible: this.isReorderEligible(file),
+            removable: this.isFileUserRemovable(file),
+            useThumbnail: this.shouldShowThumbnails(appearance)
+        };
+    }
+
     private renderListItem(file: FileState): string {
-        const reorderAttr = this.isReorderEligible(file) ? ' data-reorder-bucket="complete"' : '';
-        return `
-            <div class="dz__file-item dz__file-item--list" data-file-id="${file.id}" data-status="${file.status}"${reorderAttr}>
-                <span class="dz__file-item__name">${escapeHtml(file.name)}</span>
-                ${this.renderRowActionButton(file, 'dz__file-item__action')}
-                <div class="dz__file-item__progress">
-                    <div class="dz__file-item__progress-bar">
-                        <div class="dz__file-item__progress-fill" style="width: ${file.progress}%"></div>
-                    </div>
-                    <span class="dz__file-item__progress-text">${file.progress.toFixed(1)}%</span>
-                </div>
-                <span class="dz__file-item__status dz__file-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
-                <button type="button" ${this.removeButtonAttrs(file, 'dz__file-item__remove')}></button>
-            </div>
-        `;
+        return RowTemplate.renderListItem(file, this.rowOpts(file, 'list'));
     }
 
     private renderDetailedItem(file: FileState): string {
-        const category = getFileTypeCategory(file.file);
-        const useThumbnail = this.shouldShowThumbnails('detailed');
-        const inner = this.renderPlaceholderInner(file, useThumbnail);
-        const reorderAttr = this.isReorderEligible(file) ? ' data-reorder-bucket="complete"' : '';
-
-        return `
-            <div class="dz__file-item dz__file-item--detailed" data-file-id="${file.id}" data-status="${file.status}"${reorderAttr}>
-                <div class="dz__file-item__icon dz__file-item__icon--${category}">${inner}</div>
-                <div class="dz__file-item__info">
-                    <div class="dz__file-item__name">${escapeHtml(file.name)}</div>
-                    <div class="dz__file-item__meta">
-                        <span class="dz__file-item__size">${formatFileSize(file.size)}</span>
-                        <span class="dz__file-item__type">${escapeHtml(file.type || 'Unknown')}</span>
-                    </div>
-                    <div class="dz__file-item__progress">
-                        <div class="dz__file-item__progress-bar">
-                            <div class="dz__file-item__progress-fill" style="width: ${file.progress}%"></div>
-                        </div>
-                        <span class="dz__file-item__progress-text">${file.progress.toFixed(1)}%</span>
-                    </div>
-                </div>
-                ${this.renderRowActionButton(file, 'dz__file-item__action')}
-                <span class="dz__file-item__status dz__file-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
-                <button type="button" ${this.removeButtonAttrs(file, 'dz__file-item__remove')}></button>
-            </div>
-        `;
+        return RowTemplate.renderDetailedItem(file, this.rowOpts(file, 'detailed'));
     }
 
     private renderGridItem(file: FileState): string {
-        const isImage = isImageFile(file.file);
-        const useThumbnail = this.shouldShowThumbnails('grid');
-        // Grid traditionally puts the image directly in the tile while non-image
-        // files fall back to a centered placeholder. Honoring show-thumbnails=
-        // 'false' here means even image files render as the icon placeholder,
-        // which is exactly the "I want a uniform icon grid" use case.
-        const inner = useThumbnail && file.previewUrl
-            ? `<img src="${file.previewUrl}" alt="${escapeHtml(file.name)}" class="dz__preview-item__image">`
-            : `<div class="dz__preview-item__placeholder">${escapeHtml(getFileIcon(file.file))}</div>`;
-        const reorderAttr = this.isReorderEligible(file) ? ' data-reorder-bucket="complete"' : '';
-
-        return `
-            <div class="dz__preview-item ${isImage ? 'dz__preview-item--image' : ''}" data-file-id="${file.id}" data-status="${file.status}"${reorderAttr}>
-                ${inner}
-                <div class="dz__preview-item__scrim" aria-hidden="true"></div>
-                <div class="dz__preview-item__overlay">
-                    <span class="dz__preview-item__name">${escapeHtml(file.name)}</span>
-                </div>
-                <span class="dz__preview-item__status dz__preview-item__status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
-                <div class="dz__preview-item__progress-bar">
-                    <div class="dz__preview-item__progress-fill" style="width: ${file.progress}%"></div>
-                </div>
-                <div class="dz__preview-item__hover-actions">
-                    ${this.renderRowActionButton(file, 'dz__preview-item__action')}
-                    <button type="button" ${this.removeButtonAttrs(file, 'dz__preview-item__remove')}></button>
-                </div>
-            </div>
-        `;
+        return RowTemplate.renderGridItem(file, this.rowOpts(file, 'grid'));
     }
 
     private renderBadgeItem(file: FileState): string {
-        const statusClass = file.status !== 'pending' ? `dz__badge--${file.status}` : '';
-        const useThumbnail = this.shouldShowThumbnails('badges');
-        const inner = this.renderPlaceholderInner(file, useThumbnail);
-        const reorderAttr = this.isReorderEligible(file) ? ' data-reorder-bucket="complete"' : '';
-        return `
-            <span class="dz__badge ${statusClass}" data-file-id="${file.id}" data-status="${file.status}"${reorderAttr}>
-                <span class="dz__badge-text" title="${escapeHtml(file.name)}">
-                    <span class="dz__badge-icon">${inner}</span>
-                    <span class="dz__badge-name">${escapeHtml(file.name)}</span>
-                    ${this.renderRowActionButton(file, 'dz__badge-action')}
-                    <span class="dz__badge-status dz__badge-status--${file.status}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
-                </span>
-                <button type="button" ${this.removeButtonAttrs(file, 'dz__badge-remove')}></button>
-            </span>
-        `;
+        return RowTemplate.renderBadgeItem(file, this.rowOpts(file, 'badges'));
     }
 
     private renderCompactItem(file: FileState): string {
         const useThumbnail = this.shouldShowThumbnails('popover');
-        const inner = this.renderPlaceholderInner(file, useThumbnail);
+        const inner = RowTemplate.renderPlaceholderInner(file, useThumbnail);
         const statusClass = `dz__popover__status--${file.status}`;
         const isUploading = file.status === 'uploading';
+        const removable = this.isFileUserRemovable(file);
 
         // X button is ALWAYS rendered — column width stays stable as files
         // transition pending → uploading → complete and the button doesn't
@@ -2445,13 +2347,13 @@ export class WebDropzone {
                     <span class="dz__popover__progress-text">${file.progress.toFixed(1)}%</span>
                 </td>
                 <td class="dz__popover__cell dz__popover__cell--action">
-                    ${this.renderRowActionButton(file, 'dz__popover__row-action')}
+                    ${RowTemplate.renderRowActionButton(file, 'dz__popover__row-action')}
                 </td>
                 <td class="dz__popover__cell dz__popover__cell--status">
                     <span class="dz__popover__status ${statusClass}" title="${STATUS_LABELS[file.status]}" aria-label="Status: ${STATUS_LABELS[file.status]}" data-status="${file.status}">${STATUS_ICONS[file.status]}</span>
                 </td>
                 <td class="dz__popover__cell dz__popover__cell--actions">
-                    <button type="button" ${this.removeButtonAttrs(file, 'dz__popover__remove')}></button>
+                    <button type="button" ${RowTemplate.removeButtonAttrs(file, 'dz__popover__remove', removable)}></button>
                 </td>
             </tr>
         `;
