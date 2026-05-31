@@ -1970,7 +1970,7 @@ export class WebDropzone {
         // Status-surface body callback: lets users own the entire rolling
         // container (no animation slots, no queue badge). Skipped when
         // returns null (library default). `false` hides the rolling block.
-        const args = buildStatusSurfaceArgs(this.files);
+        const args = buildStatusSurfaceArgs(this.files, this);
         const bodyResult = this.config.renderRollingBodyCallback
             ? this.config.renderRollingBodyCallback(args)
             : null;

@@ -21,7 +21,8 @@ export type {
     StatusSurfaceArgs,
     StatusSurfaceCallback,
     StatusSurfaceResult,
-    StatusAggregate
+    StatusAggregate,
+    DropzoneStoreAPI
 } from './status-surface';
 export { createDropzoneSpinner, STATUS_ICONS, STATUS_LABELS, ACTION_ICONS, ACTION_LABELS, actionForStatus } from './icons';
 export type { RowAction } from './icons';

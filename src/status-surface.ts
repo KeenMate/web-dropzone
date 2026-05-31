@@ -39,6 +39,39 @@
 import type { FileState, FileStatus } from './types';
 
 /**
+ * Narrow store interface exposed to render callbacks. Callbacks that want to
+ * MUTATE the store (e.g. an indicator chip with built-in pause / resume /
+ * cancel buttons) reach for `args.store` instead of looking up the host
+ * element with `document.getElementById` or `indicator.getStore()`. The full
+ * `WebDropzone` class implements this interface structurally — surfaces hand
+ * `this` to `buildStatusSurfaceArgs` and TypeScript narrows it to the contract
+ * below at the callback boundary.
+ *
+ * Kept deliberately small: only the methods that make sense from a callback
+ * context. No `addFiles` / `updateConfig` / `formAssociated` — those belong
+ * on the element / store, not on a status surface.
+ */
+export interface DropzoneStoreAPI {
+    // ---- Per-file actions -------------------------------------------------
+    pauseFile(id: string): void;
+    resumeFile(id: string): Promise<void>;
+    retryFile(id: string): void;
+    cancelFile(id: string): void;
+    removeFile(id: string): void;
+
+    // ---- Bulk actions -----------------------------------------------------
+    pauseAll(): void;
+    resumeAll(): Promise<void>;
+    retryAll(): void;
+    /** Nuke the queue — aborts active uploads, drops every FileState. */
+    clear(): void;
+
+    // ---- Reads ------------------------------------------------------------
+    getFiles(): ReadonlyArray<FileState>;
+    getFile(id: string): FileState | undefined;
+}
+
+/**
  * Aggregate view of a store's file list, recomputed once per refresh cycle.
  * Exposed via every `StatusSurfaceArgs` so consumers can read counts and
  * derive their own labels.
@@ -84,6 +117,13 @@ export interface StatusSurfaceArgs {
     // ---- Escape hatch -----------------------------------------------------
     /** Full file list, read-only. Rarely needed once aggregate is available. */
     files: ReadonlyArray<FileState>;
+    /**
+     * The store this surface is bound to. Callbacks use it to dispatch
+     * actions (`store.pauseAll()`, `store.removeFile(id)`, etc.) without
+     * needing to look up the host element separately. See `DropzoneStoreAPI`
+     * above for the available surface.
+     */
+    store: DropzoneStoreAPI;
 }
 
 /**
@@ -168,11 +208,12 @@ export function pickCurrentFile(files: ReadonlyArray<FileState>): FileState | un
 }
 
 /**
- * Builds a fully-populated `StatusSurfaceArgs` from a file list. Used by
- * every surface to standardize the data passed to callbacks.
+ * Builds a fully-populated `StatusSurfaceArgs` from a file list + store.
+ * Used by every surface to standardize the data passed to callbacks.
  */
 export function buildStatusSurfaceArgs(
-    files: ReadonlyArray<FileState>
+    files: ReadonlyArray<FileState>,
+    store: DropzoneStoreAPI
 ): StatusSurfaceArgs {
     const aggregate = computeStatusAggregate(files);
     const overallPercent = computeOverallPercent(files);
@@ -184,7 +225,8 @@ export function buildStatusSurfaceArgs(
         aggregate,
         overallPercent,
         overallStatus: aggregate.overallStatus,
-        files
+        files,
+        store
     };
 }
 

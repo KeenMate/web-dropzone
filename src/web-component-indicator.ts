@@ -392,7 +392,7 @@ export class DropzoneIndicatorElement extends BaseElement {
     private refresh(): void {
         if (!this.store) return;
         const files = this.store.getFiles();
-        const args = buildStatusSurfaceArgs(files);
+        const args = buildStatusSurfaceArgs(files, this.store);
 
         // ---- Chip dataset (drives color + 'empty' state via CSS) --------
         const nextStatus = args.overallStatus;

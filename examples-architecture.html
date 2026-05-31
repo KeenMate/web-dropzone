@@ -712,6 +712,11 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
             // only rewrite innerHTML / aria when the binding actually
             // changes (otherwise WAAPI / focus would churn each tick).
             let primaryAction = null;
+            // Cached `args.store` — re-set on every callback tick so the
+            // click handlers (attached once in buildChipRoot) always reach
+            // the live store. `args.store` is the narrow `DropzoneStoreAPI`
+            // surface; callbacks no longer need `indGrid.getStore()`.
+            let currentStore = null;
             // Active-time accumulator — only advances while overallStatus is
             // 'uploading', so the ETA doesn't inflate during paused / error
             // periods when no bytes are flowing.
@@ -794,11 +799,10 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
             // Single click handler for both primary buttons (compact + expanded)
             // — they always trigger whatever the current overallStatus maps to.
             const triggerPrimary = () => {
-                const store = indGrid.getStore?.();
-                if (!store) return;
-                if (primaryAction === 'pause')  store.pauseAll();
-                if (primaryAction === 'resume') store.resumeAll();
-                if (primaryAction === 'retry')  store.retryAll();
+                if (!currentStore) return;
+                if (primaryAction === 'pause')  currentStore.pauseAll();
+                if (primaryAction === 'resume') currentStore.resumeAll();
+                if (primaryAction === 'retry')  currentStore.retryAll();
             };
 
             const buildChipRoot = () => {
@@ -856,7 +860,7 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
                 cancelBtn = makeIconBtn('Cancel all');
                 cancelBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="1em" height="1em" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
                 cancelBtn.addEventListener('click', () => {
-                    indGrid.getStore?.()?.clear();
+                    currentStore?.clear();
                 });
 
                 expandedView.appendChild(stateWrap);
@@ -957,7 +961,12 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
                 return `~${m}m ${s}s left`;
             };
 
-            indGrid.renderBodyCallback = ({ aggregate, overallPercent, overallStatus }) => {
+            indGrid.renderBodyCallback = ({ aggregate, overallPercent, overallStatus, store }) => {
+                // Cache the store so click handlers (attached once below)
+                // always dispatch to the live store, even if the satellite
+                // gets re-attached to a different element later.
+                currentStore = store;
+
                 // Show while ANY file is still incomplete — pending, uploading,
                 // paused, or errored. Hidden only when nothing remains to act on.
                 const incomplete = aggregate.pending + aggregate.uploading
