@@ -249,6 +249,106 @@ export type StatusSurfacePrev =
     | { kind: 'default' }
     | undefined;
 
+/**
+ * Convenience wrapper that encapsulates the three `*Prev` memoization
+ * snapshots that every status surface (indicator chip, rolling block,
+ * future surfaces) would otherwise hand-track.
+ *
+ * Surfaces still own:
+ *   - their slot DOM (where the body / fileInfo / progress live)
+ *   - their library default rendering (how to fill the slots when the
+ *     callback returns `null` or no callback is set)
+ *
+ * The surface delegates only the "apply this callback's return value to
+ * this element with memoization" step. The discriminator returned from
+ * `applyBody` lets surfaces branch on which path was taken without
+ * inspecting the internal `*Prev` state.
+ */
+export class StatusSurface {
+    private bodyPrev: StatusSurfacePrev = undefined;
+    private fileInfoPrev: StatusSurfacePrev = undefined;
+    private progressPrev: StatusSurfacePrev = undefined;
+
+    /** Reset all three memoization snapshots — e.g. on `disconnectedCallback`. */
+    reset(): void {
+        this.bodyPrev = undefined;
+        this.fileInfoPrev = undefined;
+        this.progressPrev = undefined;
+    }
+
+    /** Reset just the slot memoizations — e.g. when the slot DOM is rebuilt. */
+    resetSlots(): void {
+        this.fileInfoPrev = undefined;
+        this.progressPrev = undefined;
+    }
+
+    /** Reset just the file-info memoization — e.g. when its callback changes. */
+    resetFileInfo(): void {
+        this.fileInfoPrev = undefined;
+    }
+
+    /** Reset just the progress memoization. */
+    resetProgress(): void {
+        this.progressPrev = undefined;
+    }
+
+    /**
+     * Apply a body callback's result to `target`. The returned object tells
+     * the caller which branch was taken AND which branch was active last
+     * time — useful for surfaces that need to clear stale custom DOM when
+     * the body transitions back to the default path.
+     */
+    applyBody(target: HTMLElement, result: StatusSurfaceResult): {
+        current: 'hidden' | 'custom' | 'default';
+        previous: 'hidden' | 'custom' | 'default' | 'unset';
+    } {
+        const previous: 'hidden' | 'custom' | 'default' | 'unset' =
+            this.bodyPrev === undefined ? 'unset'
+            : this.bodyPrev.kind === 'hidden' ? 'hidden'
+            : this.bodyPrev.kind === 'default' ? 'default'
+            : 'custom';
+        this.bodyPrev = applyStatusSurfaceResult(target, result, this.bodyPrev);
+        const current: 'hidden' | 'custom' | 'default' =
+            result === false ? 'hidden'
+            : result != null ? 'custom'
+            : 'default';
+        return { current, previous };
+    }
+
+    /**
+     * Apply a fileInfo callback's result to a slot element. `fallback` is
+     * used when `result` is null (callback returned "library default" or
+     * no callback was set); when no fallback is given a null result is a
+     * no-op, leaving whatever DOM already lives in the slot untouched
+     * (used by the rolling block where the row template already drew the
+     * default name span).
+     */
+    applyFileInfo(
+        target: HTMLElement,
+        result: StatusSurfaceResult,
+        fallback?: () => string | HTMLElement
+    ): void {
+        const next = result == null
+            ? (fallback ? fallback() : undefined)
+            : result;
+        if (next === undefined) return;
+        this.fileInfoPrev = applyStatusSurfaceResult(target, next, this.fileInfoPrev);
+    }
+
+    /** Mirror of `applyFileInfo` for the progress slot. */
+    applyProgress(
+        target: HTMLElement,
+        result: StatusSurfaceResult,
+        fallback?: () => string | HTMLElement
+    ): void {
+        const next = result == null
+            ? (fallback ? fallback() : undefined)
+            : result;
+        if (next === undefined) return;
+        this.progressPrev = applyStatusSurfaceResult(target, next, this.progressPrev);
+    }
+}
+
 export function applyStatusSurfaceResult(
     target: HTMLElement,
     result: StatusSurfaceResult,

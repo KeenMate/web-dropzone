@@ -39,12 +39,11 @@ import {
 } from './satellite-base';
 import {
     buildStatusSurfaceArgs,
-    applyStatusSurfaceResult
+    StatusSurface
 } from './status-surface';
 import type {
     StatusSurfaceArgs,
-    StatusSurfaceCallback,
-    StatusSurfacePrev
+    StatusSurfaceCallback
 } from './status-surface';
 import {
     STATUS_ICONS,
@@ -108,9 +107,7 @@ export class DropzoneIndicatorElement extends BaseElement {
      * One entry per slot — when a callback returns the same value two
      * ticks in a row the slot's DOM is left untouched.
      */
-    private bodyPrev: StatusSurfacePrev = undefined;
-    private fileInfoPrev: StatusSurfacePrev = undefined;
-    private progressPrev: StatusSurfacePrev = undefined;
+    private surface = new StatusSurface();
     /** Snapshot of the last default-body state, used to skip rebuilds. */
     private bodyDefaultMounted = false;
 
@@ -167,7 +164,7 @@ export class DropzoneIndicatorElement extends BaseElement {
     }
     set renderFileInfoCallback(value: StatusSurfaceCallback | null) {
         this._renderFileInfoCallback = value;
-        this.fileInfoPrev = undefined;
+        this.surface.resetFileInfo();
         if (this.store) this.refresh();
     }
 
@@ -183,14 +180,12 @@ export class DropzoneIndicatorElement extends BaseElement {
     }
     set renderProgressCallback(value: StatusSurfaceCallback | null) {
         this._renderProgressCallback = value;
-        this.progressPrev = undefined;
+        this.surface.resetProgress();
         if (this.store) this.refresh();
     }
 
     private resetMemoization(): void {
-        this.bodyPrev = undefined;
-        this.fileInfoPrev = undefined;
-        this.progressPrev = undefined;
+        this.surface.reset();
         this.bodyDefaultMounted = false;
     }
 
@@ -409,27 +404,20 @@ export class DropzoneIndicatorElement extends BaseElement {
             ? this._renderBodyCallback(args)
             : null;
 
-        if (bodyResult === false) {
-            // Custom body hid the surface entirely. Host element keeps its
-            // box (drawer might be attached, etc.) but the chip is hidden.
-            this.bodyPrev = applyStatusSurfaceResult(this.chipEl, false, this.bodyPrev);
+        const { current } = this.surface.applyBody(this.chipEl, bodyResult);
+        if (current === 'hidden') {
             this.bodyDefaultMounted = false;
             return;
         }
-        if (bodyResult != null) {
-            // Body returned content (string or element). Apply it through
-            // the shared memoizer — string equality / element identity
-            // short-circuits skip the DOM write.
+        if (current === 'custom') {
             this.chipEl.hidden = false;
-            this.bodyPrev = applyStatusSurfaceResult(this.chipEl, bodyResult, this.bodyPrev);
             this.bodyDefaultMounted = false;
             return;
         }
 
-        // bodyResult === null → render the polished OOB body. Build slots
+        // current === 'default' — render the polished OOB body. Build slots
         // once and patch in place from there.
         this.chipEl.hidden = false;
-        this.bodyPrev = { kind: 'default' };
         if (!this.bodyDefaultMounted
             || !this.fileInfoSlotEl
             || !this.progressSlotEl
@@ -437,8 +425,7 @@ export class DropzoneIndicatorElement extends BaseElement {
             this.buildDefaultBodyShell(args);
             // Reset slot memoization so the next callback call writes
             // fresh content into the just-built slots.
-            this.fileInfoPrev = undefined;
-            this.progressPrev = undefined;
+            this.surface.resetSlots();
         }
         this.refreshFileInfoSlot(args);
         this.refreshProgressSlot(args);
@@ -473,18 +460,24 @@ export class DropzoneIndicatorElement extends BaseElement {
         if (!this.fileInfoSlotEl) return;
         const result = this._renderFileInfoCallback
             ? this._renderFileInfoCallback(args)
-            : this.defaultFileInfo(args);
-        const next = result == null ? this.defaultFileInfo(args) : result;
-        this.fileInfoPrev = applyStatusSurfaceResult(this.fileInfoSlotEl, next, this.fileInfoPrev);
+            : null;
+        this.surface.applyFileInfo(
+            this.fileInfoSlotEl,
+            result,
+            () => this.defaultFileInfo(args)
+        );
     }
 
     private refreshProgressSlot(args: StatusSurfaceArgs): void {
         if (!this.progressSlotEl) return;
         const result = this._renderProgressCallback
             ? this._renderProgressCallback(args)
-            : this.defaultProgress(args);
-        const next = result == null ? this.defaultProgress(args) : result;
-        this.progressPrev = applyStatusSurfaceResult(this.progressSlotEl, next, this.progressPrev);
+            : null;
+        this.surface.applyProgress(
+            this.progressSlotEl,
+            result,
+            () => this.defaultProgress(args)
+        );
 
         // The label sits between the two slots and reads from the
         // aggregate. Auto-hide it when the consumer has provided either a

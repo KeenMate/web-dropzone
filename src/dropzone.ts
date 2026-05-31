@@ -61,12 +61,11 @@ import type { RowTemplateOptions } from './row-templates';
 // templates port across surfaces unchanged. See ./status-surface.ts.
 import {
     buildStatusSurfaceArgs,
-    applyStatusSurfaceResult
+    StatusSurface
 } from './status-surface';
 import type {
     StatusSurfaceArgs,
-    StatusSurfaceResult,
-    StatusSurfacePrev
+    StatusSurfaceResult
 } from './status-surface';
 
 /**
@@ -277,13 +276,11 @@ export class WebDropzone {
     private summaryEl: HTMLElement | null = null;
     private overallProgressEl: HTMLElement | null = null;
 
-    // Rolling list status-surface memoization snapshots. Each tracks the
-    // last applied result for the corresponding callback so identical
-    // results on subsequent ticks skip the DOM write — see
-    // `applyStatusSurfaceResult` in ./status-surface.ts.
-    private rollingBodyPrev: StatusSurfacePrev = undefined;
-    private rollingFileInfoPrev: StatusSurfacePrev = undefined;
-    private rollingProgressPrev: StatusSurfacePrev = undefined;
+    // Rolling list status-surface memoization. Encapsulates the three
+    // `*Prev` snapshots (body / fileInfo / progress) so identical results
+    // on subsequent ticks skip the DOM write — see `StatusSurface` in
+    // ./status-surface.ts.
+    private rollingSurface = new StatusSurface();
 
     // Drag overlay elements
     private overlayTarget: HTMLElement | null = null;
@@ -1974,34 +1971,27 @@ export class WebDropzone {
         const bodyResult = this.config.renderRollingBodyCallback
             ? this.config.renderRollingBodyCallback(args)
             : null;
-        if (bodyResult === false) {
-            this.rollingBodyPrev = applyStatusSurfaceResult(targetEl, false, this.rollingBodyPrev);
-            return;
-        }
-        if (bodyResult != null) {
+        const { current, previous } = this.rollingSurface.applyBody(targetEl, bodyResult);
+        if (current === 'hidden') return;
+        if (current === 'custom') {
             targetEl.hidden = false;
-            this.rollingBodyPrev = applyStatusSurfaceResult(targetEl, bodyResult, this.rollingBodyPrev);
-            // Reset slot memoization — custom body replaces the default
-            // slots, so any per-slot prev state is stale.
-            this.rollingFileInfoPrev = undefined;
-            this.rollingProgressPrev = undefined;
+            // Slot memoization is stale — custom body wiped the default slots.
+            this.rollingSurface.resetSlots();
             return;
         }
-        // Custom body returned null → fall through to default rendering.
-        // If we were previously in custom-body mode the targetEl still has
-        // the custom content; reset to a clean slate before the default
-        // path repopulates it.
-        if (this.rollingBodyPrev && this.rollingBodyPrev.kind !== 'default') {
+
+        // current === 'default'. If we were previously in custom-body mode the
+        // targetEl still has the custom content; clear it before the default
+        // path repopulates.
+        if (previous === 'custom') {
             targetEl.innerHTML = '';
         }
-        this.rollingBodyPrev = { kind: 'default' };
         targetEl.hidden = false;
 
         const front = this.getFrontFile();
         if (!front) {
             targetEl.innerHTML = '';
-            this.rollingFileInfoPrev = undefined;
-            this.rollingProgressPrev = undefined;
+            this.rollingSurface.resetSlots();
             return;
         }
 
@@ -2035,8 +2025,7 @@ export class WebDropzone {
         // slot subtrees if the user supplied callbacks. Reset memoization
         // because this is a fresh slot — prev snapshots came from the
         // OUTGOING row's subtrees.
-        this.rollingFileInfoPrev = undefined;
-        this.rollingProgressPrev = undefined;
+        this.rollingSurface.resetSlots();
         this.applyRollingSlots(newCurrentEl, args);
 
         if (previousCurrent && rotation !== 'slide-in') {
@@ -2077,32 +2066,22 @@ export class WebDropzone {
      * generated — no DOM write.
      */
     private applyRollingSlots(currentEl: HTMLElement, args: StatusSurfaceArgs): void {
-        // File-info slot — replace the `.dz__file-item__name` with the
-        // callback's content. The library default leaves the existing
-        // name span alone (covers the common case where users only want
-        // to customize progress).
+        // File-info slot — replace `.dz__file-item__name` with the callback's
+        // content. No fallback: a null result leaves the row template's
+        // pre-rendered name span alone (covers the common case where users
+        // only want to customize progress).
         const fileInfoCb = this.config.renderRollingFileInfoCallback;
         const fileInfoSlot = currentEl.querySelector<HTMLElement>('.dz__file-item__name');
         if (fileInfoCb && fileInfoSlot) {
-            const result = fileInfoCb(args);
-            if (result !== null && result !== undefined) {
-                this.rollingFileInfoPrev = applyStatusSurfaceResult(
-                    fileInfoSlot, result, this.rollingFileInfoPrev
-                );
-            }
+            this.rollingSurface.applyFileInfo(fileInfoSlot, fileInfoCb(args));
         }
 
-        // Progress slot — replace the inner progress bar + percent text
-        // with the callback's content.
+        // Progress slot — same pattern. Default is the bar + percent text
+        // that came out of renderListItem.
         const progressCb = this.config.renderRollingProgressCallback;
         const progressSlot = currentEl.querySelector<HTMLElement>('.dz__file-item__progress');
         if (progressCb && progressSlot) {
-            const result = progressCb(args);
-            if (result !== null && result !== undefined) {
-                this.rollingProgressPrev = applyStatusSurfaceResult(
-                    progressSlot, result, this.rollingProgressPrev
-                );
-            }
+            this.rollingSurface.applyProgress(progressSlot, progressCb(args));
         }
     }
 
