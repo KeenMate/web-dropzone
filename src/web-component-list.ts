@@ -25,7 +25,7 @@ import {
     whenStoreReady,
     subscribeStoreEvents
 } from './satellite-base';
-import { isImageFile, createImagePreview } from './dropzone';
+import { isImageFile, createImagePreview, formatFileSize } from './dropzone';
 import {
     STATUS_ICONS,
     STATUS_LABELS,
@@ -47,12 +47,16 @@ import type { FileState, ListAppearance, RollingRotation } from './types';
 
 const BaseElement = (typeof HTMLElement !== 'undefined' ? HTMLElement : class {}) as typeof HTMLElement;
 
-// Appearances this satellite implements. Popover / none remain in the
-// in-class renderer pending Stages D / E of the convenience-form
-// migration.
+// Appearances this satellite implements. `none` deliberately omitted —
+// it means "no list visible at all", which is best handled by simply
+// not mounting the satellite. The popover wrapper (Floating UI, resize,
+// persistence) still lives in `<web-dropzone>`'s in-class code; the
+// satellite renders the summary anchor only.
 const SUPPORTED_APPEARANCES: ReadonlyArray<ListAppearance> = [
-    'list', 'detailed', 'grid', 'badges', 'rolling'
+    'list', 'detailed', 'grid', 'badges', 'rolling', 'popover'
 ];
+
+const DEFAULT_SUMMARY_TEMPLATE = '{count} file(s), {size}';
 
 function escapeHtml(text: string): string {
     const div = document.createElement('div');
@@ -176,13 +180,17 @@ export class DropzoneListElement extends BaseElement {
             // progress / status changes → patch the affected row in place
             // (rendering at 50ms ticks across 20 files would burn DOM otherwise).
             'file-progress': (e) => this.patchRow((e as CustomEvent).detail.id),
-            // Status changes also need a rolling re-render — the front-file
-            // pick may shift (e.g. front upload completes, next pending
-            // takes over) and patchRow alone can't reflect that.
+            // Status changes need extra handling for rolling (front-file
+            // pick may shift — patchRow alone can't reflect that) and for
+            // popover (the summary's status icon depends on aggregate
+            // state, not the per-file row).
             'file-status-changed': (e) => {
                 this.patchRow((e as CustomEvent).detail.id);
-                if (this.resolveAppearance() === 'rolling' && this.store) {
+                const appearance = this.resolveAppearance();
+                if (appearance === 'rolling' && this.store) {
                     this.renderRolling(this.store.getFiles());
+                } else if (appearance === 'popover' && this.store) {
+                    this.renderSummary(this.store.getFiles());
                 }
             }
         });
@@ -214,6 +222,15 @@ export class DropzoneListElement extends BaseElement {
         const appearance = this.resolveAppearance();
 
         if (files.length === 0) {
+            // Popover renders nothing when empty — the summary line only
+            // appears once there are files, matching the in-class
+            // behavior; if we showed an empty-state message the popover
+            // anchor would also need an entire empty-state click handler
+            // path. Easier to just keep the surface invisible.
+            if (appearance === 'popover') {
+                this.container.innerHTML = '';
+                return;
+            }
             const emptyMessage = this.getAttribute('empty-message')
                 ?? this.store.getConfig().emptyMessage
                 ?? 'No files selected';
@@ -228,6 +245,10 @@ export class DropzoneListElement extends BaseElement {
             this.renderRolling(files);
             return;
         }
+        if (appearance === 'popover') {
+            this.renderSummary(files);
+            return;
+        }
 
         // Mirrors the classic renderer's container class so the BEM
         // appearance-modifier rules in `_file-list.css` apply identically
@@ -237,6 +258,66 @@ export class DropzoneListElement extends BaseElement {
         this.container.innerHTML = `<div class="${containerClass}" data-list-appearance="${appearance}">${rows}</div>`;
         this.bindRowHandlers();
         this.attachPreviewLoaders(files);
+    }
+
+    // ========================================================================
+    // POPOVER APPEARANCE — summary anchor only
+    // ========================================================================
+
+    /**
+     * Render a single summary line ("{count} files · {size}") that acts as
+     * the click target for the popover. The actual popover wrapper is
+     * external to this satellite — the convenience form's `<web-dropzone>`
+     * renders it in-class, and standalone consumers wire any UI they want
+     * by listening for `dz-summary-click` (bubbles + composed).
+     *
+     * The summary subtree is re-rendered on every store change. That's
+     * cheap (one line of DOM) and avoids the per-tick patching dance the
+     * in-class summary does — there's no nested resize / focus state to
+     * preserve here, just the icon + text.
+     */
+    private renderSummary(files: FileState[]): void {
+        if (!this.store) return;
+        const cfg = this.store.getConfig();
+        const args = buildStatusSurfaceArgs(files, this.store);
+        const status = args.overallStatus === 'idle' ? 'pending' : args.overallStatus;
+        const icon = status === 'pending'
+            ? '📎'
+            : STATUS_ICONS[status];
+        const iconClass = status === 'pending'
+            ? 'dz__summary__icon'
+            : `dz__summary__icon dz__summary__icon--${status}`;
+        const statusLabel = STATUS_LABELS[status as keyof typeof STATUS_LABELS] ?? '';
+
+        const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+        const template = cfg.summaryTemplate || DEFAULT_SUMMARY_TEMPLATE;
+        const text = template
+            .replace('{count}', String(files.length))
+            .replace('{size}', formatFileSize(totalSize));
+
+        this.container.innerHTML = `
+            <div class="dz__summary">
+                <div class="dz__summary__line" tabindex="0" role="button" aria-label="Click to view files">
+                    <span class="${iconClass}" data-status="${status}" aria-label="Status: ${escapeHtml(statusLabel)}">${icon}</span>
+                    <span class="dz__summary__text">${escapeHtml(text)}</span>
+                </div>
+            </div>
+        `;
+
+        const line = this.container.querySelector('.dz__summary__line');
+        if (!line) return;
+        const fire = () => this.dispatchEvent(new CustomEvent('dz-summary-click', {
+            bubbles: true,
+            composed: true
+        }));
+        line.addEventListener('click', fire);
+        line.addEventListener('keydown', (e) => {
+            const ke = e as KeyboardEvent;
+            if (ke.key === 'Enter' || ke.key === ' ') {
+                ke.preventDefault();
+                fire();
+            }
+        });
     }
 
     private renderRow(file: FileState, appearance: ListAppearance): string {

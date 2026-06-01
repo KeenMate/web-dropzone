@@ -1244,19 +1244,19 @@ export class WebDropzone {
      * `<web-dropzone-picker>` + `<web-dropzone-list>` pair. Excluded:
      *  - `files-inside` — list is rendered inside the card selector, not
      *    a sibling of it; the satellite topology doesn't model that yet.
-     *  - `popover` — the popover wrapper (Floating UI + resizable +
-     *    persisted dimensions) isn't implemented in the satellite yet
-     *    (Stage D of the convenience-form migration).
      *  - Custom render callbacks (`renderFileItemCallback`,
      *    `renderPromptCallback`, `renderSummaryCallback`) — the satellites
      *    don't honor these store-level callbacks, so users who set any of
      *    them keep the in-class render so their customization still works.
+     *
+     * Note: `popover` IS on the satellite path — the list satellite renders
+     * the summary anchor and dispatches `dz-summary-click`; the popover
+     * wrapper itself (Floating UI + resize + persistence) stays in-class
+     * and is opened by `mountSatellites` listening for that event.
      */
     private shouldUseSatelliteRendering(): boolean {
         if (!this.config.hostElement) return false;
         if (this.config.isFilesInsideEnabled) return false;
-        const { listAppearance } = resolveDisplayConfig(this.config);
-        if (listAppearance === 'popover') return false;
         if (this.config.renderFileItemCallback) return false;
         if (this.config.renderPromptCallback) return false;
         if (this.config.renderSummaryCallback) return false;
@@ -1301,6 +1301,13 @@ export class WebDropzone {
             // themselves.
             if (listAppearance === 'rolling') {
                 list.addEventListener('dz-queue-open', () => this.togglePopover());
+            }
+            // Popover summary anchor: list satellite renders the summary
+            // line and fires `dz-summary-click` on activation. Convenience
+            // form opens the in-class popover from that event; standalone
+            // consumers wire any UI.
+            if (listAppearance === 'popover') {
+                list.addEventListener('dz-summary-click', () => this.togglePopover());
             }
             if (overallEl) container.insertBefore(list, overallEl);
             else container.appendChild(list);
@@ -3199,12 +3206,13 @@ export class WebDropzone {
             targetEl?.classList.contains('dz__files-inside--rolling')) {
             return targetEl;
         }
-        // Satellite-rolling path: the `.dz__file-list--rolling` element is
-        // inside the `<web-dropzone-list>` shadow root and isn't reachable
-        // here. Use the satellite host element's bounding rect — it's the
-        // same outer rectangle the user sees.
+        // Satellite path (rolling or popover summary): the actual anchor
+        // element is inside the `<web-dropzone-list>` shadow root and
+        // isn't reachable here. Use the satellite host element's bounding
+        // rect — it's the same outer rectangle the user sees and Floating
+        // UI positions just fine against it.
         const { listAppearance } = resolveDisplayConfig(this.config);
-        if (listAppearance === 'rolling' && this.satelliteListEl) {
+        if ((listAppearance === 'rolling' || listAppearance === 'popover') && this.satelliteListEl) {
             return this.satelliteListEl;
         }
         const btn = this.dropzoneEl?.querySelector('.dz__button, .dz__minimal') as HTMLElement | null;
