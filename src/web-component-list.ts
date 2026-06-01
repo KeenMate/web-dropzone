@@ -2,11 +2,18 @@
  * `<web-dropzone-list for="<store-id>">` — satellite renderer.
  *
  * A read-mostly view of a store's `FileState[]`, rendered in one of several
- * appearances (list / detailed / grid / badges). Subscribes to the store's
- * substrate events (file-added, file-removed, file-progress,
+ * appearances (list / detailed / grid / badges / rolling). Subscribes to
+ * the store's substrate events (file-added, file-removed, file-progress,
  * file-status-changed, change) so it stays in sync without polling. Action
  * buttons (remove, pause, resume, cancel, retry) call back through to the
  * store's public API.
+ *
+ * Rolling appearance shows a single "front" file (highest-priority active
+ * one — see `getFrontFile`) with rotation animations. A queue badge button
+ * sits in the top-right corner; clicking it dispatches a `dz-queue-open`
+ * CustomEvent (bubbles + composed) — popover wiring is up to the consumer.
+ * The convenience form (`<web-dropzone>`) listens for this event and opens
+ * its built-in popover; standalone satellite consumers can wire any UI.
  *
  * The satellite never owns file state. The store is authoritative; the
  * satellite is a projection. See ARCHITECTURE.md.
@@ -32,18 +39,19 @@ import {
     renderGridItem,
     renderBadgeItem
 } from './row-templates';
+import { buildStatusSurfaceArgs, StatusSurface } from './status-surface';
+import type { StatusSurfaceArgs } from './status-surface';
 import type { WebDropzone } from './dropzone';
 import type { DropzoneElement } from './web-component';
-import type { FileState, ListAppearance } from './types';
+import type { FileState, ListAppearance, RollingRotation } from './types';
 
 const BaseElement = (typeof HTMLElement !== 'undefined' ? HTMLElement : class {}) as typeof HTMLElement;
 
-// Subset of ListAppearance this satellite implements. The remaining
-// appearances (rolling, popover, none) are intentionally deferred — they
-// require front-file animation / modal scaffolding that's better added once
-// the simpler cases are proven.
+// Appearances this satellite implements. Popover / none remain in the
+// in-class renderer pending Stages D / E of the convenience-form
+// migration.
 const SUPPORTED_APPEARANCES: ReadonlyArray<ListAppearance> = [
-    'list', 'detailed', 'grid', 'badges'
+    'list', 'detailed', 'grid', 'badges', 'rolling'
 ];
 
 function escapeHtml(text: string): string {
@@ -68,6 +76,12 @@ export class DropzoneListElement extends BaseElement {
      * row a user might be mid-click on). With it: one rebuild per burst.
      */
     private renderScheduled = false;
+    /**
+     * Memoization snapshots for the rolling appearance's three callback
+     * slots (body / file-info / progress). Lets cached WAAPI spinners
+     * survive across ticks the same way the indicator satellite does.
+     */
+    private rollingSurface = new StatusSurface();
 
     constructor() {
         super();
@@ -162,7 +176,15 @@ export class DropzoneListElement extends BaseElement {
             // progress / status changes → patch the affected row in place
             // (rendering at 50ms ticks across 20 files would burn DOM otherwise).
             'file-progress': (e) => this.patchRow((e as CustomEvent).detail.id),
-            'file-status-changed': (e) => this.patchRow((e as CustomEvent).detail.id)
+            // Status changes also need a rolling re-render — the front-file
+            // pick may shift (e.g. front upload completes, next pending
+            // takes over) and patchRow alone can't reflect that.
+            'file-status-changed': (e) => {
+                this.patchRow((e as CustomEvent).detail.id);
+                if (this.resolveAppearance() === 'rolling' && this.store) {
+                    this.renderRolling(this.store.getFiles());
+                }
+            }
         });
     }
 
@@ -195,7 +217,15 @@ export class DropzoneListElement extends BaseElement {
             const emptyMessage = this.getAttribute('empty-message')
                 ?? this.store.getConfig().emptyMessage
                 ?? 'No files selected';
+            // Rolling memoization snapshots are stale once the list empties
+            // out — drop them so the next non-empty render starts fresh.
+            if (appearance === 'rolling') this.rollingSurface.reset();
             this.container.innerHTML = `<div class="dz__empty">${escapeHtml(emptyMessage)}</div>`;
+            return;
+        }
+
+        if (appearance === 'rolling') {
+            this.renderRolling(files);
             return;
         }
 
@@ -213,7 +243,207 @@ export class DropzoneListElement extends BaseElement {
         if (appearance === 'badges')   return renderBadgeItem(file);
         if (appearance === 'grid')     return renderGridItem(file);
         if (appearance === 'detailed') return renderDetailedItem(file);
+        // 'rolling' uses the list-item template for the front-file row.
         return renderListItem(file);
+    }
+
+    // ========================================================================
+    // ROLLING APPEARANCE
+    // ========================================================================
+
+    /**
+     * Pick the file currently occupying the "front" slot. Priority order:
+     * first uploading → first pending → first paused/error/cancelled
+     * (needs attention) → last completed (so the slot doesn't go empty the
+     * instant a final upload hits 100%). Returns null only when `files`
+     * is empty.
+     */
+    private getFrontFile(files: FileState[]): FileState | null {
+        if (files.length === 0) return null;
+        const uploading = files.find(f => f.status === 'uploading');
+        if (uploading) return uploading;
+        const pending = files.find(f => f.status === 'pending');
+        if (pending) return pending;
+        const needsAction = files.find(f =>
+            f.status === 'paused' || f.status === 'error' || f.status === 'cancelled'
+        );
+        if (needsAction) return needsAction;
+        for (let i = files.length - 1; i >= 0; i--) {
+            if (files[i].status === 'complete') return files[i];
+        }
+        return files[0];
+    }
+
+    /**
+     * Resolve the rolling rotation mode from the store's config. The
+     * satellite doesn't take its own `rolling-rotation` attribute — the
+     * store is the single source of truth (matches the in-class renderer's
+     * behavior). Falls back to 'slide-in' which is the cheapest variant.
+     */
+    private resolveRollingRotation(): RollingRotation {
+        const cfg = this.store?.getConfig();
+        return (cfg?.rollingRotation ?? 'slide-in') as RollingRotation;
+    }
+
+    /**
+     * Render the rolling block. Same call serves first-render and front-
+     * changed re-render — `previousCurrent` is detected from the DOM. When
+     * the front file hasn't shifted, the existing slot is left in place and
+     * we just refresh the queue count + any callback-driven slot content
+     * (tick patching is handled by `patchRow` elsewhere).
+     */
+    private renderRolling(files: FileState[]): void {
+        if (!this.store) return;
+        const rotation = this.resolveRollingRotation();
+        const cfg = this.store.getConfig();
+
+        // Ensure the wrapper exists once and survives across renders — we
+        // never reassign the container's innerHTML in rolling mode after
+        // the first non-empty render, so callback-mounted nodes (custom
+        // body, custom slots) keep their identity across ticks.
+        let wrapper = this.container.querySelector<HTMLElement>('.dz__file-list--rolling');
+        if (!wrapper) {
+            this.container.innerHTML = '';
+            wrapper = document.createElement('div');
+            wrapper.className = 'dz__file-list dz__file-list--rolling';
+            wrapper.setAttribute('data-list-appearance', 'rolling');
+            this.container.appendChild(wrapper);
+            // Single delegated click handler — covers any current/future row
+            // inside the wrapper without rebinding on each rotation.
+            this.bindRowHandlers();
+        }
+        wrapper.dataset.rotation = rotation;
+
+        // Status-surface body callback — when set, the user owns the entire
+        // rolling container (no animation slots, no queue badge). Returning
+        // `false` hides the surface; `null` falls through to the default.
+        const args = buildStatusSurfaceArgs(files, this.store);
+        const bodyResult = cfg.renderRollingBodyCallback
+            ? cfg.renderRollingBodyCallback(args)
+            : null;
+        const { current, previous } = this.rollingSurface.applyBody(wrapper, bodyResult);
+        if (current === 'hidden') return;
+        if (current === 'custom') {
+            wrapper.hidden = false;
+            this.rollingSurface.resetSlots();
+            return;
+        }
+        if (previous === 'custom') {
+            // We were rendering a custom body; switch back to default by
+            // wiping whatever the callback put inside.
+            wrapper.innerHTML = '';
+        }
+        wrapper.hidden = false;
+
+        const front = this.getFrontFile(files);
+        if (!front) {
+            wrapper.innerHTML = '';
+            this.rollingSurface.resetSlots();
+            return;
+        }
+
+        const queueCount = files.length;
+        const showQueueBtn = queueCount > 1;
+
+        // The "settled" current slot — not one mid-rotation-out. That's
+        // the right thing to compare against to decide whether the front
+        // actually changed.
+        const previousCurrent = wrapper.querySelector<HTMLElement>(
+            '.dz__rolling__current:not(.dz__rolling__current--leaving)'
+        );
+        const previousFrontId = previousCurrent?.dataset.frontId;
+
+        if (previousCurrent && previousFrontId === front.id) {
+            // Same front file. Per-row ticks land via patchRow; here we
+            // just refresh the queue count + re-apply slot callbacks so
+            // a render driven by file-status-changed picks up the new
+            // status / progress numbers inside the slot subtrees.
+            this.applyRollingSlots(previousCurrent, args);
+            this.updateRollingQueueButton(wrapper, queueCount, showQueueBtn);
+            return;
+        }
+
+        const newCurrentEl = document.createElement('div');
+        newCurrentEl.className = 'dz__rolling__current';
+        newCurrentEl.dataset.frontId = front.id;
+        newCurrentEl.innerHTML = renderListItem(front);
+        // Slot memoization is stale — the new slot's DOM is fresh; the
+        // prev snapshots came from the OUTGOING row's subtrees.
+        this.rollingSurface.resetSlots();
+        this.applyRollingSlots(newCurrentEl, args);
+
+        if (previousCurrent && rotation !== 'slide-in') {
+            // True rotation — outgoing slot keeps mounted so its keyframe
+            // (translateX/Y out) plays in parallel with the incoming one.
+            previousCurrent.classList.add('dz__rolling__current--leaving');
+            wrapper.insertBefore(newCurrentEl, previousCurrent);
+            const toRemove = previousCurrent;
+            // ~150ms over the typical 350ms animation; spare margin so we
+            // never yank a node mid-keyframe.
+            setTimeout(() => { toRemove.remove(); }, 500);
+        } else if (previousCurrent) {
+            previousCurrent.replaceWith(newCurrentEl);
+        } else {
+            wrapper.insertBefore(newCurrentEl, wrapper.firstChild);
+        }
+        this.updateRollingQueueButton(wrapper, queueCount, showQueueBtn);
+    }
+
+    /**
+     * Apply the rolling file-info + progress callbacks (if set) into the
+     * row inside `currentEl`. The list-item template's `.dz__file-item__name`
+     * span hosts the file-info slot; `.dz__file-item__progress` hosts the
+     * progress slot. Routed through the shared memoizer so cached element
+     * returns (e.g. WAAPI spinners) survive across ticks.
+     */
+    private applyRollingSlots(currentEl: HTMLElement, args: StatusSurfaceArgs): void {
+        const cfg = this.store?.getConfig();
+        if (!cfg) return;
+
+        const fileInfoCb = cfg.renderRollingFileInfoCallback;
+        const fileInfoSlot = currentEl.querySelector<HTMLElement>('.dz__file-item__name');
+        if (fileInfoCb && fileInfoSlot) {
+            this.rollingSurface.applyFileInfo(fileInfoSlot, fileInfoCb(args));
+        }
+
+        const progressCb = cfg.renderRollingProgressCallback;
+        const progressSlot = currentEl.querySelector<HTMLElement>('.dz__file-item__progress');
+        if (progressCb && progressSlot) {
+            this.rollingSurface.applyProgress(progressSlot, progressCb(args));
+        }
+    }
+
+    /**
+     * Ensure the rolling queue badge exists inside `wrapper` and reflects
+     * the current file count. Created once and reused across re-renders so
+     * its click handler isn't repeatedly rebound (and so the badge doesn't
+     * flicker during a front-file swap). On click, dispatches a
+     * `dz-queue-open` CustomEvent (bubbles + composed) — popover wiring
+     * happens externally (convenience form listens; standalone users wire
+     * their own).
+     */
+    private updateRollingQueueButton(wrapper: HTMLElement, queueCount: number, showQueueBtn: boolean): void {
+        let queueBtn = wrapper.querySelector<HTMLButtonElement>('.dz__rolling__queue');
+        if (!queueBtn) {
+            queueBtn = document.createElement('button');
+            queueBtn.type = 'button';
+            queueBtn.className = 'dz__rolling__queue';
+            queueBtn.dataset.action = 'open-queue';
+            queueBtn.innerHTML = '<span class="dz__rolling__queue-count"></span>';
+            queueBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.dispatchEvent(new CustomEvent('dz-queue-open', {
+                    bubbles: true,
+                    composed: true
+                }));
+            });
+            wrapper.appendChild(queueBtn);
+        }
+        const countEl = queueBtn.querySelector('.dz__rolling__queue-count');
+        if (countEl) countEl.textContent = String(queueCount);
+        queueBtn.classList.toggle('dz__rolling__queue--hidden', !showQueueBtn);
+        queueBtn.setAttribute('aria-label', `Show full queue (${queueCount} files)`);
+        queueBtn.setAttribute('title', `Show all ${queueCount} files`);
     }
 
     // ========================================================================

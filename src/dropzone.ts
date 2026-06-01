@@ -275,6 +275,14 @@ export class WebDropzone {
     private filesInsideEl: HTMLElement | null = null;
     private summaryEl: HTMLElement | null = null;
     private overallProgressEl: HTMLElement | null = null;
+    /**
+     * The `<web-dropzone-list>` satellite mounted by `mountSatellites()`.
+     * Used as a popover anchor in the satellite-rolling path (the actual
+     * `.dz__file-list--rolling` element lives in the satellite's shadow
+     * root and isn't reachable from `getPopoverAnchor`). Null when the
+     * in-class renderer is in use.
+     */
+    private satelliteListEl: HTMLElement | null = null;
 
     // Rolling list status-surface memoization. Encapsulates the three
     // `*Prev` snapshots (body / fileInfo / progress) so identical results
@@ -1236,20 +1244,19 @@ export class WebDropzone {
      * `<web-dropzone-picker>` + `<web-dropzone-list>` pair. Excluded:
      *  - `files-inside` — list is rendered inside the card selector, not
      *    a sibling of it; the satellite topology doesn't model that yet.
-     *  - `rolling` / `popover` — these list appearances aren't implemented
-     *    in `<web-dropzone-list>` yet (planned for Stages C/D of the
-     *    convenience-form migration). The legacy in-class renderers
-     *    continue to cover them.
+     *  - `popover` — the popover wrapper (Floating UI + resizable +
+     *    persisted dimensions) isn't implemented in the satellite yet
+     *    (Stage D of the convenience-form migration).
      *  - Custom render callbacks (`renderFileItemCallback`,
      *    `renderPromptCallback`, `renderSummaryCallback`) — the satellites
      *    don't honor these store-level callbacks, so users who set any of
-     *    them keep the legacy render so their customization still works.
+     *    them keep the in-class render so their customization still works.
      */
     private shouldUseSatelliteRendering(): boolean {
         if (!this.config.hostElement) return false;
         if (this.config.isFilesInsideEnabled) return false;
         const { listAppearance } = resolveDisplayConfig(this.config);
-        if (listAppearance === 'rolling' || listAppearance === 'popover') return false;
+        if (listAppearance === 'popover') return false;
         if (this.config.renderFileItemCallback) return false;
         if (this.config.renderPromptCallback) return false;
         if (this.config.renderSummaryCallback) return false;
@@ -1287,8 +1294,19 @@ export class WebDropzone {
             const list = document.createElement('web-dropzone-list') as BindableSatellite;
             list.setAttribute('list-appearance', listAppearance);
             list.bindToStore?.(host);
+            // Rolling appearance's queue button dispatches `dz-queue-open`
+            // (the satellite owns no popover of its own). Bridge it to the
+            // in-class popover so the convenience form behaves the same as
+            // before. Standalone satellite consumers handle the event
+            // themselves.
+            if (listAppearance === 'rolling') {
+                list.addEventListener('dz-queue-open', () => this.togglePopover());
+            }
             if (overallEl) container.insertBefore(list, overallEl);
             else container.appendChild(list);
+            this.satelliteListEl = list;
+        } else {
+            this.satelliteListEl = null;
         }
     }
 
@@ -3180,6 +3198,14 @@ export class WebDropzone {
         if (targetEl?.classList.contains('dz__file-list--rolling') ||
             targetEl?.classList.contains('dz__files-inside--rolling')) {
             return targetEl;
+        }
+        // Satellite-rolling path: the `.dz__file-list--rolling` element is
+        // inside the `<web-dropzone-list>` shadow root and isn't reachable
+        // here. Use the satellite host element's bounding rect — it's the
+        // same outer rectangle the user sees.
+        const { listAppearance } = resolveDisplayConfig(this.config);
+        if (listAppearance === 'rolling' && this.satelliteListEl) {
+            return this.satelliteListEl;
         }
         const btn = this.dropzoneEl?.querySelector('.dz__button, .dz__minimal') as HTMLElement | null;
         return btn ?? this.dropzoneEl;
