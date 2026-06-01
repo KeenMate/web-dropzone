@@ -1282,7 +1282,6 @@ export class WebDropzone {
         if (!container) return;
         const { selectorAppearance, listAppearance, cardSize } = resolveDisplayConfig(this.config);
         const filesInside = !!this.config.isFilesInsideEnabled;
-        const overallEl = container.querySelector('.dz__overall-progress');
 
         type BindableSatellite = HTMLElement & { bindToStore?: (el: HTMLElement) => void };
 
@@ -1299,8 +1298,7 @@ export class WebDropzone {
             picker.setAttribute('inside', 'true');
         }
         picker.bindToStore?.(host);
-        if (overallEl) container.insertBefore(picker, overallEl);
-        else container.appendChild(picker);
+        container.appendChild(picker);
 
         if (listAppearance !== 'none') {
             const list = document.createElement('web-dropzone-list') as BindableSatellite;
@@ -1331,8 +1329,6 @@ export class WebDropzone {
                 // List becomes a light-DOM child of the picker so the
                 // picker's internal `<slot>` projects it into the card.
                 picker.appendChild(list);
-            } else if (overallEl) {
-                container.insertBefore(list, overallEl);
             } else {
                 container.appendChild(list);
             }
@@ -1340,6 +1336,13 @@ export class WebDropzone {
         } else {
             this.satelliteListEl = null;
         }
+
+        // Overall-progress satellite. Always appended (it auto-hides via
+        // `[data-empty="true"]`) — same behavior as the legacy inline
+        // strip which used `:empty` to collapse.
+        const progress = document.createElement('web-dropzone-progress') as BindableSatellite;
+        progress.bindToStore?.(host);
+        container.appendChild(progress);
     }
 
     private renderComponent(): string {
@@ -1377,17 +1380,12 @@ export class WebDropzone {
             isManualUpload ? 'dz__container--manual-upload' : ''
         ].filter(Boolean).join(' ');
 
-        // Satellite path — emit container + overall-progress only; the
-        // picker / list elements are appended programmatically in
-        // `mountSatellites()` so we can `bindToStore` them before they
+        // Satellite path — emit just the container shell. Picker, list,
+        // and overall-progress satellites are appended programmatically
+        // in `mountSatellites()` so we can `bindToStore` them before they
         // connect (avoids the "store not found" warning).
         if (this.shouldUseSatelliteRendering()) {
-            const needsOverall = listAppearance !== 'none';
-            return `
-                <div class="${containerClasses}">
-                    ${needsOverall ? this.renderOverallProgressArea() : ''}
-                </div>
-            `;
+            return `<div class="${containerClasses}"></div>`;
         }
 
         // Aggregate progress strip lives alongside any visible file surface in
@@ -2844,8 +2842,11 @@ export class WebDropzone {
      * for showing the strip — pure pending selections (nothing uploaded yet)
      * keep the strip hidden so it doesn't appear at 0% before any upload
      * starts.
+     *
+     * Public so satellite surfaces (`<web-dropzone-progress>`) can read the
+     * same aggregate without duplicating the calculation.
      */
-    private getOverallProgress(): {
+    getOverallProgress(): {
         uploadedBytes: number;
         totalBytes: number;
         completedCount: number;

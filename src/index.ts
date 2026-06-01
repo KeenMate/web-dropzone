@@ -6,13 +6,15 @@ import { getAllInstances, DropzoneElement } from './web-component';
 import { DropzonePickerElement } from './web-component-picker';
 import { DropzoneListElement } from './web-component-list';
 import { DropzoneIndicatorElement } from './web-component-indicator';
+import { DropzoneProgressElement } from './web-component-progress';
 
 // Export the web component + satellite renderers (see ARCHITECTURE.md)
 export {
     DropzoneElement,
     DropzonePickerElement,
     DropzoneListElement,
-    DropzoneIndicatorElement
+    DropzoneIndicatorElement,
+    DropzoneProgressElement
 };
 
 // Public surface for users writing custom status-surface templates
@@ -73,6 +75,7 @@ import './web-component';
 import './web-component-picker';
 import './web-component-list';
 import './web-component-indicator';
+import './web-component-progress';
 
 // Type declarations for build-time constants
 declare const __VERSION__: string;
