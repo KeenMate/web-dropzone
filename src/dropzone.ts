@@ -1241,22 +1241,26 @@ export class WebDropzone {
 
     /**
      * Convenience-form rendering paths that decompose cleanly into a
-     * `<web-dropzone-picker>` + `<web-dropzone-list>` pair. Excluded:
-     *  - `files-inside` — list is rendered inside the card selector, not
-     *    a sibling of it; the satellite topology doesn't model that yet.
-     *  - Custom render callbacks (`renderFileItemCallback`,
-     *    `renderPromptCallback`, `renderSummaryCallback`) — the satellites
-     *    don't honor these store-level callbacks, so users who set any of
-     *    them keep the in-class render so their customization still works.
+     * `<web-dropzone-picker>` + `<web-dropzone-list>` pair.
      *
-     * Note: `popover` IS on the satellite path — the list satellite renders
-     * the summary anchor and dispatches `dz-summary-click`; the popover
-     * wrapper itself (Floating UI + resize + persistence) stays in-class
-     * and is opened by `mountSatellites` listening for that event.
+     * Excluded: custom render callbacks (`renderFileItemCallback`,
+     * `renderPromptCallback`, `renderSummaryCallback`) — the satellites
+     * don't honor these store-level callbacks, so users who set any of
+     * them keep the in-class render so their customization still works.
+     *
+     * Notes:
+     *  - `popover` is satellite — the list satellite renders the summary
+     *    anchor and dispatches `dz-summary-click`. The popover wrapper
+     *    (Floating UI + resize + persistence) stays in-class and opens on
+     *    that event via the bridge in `mountSatellites`.
+     *  - `files-inside` is satellite — the picker satellite gets
+     *    `inside="true"`, includes a `<slot>` inside its card, and the
+     *    list satellite is mounted as the picker's light-DOM child with
+     *    `nested="true"` so it uses the `.dz__files-inside--*` class
+     *    family.
      */
     private shouldUseSatelliteRendering(): boolean {
         if (!this.config.hostElement) return false;
-        if (this.config.isFilesInsideEnabled) return false;
         if (this.config.renderFileItemCallback) return false;
         if (this.config.renderPromptCallback) return false;
         if (this.config.renderSummaryCallback) return false;
@@ -1277,6 +1281,7 @@ export class WebDropzone {
         const container = this.element.querySelector('.dz__container');
         if (!container) return;
         const { selectorAppearance, listAppearance, cardSize } = resolveDisplayConfig(this.config);
+        const filesInside = !!this.config.isFilesInsideEnabled;
         const overallEl = container.querySelector('.dz__overall-progress');
 
         type BindableSatellite = HTMLElement & { bindToStore?: (el: HTMLElement) => void };
@@ -1286,6 +1291,13 @@ export class WebDropzone {
         if (selectorAppearance === 'card') {
             picker.setAttribute('card-size', cardSize);
         }
+        // Files-inside composition only makes sense with a card selector
+        // (button / minimal have no inside-the-card surface). Falls back
+        // to the sibling-layout otherwise.
+        const insideMode = filesInside && selectorAppearance === 'card' && listAppearance !== 'none';
+        if (insideMode) {
+            picker.setAttribute('inside', 'true');
+        }
         picker.bindToStore?.(host);
         if (overallEl) container.insertBefore(picker, overallEl);
         else container.appendChild(picker);
@@ -1293,6 +1305,12 @@ export class WebDropzone {
         if (listAppearance !== 'none') {
             const list = document.createElement('web-dropzone-list') as BindableSatellite;
             list.setAttribute('list-appearance', listAppearance);
+            if (insideMode) {
+                // Switch the list's container class family to
+                // `.dz__files-inside--*` so the existing files-inside CSS
+                // applies inside the satellite shadow.
+                list.setAttribute('nested', 'true');
+            }
             list.bindToStore?.(host);
             // Rolling appearance's queue button dispatches `dz-queue-open`
             // (the satellite owns no popover of its own). Bridge it to the
@@ -1309,8 +1327,15 @@ export class WebDropzone {
             if (listAppearance === 'popover') {
                 list.addEventListener('dz-summary-click', () => this.togglePopover());
             }
-            if (overallEl) container.insertBefore(list, overallEl);
-            else container.appendChild(list);
+            if (insideMode) {
+                // List becomes a light-DOM child of the picker so the
+                // picker's internal `<slot>` projects it into the card.
+                picker.appendChild(list);
+            } else if (overallEl) {
+                container.insertBefore(list, overallEl);
+            } else {
+                container.appendChild(list);
+            }
             this.satelliteListEl = list;
         } else {
             this.satelliteListEl = null;

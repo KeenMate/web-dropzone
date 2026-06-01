@@ -99,7 +99,7 @@ export class DropzoneListElement extends BaseElement {
     }
 
     static get observedAttributes(): string[] {
-        return ['for', 'list-appearance', 'empty-message'];
+        return ['for', 'list-appearance', 'empty-message', 'nested'];
     }
 
     attributeChangedCallback(): void {
@@ -250,10 +250,15 @@ export class DropzoneListElement extends BaseElement {
             return;
         }
 
-        // Mirrors the classic renderer's container class so the BEM
-        // appearance-modifier rules in `_file-list.css` apply identically
-        // (`.dz__file-list--grid` sets up `display: grid` etc.).
-        const containerClass = `dz__file-list dz__file-list--${appearance}`;
+        // `nested="true"` swaps the container class family to
+        // `.dz__files-inside--*` — that's the family the
+        // in-class files-inside layout uses, and the corresponding
+        // styles in `_dropzone.css` only differ for nested rows. We
+        // already inline that stylesheet inside the satellite shadow,
+        // so the rules apply unchanged.
+        const isNested = this.getAttribute('nested') === 'true';
+        const base = isNested ? 'dz__files-inside' : 'dz__file-list';
+        const containerClass = `${base} ${base}--${appearance}`;
         const rows = files.map(f => this.renderRow(f, appearance)).join('');
         this.container.innerHTML = `<div class="${containerClass}" data-list-appearance="${appearance}">${rows}</div>`;
         this.bindRowHandlers();

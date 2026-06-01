@@ -114,7 +114,7 @@ export class DropzonePickerElement extends BaseElement {
     static get observedAttributes(): string[] {
         return [
             'for', 'selector-appearance', 'card-size', 'accept', 'multiple',
-            'label', 'icon', 'hint', 'disabled'
+            'label', 'icon', 'hint', 'disabled', 'inside'
         ];
     }
 
@@ -286,13 +286,22 @@ export class DropzonePickerElement extends BaseElement {
             const browseBtn = cardSize === 'big'
                 ? `<button type="button" class="dz__card__action">${escapeHtml(label)}</button>`
                 : '';
+            // `inside="true"` enables the files-inside layout — the file
+            // list satellite slots into the card via the `<slot>` below,
+            // and `dz__dropzone--has-files` flips on so the picker's
+            // existing CSS (margin between prompt and list) kicks in.
+            const insideMode = this.getAttribute('inside') === 'true';
+            const hasFiles = insideMode && fileCount > 0;
             const classes = [
                 'dz__dropzone',
                 'dz__dropzone--card',
                 `dz__dropzone--card-${cardSize}`,
                 disabled ? 'dz__dropzone--disabled' : '',
-                this.dragActive ? 'dz__dropzone--active' : ''
+                this.dragActive ? 'dz__dropzone--active' : '',
+                insideMode ? 'dz__dropzone--files-inside' : '',
+                hasFiles ? 'dz__dropzone--has-files' : ''
             ].filter(Boolean).join(' ');
+            const slotHtml = insideMode ? '<slot></slot>' : '';
             inner = `
                 <div class="${classes}">
                     ${inputHtml}
@@ -302,6 +311,7 @@ export class DropzonePickerElement extends BaseElement {
                         ${browseBtn}
                         ${hintHtml}
                     </div>
+                    ${slotHtml}
                 </div>
             `;
         }
