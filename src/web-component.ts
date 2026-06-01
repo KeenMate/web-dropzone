@@ -1061,4 +1061,14 @@ if (typeof window !== 'undefined' && typeof customElements !== 'undefined') {
     }
 }
 
+// NOTE: do NOT statically `import './web-component-picker'` etc. from
+// here. ESM hoists those imports above this module's body, so the
+// satellites' `customElements.define` calls would run BEFORE
+// `<web-dropzone>` is defined. Any satellite element parsed in the
+// HTML would then upgrade first and its `connectedCallback` would see
+// `<web-dropzone>` as an un-upgraded HTMLElement (no `getStore`),
+// emitting a spurious "store not found" warning. Satellites are
+// registered explicitly via `index.ts` (the package entry point),
+// where the import order guarantees the store wins the race.
+
 // Global API is registered in index.ts

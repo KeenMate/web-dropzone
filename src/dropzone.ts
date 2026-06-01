@@ -1218,6 +1218,9 @@ export class WebDropzone {
             return;
         }
         this.element.innerHTML = this.renderComponent();
+        if (this.shouldUseSatelliteRendering()) {
+            this.mountSatellites();
+        }
         this.cacheElements();
         const r = resolveDisplayConfig(this.config);
         uiLogger.debug('Component rendered', {
@@ -1226,6 +1229,67 @@ export class WebDropzone {
             listAppearance: r.listAppearance,
             cardSize: r.cardSize
         });
+    }
+
+    /**
+     * Convenience-form rendering paths that decompose cleanly into a
+     * `<web-dropzone-picker>` + `<web-dropzone-list>` pair. Excluded:
+     *  - `files-inside` — list is rendered inside the card selector, not
+     *    a sibling of it; the satellite topology doesn't model that yet.
+     *  - `rolling` / `popover` — these list appearances aren't implemented
+     *    in `<web-dropzone-list>` yet (planned for Stages C/D of the
+     *    convenience-form migration). The legacy in-class renderers
+     *    continue to cover them.
+     *  - Custom render callbacks (`renderFileItemCallback`,
+     *    `renderPromptCallback`, `renderSummaryCallback`) — the satellites
+     *    don't honor these store-level callbacks, so users who set any of
+     *    them keep the legacy render so their customization still works.
+     */
+    private shouldUseSatelliteRendering(): boolean {
+        if (!this.config.hostElement) return false;
+        if (this.config.isFilesInsideEnabled) return false;
+        const { listAppearance } = resolveDisplayConfig(this.config);
+        if (listAppearance === 'rolling' || listAppearance === 'popover') return false;
+        if (this.config.renderFileItemCallback) return false;
+        if (this.config.renderPromptCallback) return false;
+        if (this.config.renderSummaryCallback) return false;
+        return true;
+    }
+
+    /**
+     * Build + bind the satellite picker / list elements for the convenience
+     * form. Called from `render()` after `innerHTML` has populated the
+     * container shell. Each satellite is constructed imperatively so
+     * `bindToStore` can run BEFORE `connectedCallback` fires — that way
+     * the satellite sees `programmaticStoreEl` on its first connect and
+     * never logs the "store not found" warning.
+     */
+    private mountSatellites(): void {
+        const host = this.config.hostElement;
+        if (!host) return;
+        const container = this.element.querySelector('.dz__container');
+        if (!container) return;
+        const { selectorAppearance, listAppearance, cardSize } = resolveDisplayConfig(this.config);
+        const overallEl = container.querySelector('.dz__overall-progress');
+
+        type BindableSatellite = HTMLElement & { bindToStore?: (el: HTMLElement) => void };
+
+        const picker = document.createElement('web-dropzone-picker') as BindableSatellite;
+        picker.setAttribute('selector-appearance', selectorAppearance);
+        if (selectorAppearance === 'card') {
+            picker.setAttribute('card-size', cardSize);
+        }
+        picker.bindToStore?.(host);
+        if (overallEl) container.insertBefore(picker, overallEl);
+        else container.appendChild(picker);
+
+        if (listAppearance !== 'none') {
+            const list = document.createElement('web-dropzone-list') as BindableSatellite;
+            list.setAttribute('list-appearance', listAppearance);
+            list.bindToStore?.(host);
+            if (overallEl) container.insertBefore(list, overallEl);
+            else container.appendChild(list);
+        }
     }
 
     private renderComponent(): string {
@@ -1262,6 +1326,19 @@ export class WebDropzone {
             filesInside ? 'dz__container--files-inside' : '',
             isManualUpload ? 'dz__container--manual-upload' : ''
         ].filter(Boolean).join(' ');
+
+        // Satellite path — emit container + overall-progress only; the
+        // picker / list elements are appended programmatically in
+        // `mountSatellites()` so we can `bindToStore` them before they
+        // connect (avoids the "store not found" warning).
+        if (this.shouldUseSatelliteRendering()) {
+            const needsOverall = listAppearance !== 'none';
+            return `
+                <div class="${containerClasses}">
+                    ${needsOverall ? this.renderOverallProgressArea() : ''}
+                </div>
+            `;
+        }
 
         // Aggregate progress strip lives alongside any visible file surface in
         // the host area — the inline list (list/detailed/grid/badges) or the

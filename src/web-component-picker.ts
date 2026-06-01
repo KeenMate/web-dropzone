@@ -15,8 +15,9 @@
  */
 
 import styles from './css/main.css?inline';
-import { resolveStoreElement, whenStoreReady } from './satellite-base';
+import { resolveStoreElement, whenStoreReady, subscribeStoreEvents } from './satellite-base';
 import type { WebDropzone } from './dropzone';
+import type { DropzoneElement } from './web-component';
 import type {
     SelectorAppearance,
     CardSize,
@@ -44,8 +45,18 @@ export class DropzonePickerElement extends BaseElement {
     private container: HTMLElement;
     private inputEl: HTMLInputElement | null = null;
     private cleanupStoreWait: (() => void) | null = null;
+    private cleanupSubscriptions: (() => void) | null = null;
     private store: WebDropzone | null = null;
-    private storeEl: HTMLElement | null = null;
+    private storeEl: DropzoneElement | null = null;
+    /**
+     * Set by `bindToStore()` for satellites mounted inside another shadow
+     * root (the convenience-form `<web-dropzone display-mode=…>` mounts its
+     * own picker / list / indicator internally, where `document.getElementById`
+     * lookups can't reach across the shadow boundary). When set, the
+     * `connectedCallback` consults this directly instead of resolving the
+     * `for=` attribute.
+     */
+    private programmaticStoreEl: DropzoneElement | null = null;
     private dragActive = false;
     private dragCounter = 0;
 
@@ -115,35 +126,89 @@ export class DropzonePickerElement extends BaseElement {
     }
 
     connectedCallback(): void {
-        const forId = this.getAttribute('for');
-        this.storeEl = resolveStoreElement(forId);
-        if (!this.storeEl) {
-            // Surface the configuration error loudly — silent picker is the
-            // worst failure mode (looks like the wiring works).
-            // eslint-disable-next-line no-console
-            console.warn(
-                `<web-dropzone-picker for="${forId ?? ''}"> — store not found. ` +
-                `Make sure a <web-dropzone id="${forId ?? ''}"> exists on the page.`
-            );
-            return;
+        if (this.programmaticStoreEl) {
+            this.storeEl = this.programmaticStoreEl;
+        } else {
+            const forId = this.getAttribute('for');
+            this.storeEl = resolveStoreElement(forId);
+            if (!this.storeEl) {
+                // Surface the configuration error loudly — silent picker is the
+                // worst failure mode (looks like the wiring works).
+                // eslint-disable-next-line no-console
+                console.warn(
+                    `<web-dropzone-picker for="${forId ?? ''}"> — store not found. ` +
+                    `Make sure a <web-dropzone id="${forId ?? ''}"> exists on the page.`
+                );
+                return;
+            }
         }
-        this.cleanupStoreWait = whenStoreReady(this.storeEl as any, (store) => {
+        this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
             this.store = store;
+            this.attachStoreSubscriptions();
             this.render();
             this.wireDragOverlayTarget();
         });
     }
 
-    disconnectedCallback(): void {
+    /**
+     * Subscribe to store events that affect the picker's surface — file
+     * count changes drive the count badge on the button / minimal variants,
+     * so we need to re-render when the underlying selection changes.
+     * Card variant doesn't show a badge but still re-renders cheaply
+     * (small DOM, debouncing isn't worth the complexity here).
+     */
+    private attachStoreSubscriptions(): void {
+        if (!this.storeEl) return;
+        this.cleanupSubscriptions = subscribeStoreEvents(this.storeEl, {
+            'file-added':   () => this.render(),
+            'file-removed': () => this.render(),
+            'change':       () => this.render()
+        });
+    }
+
+    /**
+     * Programmatically bind this picker to a `<web-dropzone>` store element,
+     * bypassing the `for=` attribute lookup. Use when mounting the satellite
+     * inside another shadow root (where `document.getElementById` can't
+     * reach the store).
+     *
+     * Safe to call before `connectedCallback` — the binding is consulted
+     * when the element connects. Calling after connection tears down the
+     * current wiring and re-binds to the new store.
+     */
+    bindToStore(storeEl: DropzoneElement): void {
+        if (this.programmaticStoreEl === storeEl && this.store) return;
+        this.programmaticStoreEl = storeEl;
+        if (this.isConnected) {
+            this.teardownStoreBinding();
+            this.storeEl = storeEl;
+            this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
+                this.store = store;
+                this.attachStoreSubscriptions();
+                this.render();
+                this.wireDragOverlayTarget();
+            });
+        }
+    }
+
+    private teardownStoreBinding(): void {
         if (this.cleanupStoreWait) {
             this.cleanupStoreWait();
             this.cleanupStoreWait = null;
         }
+        if (this.cleanupSubscriptions) {
+            this.cleanupSubscriptions();
+            this.cleanupSubscriptions = null;
+        }
+        this.store = null;
+        this.storeEl = null;
+    }
+
+    disconnectedCallback(): void {
+        this.teardownStoreBinding();
         document.removeEventListener('dragenter', this.handleDocDragEnter);
         document.removeEventListener('dragleave', this.handleDocDragLeave);
         document.removeEventListener('drop', this.handleDocDrop);
-        this.store = null;
-        this.storeEl = null;
         this.dragActive = false;
         this.dragCounter = 0;
     }
@@ -177,6 +242,17 @@ export class DropzonePickerElement extends BaseElement {
             >
         `;
 
+        // File count drives the button / minimal count badge — mirrors the
+        // legacy in-class renderer so the convenience form (which mounts
+        // this satellite internally) keeps its count chip on those selectors.
+        const fileCount = this.store.getFiles().length;
+        const countBadge = fileCount > 0
+            ? `<span class="dz__button__badge">${fileCount}</span>`
+            : '';
+        const minimalBadge = fileCount > 0
+            ? `<span class="dz__minimal__badge">${fileCount}</span>`
+            : '';
+
         let inner = '';
         if (appearance === 'button') {
             inner = `
@@ -184,6 +260,7 @@ export class DropzonePickerElement extends BaseElement {
                     ${inputHtml}
                     <button type="button" class="dz__button" ${disabled ? 'disabled' : ''}>
                         <span class="dz__button__label">${escapeHtml(label)}</span>
+                        ${countBadge}
                     </button>
                 </div>
             `;
@@ -194,6 +271,7 @@ export class DropzonePickerElement extends BaseElement {
                     ${inputHtml}
                     <button type="button" class="dz__minimal" aria-label="${escapeHtml(ariaLabel)}" ${disabled ? 'disabled' : ''}>
                         <span class="dz__minimal__icon">${icon}</span>
+                        ${minimalBadge}
                     </button>
                 </div>
             `;

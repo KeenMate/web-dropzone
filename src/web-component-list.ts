@@ -33,6 +33,7 @@ import {
     renderBadgeItem
 } from './row-templates';
 import type { WebDropzone } from './dropzone';
+import type { DropzoneElement } from './web-component';
 import type { FileState, ListAppearance } from './types';
 
 const BaseElement = (typeof HTMLElement !== 'undefined' ? HTMLElement : class {}) as typeof HTMLElement;
@@ -55,7 +56,9 @@ export class DropzoneListElement extends BaseElement {
     private shadow: ShadowRoot;
     private container: HTMLElement;
     private store: WebDropzone | null = null;
-    private storeEl: HTMLElement | null = null;
+    private storeEl: DropzoneElement | null = null;
+    /** See `bindToStore()` — set when mounted inside another shadow root. */
+    private programmaticStoreEl: DropzoneElement | null = null;
     private cleanupStoreWait: (() => void) | null = null;
     private cleanupSubscriptions: (() => void) | null = null;
     /**
@@ -86,17 +89,21 @@ export class DropzoneListElement extends BaseElement {
     }
 
     connectedCallback(): void {
-        const forId = this.getAttribute('for');
-        this.storeEl = resolveStoreElement(forId);
-        if (!this.storeEl) {
-            // eslint-disable-next-line no-console
-            console.warn(
-                `<web-dropzone-list for="${forId ?? ''}"> — store not found. ` +
-                `Make sure a <web-dropzone id="${forId ?? ''}"> exists on the page.`
-            );
-            return;
+        if (this.programmaticStoreEl) {
+            this.storeEl = this.programmaticStoreEl;
+        } else {
+            const forId = this.getAttribute('for');
+            this.storeEl = resolveStoreElement(forId);
+            if (!this.storeEl) {
+                // eslint-disable-next-line no-console
+                console.warn(
+                    `<web-dropzone-list for="${forId ?? ''}"> — store not found. ` +
+                    `Make sure a <web-dropzone id="${forId ?? ''}"> exists on the page.`
+                );
+                return;
+            }
         }
-        this.cleanupStoreWait = whenStoreReady(this.storeEl as any, (store) => {
+        this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
             this.store = store;
             this.attachStoreSubscriptions();
             this.renderAll();
@@ -104,6 +111,29 @@ export class DropzoneListElement extends BaseElement {
     }
 
     disconnectedCallback(): void {
+        this.teardownStoreBinding();
+    }
+
+    /**
+     * Programmatically bind this list to a `<web-dropzone>` store element,
+     * bypassing the `for=` attribute. See picker's `bindToStore` for the
+     * full rationale; the same wiring applies here.
+     */
+    bindToStore(storeEl: DropzoneElement): void {
+        if (this.programmaticStoreEl === storeEl && this.store) return;
+        this.programmaticStoreEl = storeEl;
+        if (this.isConnected) {
+            this.teardownStoreBinding();
+            this.storeEl = storeEl;
+            this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
+                this.store = store;
+                this.attachStoreSubscriptions();
+                this.renderAll();
+            });
+        }
+    }
+
+    private teardownStoreBinding(): void {
         if (this.cleanupStoreWait) {
             this.cleanupStoreWait();
             this.cleanupStoreWait = null;
@@ -122,7 +152,7 @@ export class DropzoneListElement extends BaseElement {
 
     private attachStoreSubscriptions(): void {
         if (!this.storeEl) return;
-        this.cleanupSubscriptions = subscribeStoreEvents(this.storeEl as any, {
+        this.cleanupSubscriptions = subscribeStoreEvents(this.storeEl, {
             // add / remove / change → structural; coalesce burst events
             // (one re-render per microtask) so a bulk drop doesn't churn
             // DOM rows while the user is mid-click on an existing row.

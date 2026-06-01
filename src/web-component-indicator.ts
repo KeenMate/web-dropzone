@@ -52,6 +52,7 @@ import {
 } from './icons';
 import { formatFileSize } from './dropzone';
 import type { WebDropzone } from './dropzone';
+import type { DropzoneElement } from './web-component';
 import type { FileState, FileStatus } from './types';
 
 const BaseElement = (typeof HTMLElement !== 'undefined' ? HTMLElement : class {}) as typeof HTMLElement;
@@ -119,7 +120,9 @@ export class DropzoneIndicatorElement extends BaseElement {
     private drawerOpen = false;
 
     private store: WebDropzone | null = null;
-    private storeEl: HTMLElement | null = null;
+    private storeEl: DropzoneElement | null = null;
+    /** See `bindToStore()` — set when mounted inside another shadow root. */
+    private programmaticStoreEl: DropzoneElement | null = null;
     private cleanupStoreWait: (() => void) | null = null;
     private cleanupSubscriptions: (() => void) | null = null;
 
@@ -231,23 +234,52 @@ export class DropzoneIndicatorElement extends BaseElement {
     connectedCallback(): void {
         this.applyPosition();
         this.applyDrawerMode();
-        const forId = this.getAttribute('for');
-        this.storeEl = resolveStoreElement(forId);
-        if (!this.storeEl) {
-            // eslint-disable-next-line no-console
-            console.warn(
-                `<web-dropzone-indicator for="${forId ?? ''}"> — store not found.`
-            );
-            return;
+        if (this.programmaticStoreEl) {
+            this.storeEl = this.programmaticStoreEl;
+        } else {
+            const forId = this.getAttribute('for');
+            this.storeEl = resolveStoreElement(forId);
+            if (!this.storeEl) {
+                // eslint-disable-next-line no-console
+                console.warn(
+                    `<web-dropzone-indicator for="${forId ?? ''}"> — store not found.`
+                );
+                return;
+            }
         }
-        this.cleanupStoreWait = whenStoreReady(this.storeEl as any, (store) => {
+        this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
             this.store = store;
             this.attachSubscriptions();
+            this.bindEmbeddedList();
             this.refresh();
         });
     }
 
     disconnectedCallback(): void {
+        this.teardownStoreBinding();
+    }
+
+    /**
+     * Programmatically bind this indicator to a `<web-dropzone>` store
+     * element, bypassing the `for=` attribute. See picker's `bindToStore`
+     * for the full rationale.
+     */
+    bindToStore(storeEl: DropzoneElement): void {
+        if (this.programmaticStoreEl === storeEl && this.store) return;
+        this.programmaticStoreEl = storeEl;
+        if (this.isConnected) {
+            this.teardownStoreBinding();
+            this.storeEl = storeEl;
+            this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
+                this.store = store;
+                this.attachSubscriptions();
+                this.bindEmbeddedList();
+                this.refresh();
+            });
+        }
+    }
+
+    private teardownStoreBinding(): void {
         if (this.cleanupStoreWait) {
             this.cleanupStoreWait();
             this.cleanupStoreWait = null;
@@ -343,7 +375,7 @@ export class DropzoneIndicatorElement extends BaseElement {
 
     private attachSubscriptions(): void {
         if (!this.storeEl) return;
-        this.cleanupSubscriptions = subscribeStoreEvents(this.storeEl as any, {
+        this.cleanupSubscriptions = subscribeStoreEvents(this.storeEl, {
             'file-added':           () => this.scheduleRefresh(),
             'file-removed':         () => this.scheduleRefresh(),
             'change':               () => this.scheduleRefresh(),
@@ -367,7 +399,6 @@ export class DropzoneIndicatorElement extends BaseElement {
 
     private populateDrawer(): void {
         if (!this.drawerEl) return;
-        const forId = this.getAttribute('for') ?? '';
         const labelAttr = this.getAttribute('label') ?? 'Uploads';
         this.drawerEl.innerHTML = `
             <header class="dz__indicator__drawer-header">
@@ -375,13 +406,32 @@ export class DropzoneIndicatorElement extends BaseElement {
                 <button type="button" class="dz__indicator__drawer-close" aria-label="Close">×</button>
             </header>
             <div class="dz__indicator__drawer-body">
-                <web-dropzone-list for="${escapeHtml(forId)}" list-appearance="detailed"></web-dropzone-list>
+                <web-dropzone-list list-appearance="detailed"></web-dropzone-list>
             </div>
         `;
         this.drawerCloseBtn = this.drawerEl.querySelector('.dz__indicator__drawer-close');
         if (this.drawerCloseBtn) {
             this.drawerCloseBtn.addEventListener('click', () => this.setDrawerOpen(false));
         }
+        // Bind the embedded list — may be a no-op if storeEl isn't resolved
+        // yet (populateDrawer runs during connectedCallback, before
+        // whenStoreReady fires); the whenStoreReady callback re-binds.
+        this.bindEmbeddedList();
+    }
+
+    /**
+     * Wire the drawer's embedded `<web-dropzone-list>` to the same store
+     * this indicator is bound to. Idempotent — safe to call from both
+     * `populateDrawer` (which may run before the store resolves) and the
+     * `whenStoreReady` callback (which runs once it does). bindToStore on
+     * the list is itself idempotent so the second call is cheap.
+     */
+    private bindEmbeddedList(): void {
+        if (!this.drawerEl || !this.storeEl) return;
+        const embeddedList = this.drawerEl.querySelector(
+            'web-dropzone-list'
+        ) as (HTMLElement & { bindToStore?: (el: DropzoneElement) => void }) | null;
+        embeddedList?.bindToStore?.(this.storeEl);
     }
 
     private refresh(): void {
