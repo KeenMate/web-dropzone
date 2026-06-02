@@ -1,12 +1,18 @@
 // Import styles
 import './css/main.css';
 
-// Import for export and global API
-import { getAllInstances, DropzoneElement } from './web-component';
+// Import for export and global API.
+//
+// IMPORTANT — import ORDER matters. ES modules are evaluated on first
+// import, so the textual order of these named imports determines which
+// `customElements.define` call runs first. Satellites MUST be imported
+// before `./web-component`; see the comment block on the side-effect
+// imports below for the full rationale.
 import { DropzonePickerElement } from './web-component-picker';
 import { DropzoneListElement } from './web-component-list';
 import { DropzoneIndicatorElement } from './web-component-indicator';
 import { DropzoneProgressElement } from './web-component-progress';
+import { getAllInstances, DropzoneElement } from './web-component';
 
 // Export the web component + satellite renderers (see ARCHITECTURE.md)
 export {
@@ -35,6 +41,7 @@ export { WebDropzone, formatFileSize, getFileTypeCategory, getFileIcon, isImageF
 // Export types
 export type {
     DisplayMode,
+    DropzoneMode,
     FileStatus,
     ValueFormat,
     FileState,
@@ -50,7 +57,9 @@ export type {
     FileTypeCategory,
     AddFilesOptions,
     FileProgressEventDetail,
-    FileStatusChangedEventDetail
+    FileStatusChangedEventDetail,
+    FileRowUpdateEventDetail,
+    FilesChangedEventDetail
 } from './types';
 
 export { FILE_TYPE_ICONS } from './types';
@@ -68,14 +77,22 @@ export {
     interactionLogger
 } from './logger';
 
-// Auto-register the custom elements (store + satellite renderers).
-// Each module self-registers via customElements.define inside its file —
-// importing here is what triggers that side effect.
-import './web-component';
-import './web-component-picker';
-import './web-component-list';
-import './web-component-indicator';
-import './web-component-progress';
+// Custom-element registration order is established by the NAMED imports
+// at the top of this file. Each module's `customElements.define` runs as
+// a side effect of being imported, and ES modules evaluate exactly once
+// on first import. Adding side-effect imports here would be no-ops.
+//
+// Why satellites must register before `<web-dropzone>`:
+// `mountSatellites()` runs inside the store's `connectedCallback`, which
+// fires the instant `customElements.define('web-dropzone', ...)`
+// upgrades any `<web-dropzone>` already in the parsed HTML. If satellites
+// weren't defined yet, `document.createElement('web-dropzone-picker')`
+// would return a plain HTMLElement (no `bindToStore` method),
+// `bindToStore?.()` would silently no-op, and the picker would later
+// upgrade with no programmatic binding — emitting a "store not found"
+// warning. Satellites tolerate the reverse race (store not yet upgraded)
+// via `resolveStoreElement` (tag-name check) + `whenStoreReady` (waits
+// for the `store-ready` event).
 
 // Type declarations for build-time constants
 declare const __VERSION__: string;

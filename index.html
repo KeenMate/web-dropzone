@@ -133,6 +133,16 @@
             <span class="version-badge">v1.0.0</span>
         </header>
 
+        <div class="card" style="background:white;border-radius:12px;padding:1.5rem 2rem;margin-bottom:2rem;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+            <h2 style="margin-top:0">Three modes, one component</h2>
+            <p style="margin-bottom:0.5rem">Pick a mode up-front via the <code>mode</code> attribute — it's a hard switch that decides who renders what.</p>
+            <ul style="margin:0.5rem 0 0;line-height:1.7">
+                <li><strong><code>mode="bulk"</code></strong> (default) — framework owns the UI; you style via CSS variables. See <a href="examples-classic.html">Classic</a> / <a href="examples-validation.html">Validation</a>.</li>
+                <li><strong><code>mode="structural"</code></strong> — framework owns the lifecycle; you provide HTML structure via render callbacks (including <code>renderListWrapperCallback</code> for tables and element-returning rows with <code>file-row-update</code> events). See <a href="examples-templating.html">Custom Rendering</a>.</li>
+                <li><strong><code>mode="headless"</code></strong> — framework just fires events (<code>files-changed</code> on rAF + granular ones); bring your own renderer or pair with satellites. See <a href="examples-architecture.html">Architecture</a>.</li>
+            </ul>
+        </div>
+
         <div class="cards" id="cards"></div>
 
         <footer>
@@ -149,8 +159,8 @@
             {
                 href: 'examples-architecture.html',
                 icon: '🛰️',
-                title: 'Architecture: store + satellites',
-                description: 'Headless <web-dropzone> store with <web-dropzone-picker>, <web-dropzone-list>, and <web-dropzone-indicator> satellites. Mode A (independent contexts) and Mode B (shared queue, per-picker routing).'
+                title: 'Architecture: store + satellites (mode="headless")',
+                description: 'Headless <web-dropzone> store with <web-dropzone-picker>, <web-dropzone-list>, and <web-dropzone-indicator> satellites — plus a BYO-renderer example using files-changed.'
             },
             {
                 href: 'examples-classic.html',
@@ -179,8 +189,8 @@
             {
                 href: 'examples-templating.html',
                 icon: '✨',
-                title: 'Custom Rendering',
-                description: 'Customize file items, prompts, and summaries via render callbacks returning HTML or DOM elements.'
+                title: 'Custom Rendering (mode="structural")',
+                description: 'Override file items, prompts, summaries, AND the list wrapper (table layouts!). Element-returning row callbacks survive state ticks via file-row-update events.'
             },
             {
                 href: 'examples-drag-overlay.html',
@@ -217,6 +227,24 @@
                 icon: '🐛',
                 title: 'Logging & Debugging',
                 description: 'Built-in logging system with categorized debug output for development and troubleshooting.'
+            },
+            {
+                href: 'examples-lit.html',
+                icon: '🔥',
+                title: 'Lit integration',
+                description: 'A <code>LitElement</code> wraps the headless store and renders a reactive file list with lit-html templates.'
+            },
+            {
+                href: 'examples-react.html',
+                icon: '⚛️',
+                title: 'React integration',
+                description: 'React component using <code>useRef</code> + <code>useEffect</code> + <code>files-changed</code>. JSX via htm so it runs build-free in the browser.'
+            },
+            {
+                href: 'examples-vue.html',
+                icon: '🟢',
+                title: 'Vue 3 integration',
+                description: 'Vue 3 setup() component with <code>isCustomElement</code> opt-in, refs, and computed stats driven by the store.'
             }
         ]
 

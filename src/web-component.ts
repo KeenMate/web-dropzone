@@ -11,6 +11,7 @@ import { initLogger } from './logger';
 import type {
     DropzoneConfig,
     DisplayMode,
+    DropzoneMode,
     SelectorAppearance,
     ListAppearance,
     RollingRotation,
@@ -125,6 +126,16 @@ const ATTRIBUTE_TABLE: ReadonlyArray<AttrSpec> = [
       enumValues: ['name', 'name-size', 'none'], default: 'name' },
     { attr: 'disabled',            key: 'isDisabled',            parser: 'bool-default-false' },
 
+    // Operating mode — bulk / structural / headless. When absent, the
+    // mode is inferred from the presence of renderer-trigger attrs in
+    // `buildConfig` (display-mode / selector-appearance / list-appearance
+    // → 'bulk'; none → 'headless'). Setting `mode` explicitly overrides
+    // the inference; in particular, `mode="structural"` is the ONLY way
+    // to opt into render callbacks (hard switch).
+    { attr: 'mode',                key: 'mode',                  parser: 'enum',
+      enumValues: ['bulk', 'structural', 'headless'] },
+    { attr: 'progress-throttle',   key: 'progressThrottle',      parser: 'int', default: 0 },
+
     // Display — single-axis shorthand (defaults to 'list' when nothing else is set)
     { attr: 'display-mode',        key: 'displayMode',           parser: 'enum',
       enumValues: ['list', 'detailed', 'grid', 'compact'], default: 'list' },
@@ -194,7 +205,8 @@ const UPGRADEABLE_PROPS: ReadonlyArray<string> = [
     'validateCallback', 'addCallback', 'removeCallback', 'changeCallback',
     'rejectCallback', 'retryCallback', 'uploadFileCallback', 'uploadedCallback',
     'deleteCallback', 'retryPolicy',
-    'renderFileItemCallback', 'renderPromptCallback', 'renderSummaryCallback',
+    'renderFileItemCallback', 'renderListWrapperCallback',
+    'renderPromptCallback', 'renderSummaryCallback',
     'customStylesCallback',
     // Attribute-reflected (pre-upgrade JS assignment otherwise bypasses the
     // setAttribute call inside the setter and the value never reaches the
@@ -292,6 +304,7 @@ export class DropzoneElement extends BaseElement {
     private _deleteCallback: DropzoneConfig['deleteCallback'] = null;
     private _retryPolicy: DropzoneConfig['retryPolicy'] = undefined;
     private _renderFileItemCallback: DropzoneConfig['renderFileItemCallback'] = null;
+    private _renderListWrapperCallback: DropzoneConfig['renderListWrapperCallback'] = null;
     private _renderPromptCallback: DropzoneConfig['renderPromptCallback'] = null;
     private _renderSummaryCallback: DropzoneConfig['renderSummaryCallback'] = null;
     private _customStylesCallback: DropzoneConfig['customStylesCallback'] = null;
@@ -391,19 +404,18 @@ export class DropzoneElement extends BaseElement {
         const spec = ATTRIBUTE_TABLE_BY_ATTR.get(name);
         if (!spec) return;
 
-        // Headless detection (see buildConfig) depends on the *presence* of
-        // any of the three renderer-trigger attrs. Toggling presence on
-        // one of them can flip the headless calculation, which means the
-        // store needs to switch between rendering and not. updateConfig
-        // can't represent that — it patches config in place. Full reinit
-        // is the safe handler. Rare interaction in practice (apps don't
-        // typically toggle these dynamically) so the cost is negligible.
-        if (name === 'display-mode' || name === 'selector-appearance' || name === 'list-appearance') {
-            const wasHeadless = !!this.dropzone.getConfig().isHeadless;
-            const willBeHeadless = !this.hasAttribute('display-mode')
-                && !this.hasAttribute('selector-appearance')
-                && !this.hasAttribute('list-appearance');
-            if (wasHeadless !== willBeHeadless) {
+        // Mode resolution (see buildConfig) depends on the explicit `mode`
+        // attribute and the *presence* of the three renderer-trigger
+        // attrs. Toggling any of these can flip which path the store
+        // uses to render (satellite / in-class structural / nothing).
+        // updateConfig can't represent that — it patches config in place.
+        // Full reinit is the safe handler. Rare interaction in practice
+        // (apps don't typically toggle these dynamically) so the cost is
+        // negligible.
+        if (name === 'mode' || name === 'display-mode' || name === 'selector-appearance' || name === 'list-appearance') {
+            const prevMode = this.dropzone.getConfig().mode;
+            const nextMode = this.resolveMode();
+            if (prevMode !== nextMode) {
                 this.initializeDropzone();
                 return;
             }
@@ -439,19 +451,29 @@ export class DropzoneElement extends BaseElement {
         return out;
     }
 
+    /**
+     * Resolve the effective `mode` from explicit attribute + implicit
+     * detection. Explicit `mode="…"` always wins. Otherwise: presence of
+     * any renderer-trigger attribute → 'bulk'; absence → 'headless'. The
+     * implicit path never lands on 'structural' — opting into render
+     * callbacks requires an explicit `mode="structural"`.
+     */
+    private resolveMode(): DropzoneMode {
+        const raw = this.getAttribute('mode');
+        if (raw === 'bulk' || raw === 'structural' || raw === 'headless') return raw;
+        const hasRendererAttr = this.hasAttribute('display-mode')
+            || this.hasAttribute('selector-appearance')
+            || this.hasAttribute('list-appearance');
+        return hasRendererAttr ? 'bulk' : 'headless';
+    }
+
     private buildConfig(): DropzoneConfig {
+        const mode = this.resolveMode();
         return {
             ...this.parseAttributesFromTable(),
 
-            // Headless detection — if none of the renderer-trigger
-            // attributes is present on the host, the element is treated as
-            // a headless store (renders nothing, satellites do the UI).
-            // This is the "back-compat shortcut" from ARCHITECTURE.md
-            // inverted: explicit renderer attrs → convenience-form
-            // rendering; absence → satellite-only store.
-            isHeadless: !this.hasAttribute('display-mode')
-                && !this.hasAttribute('selector-appearance')
-                && !this.hasAttribute('list-appearance'),
+            mode,
+            isHeadless: mode === 'headless',
 
             // Callbacks (programmatic only — no HTML attribute equivalent)
             validateCallback: this._validateCallback,
@@ -471,6 +493,7 @@ export class DropzoneElement extends BaseElement {
             deleteCallback: this._deleteCallback,
             retryPolicy: this._retryPolicy,
             renderFileItemCallback: this._renderFileItemCallback,
+            renderListWrapperCallback: this._renderListWrapperCallback,
             renderPromptCallback: this._renderPromptCallback,
             renderSummaryCallback: this._renderSummaryCallback,
             customStylesCallback: this._customStylesCallback,
@@ -944,6 +967,12 @@ export class DropzoneElement extends BaseElement {
         this.dropzone?.updateConfig({ renderFileItemCallback: value });
     }
 
+    get renderListWrapperCallback(): DropzoneConfig['renderListWrapperCallback'] { return this._renderListWrapperCallback; }
+    set renderListWrapperCallback(value: DropzoneConfig['renderListWrapperCallback']) {
+        this._renderListWrapperCallback = value;
+        this.dropzone?.updateConfig({ renderListWrapperCallback: value });
+    }
+
     get renderPromptCallback(): DropzoneConfig['renderPromptCallback'] { return this._renderPromptCallback; }
     set renderPromptCallback(value: DropzoneConfig['renderPromptCallback']) {
         this._renderPromptCallback = value;
@@ -1062,13 +1091,12 @@ if (typeof window !== 'undefined' && typeof customElements !== 'undefined') {
 }
 
 // NOTE: do NOT statically `import './web-component-picker'` etc. from
-// here. ESM hoists those imports above this module's body, so the
-// satellites' `customElements.define` calls would run BEFORE
-// `<web-dropzone>` is defined. Any satellite element parsed in the
-// HTML would then upgrade first and its `connectedCallback` would see
-// `<web-dropzone>` as an un-upgraded HTMLElement (no `getStore`),
-// emitting a spurious "store not found" warning. Satellites are
-// registered explicitly via `index.ts` (the package entry point),
-// where the import order guarantees the store wins the race.
+// here. Satellite registration order is owned by index.ts, which
+// registers satellites BEFORE this module so that the synchronous
+// upgrade of `<web-dropzone>` elements (triggered by the define call
+// above) can construct satellite instances that already have their
+// `bindToStore` method. The reverse race (satellites parsed in HTML
+// upgrade before the store) is handled by `whenStoreReady` —
+// satellites tolerate an un-upgraded store and wait for `store-ready`.
 
 // Global API is registered in index.ts

@@ -18,6 +18,32 @@ import type { Placement } from '@floating-ui/dom';
 export type DisplayMode = 'list' | 'detailed' | 'grid' | 'compact';
 
 /**
+ * Operating mode — the top-level switch that decides who renders the file
+ * list and how customization is applied. Hard switch: setting `mode`
+ * authoritatively gates which other config keys apply. See
+ * ARCHITECTURE.md and the "three modes" project memory.
+ *
+ * - 'bulk'       — framework owns everything. Render callbacks
+ *                  (`renderFileItemCallback`, `renderPromptCallback`,
+ *                  `renderSummaryCallback`, `renderRolling*Callback`) are
+ *                  IGNORED even if set. Consumers style via CSS variables.
+ * - 'structural' — framework decides when/what to render; consumer
+ *                  provides the HTML structure via render callbacks.
+ * - 'headless'   — framework renders nothing; emits events + exposes
+ *                  state. Consumer brings their own DOM (typically via
+ *                  satellites or a reactive framework).
+ *
+ * When the attribute is absent, the mode is inferred:
+ *   - any of `display-mode` / `selector-appearance` / `list-appearance`
+ *     present → 'bulk'
+ *   - none present → 'headless' (the satellite-store back-compat shortcut)
+ *
+ * The inferred mode never resolves to 'structural' — opting in to
+ * callbacks always requires explicit `mode="structural"`.
+ */
+export type DropzoneMode = 'bulk' | 'structural' | 'headless';
+
+/**
  * Selector appearance — what the user clicks/drops onto.
  * - 'card'    — bordered drop-zone card with icon, prompt, browse button (default)
  * - 'button'  — single accent-styled "Select files" button (no drag-drop)
@@ -373,17 +399,36 @@ export interface DropzoneConfig {
     /** Whether the dropzone is disabled (HTML attr: `disabled`) */
     isDisabled?: boolean;
     /**
-     * Headless mode — when true, the store renders nothing and skips drag /
-     * click / input wiring on its own host. It exists purely as a data
-     * source for satellite renderers (`<web-dropzone-picker for=>`,
-     * `<web-dropzone-list for=>`, `<web-dropzone-indicator for=>`).
-     *
-     * Set automatically by `<web-dropzone>` when none of `display-mode`,
-     * `selector-appearance`, or `list-appearance` is present on the host
-     * element — the convenience-form back-compat shortcut. See
-     * ARCHITECTURE.md.
+     * Operating mode — bulk / structural / headless. Hard switch: gates
+     * which other config keys apply. See `DropzoneMode` for semantics.
+     * Defaults to 'bulk' when any renderer-trigger attribute is set,
+     * 'headless' otherwise. The implicit default never resolves to
+     * 'structural' — that requires an explicit `mode="structural"`.
+     */
+    mode?: DropzoneMode;
+    /**
+     * Derived from `mode === 'headless'`. Kept as a separate flag because
+     * lots of internal code paths short-circuit on it; treat it as
+     * read-after-resolve, not as a knob you set directly. Set `mode`
+     * instead.
      */
     isHeadless?: boolean;
+    /**
+     * Per-file throttle window for `updateFileProgress` (milliseconds).
+     * Coalesces the `file-progress` event, the `file-row-update` event,
+     * and the in-place row patching so a 20-file upload tick at 50ms
+     * intervals isn't doing 400 DOM patches/sec.
+     *
+     * Default 0 (no throttle). Leading edge fires immediately; subsequent
+     * progress within the window is held until the trailing edge. The
+     * final value (100% / status flip to 'complete') is guaranteed to
+     * arrive — held values aren't dropped.
+     *
+     * Recommended values: 80–200 ms for tables / framework-bound
+     * renderers; leave at 0 for the default UI (its in-place patcher is
+     * already cheap).
+     */
+    progressThrottle?: number;
 
     // ========================================================================
     // DISPLAY OPTIONS
@@ -602,8 +647,39 @@ export interface DropzoneConfig {
      */
     loadStateCallback?: ((key: string) => DropzoneState | null | Promise<DropzoneState | null>) | null;
 
-    /** Custom renderer for file item content */
+    /**
+     * Custom renderer for a single file row.
+     *
+     * Return type drives the framework's update strategy:
+     *  - **string** — framework swaps `outerHTML` on every state change.
+     *    Simple, but listeners attached via `innerHTML += "<button …>"`
+     *    style are lost on every tick.
+     *  - **HTMLElement** — framework preserves the element across state
+     *    changes and instead dispatches `file-row-update` events on it
+     *    (detail: `{ file }`). Listeners attached during the initial
+     *    render survive; the consumer mutates the existing DOM inside
+     *    the event handler.
+     *
+     * Only honored when `mode === 'structural'`. See `DropzoneMode`.
+     */
     renderFileItemCallback?: ((file: FileState, context: FileItemRenderContext) => string | HTMLElement) | null;
+    /**
+     * Custom renderer for the list wrapper. Receives the rows as an
+     * HTML string and the files array; returns the wrapper HTML/element
+     * that will contain them. Useful for table-style layouts:
+     *
+     *   renderListWrapperCallback = (rowsHtml) => `
+     *       <table>
+     *         <thead><tr><th>Name</th><th>Size</th></tr></thead>
+     *         <tbody>${rowsHtml}</tbody>
+     *       </table>`;
+     *
+     * Only honored when `mode === 'structural'`. Note: combining this
+     * with an HTMLElement-returning `renderFileItemCallback` falls back
+     * to the string path — element identity is not preserved when the
+     * wrapper callback is set.
+     */
+    renderListWrapperCallback?: ((rowsHtml: string, files: FileState[]) => string | HTMLElement) | null;
     /** Custom renderer for dropzone prompt content */
     renderPromptCallback?: (() => string | HTMLElement) | null;
     /** Custom renderer for compact summary content */
@@ -744,6 +820,33 @@ export interface FileStatusChangedEventDetail {
     nextStatus: FileState['status'];
     /** Live reference to the full file state, post-transition */
     file: FileState;
+}
+
+/**
+ * Event detail for `file-row-update` — dispatched on element-returning
+ * `renderFileItemCallback` outputs when a file's state changes (instead
+ * of re-rendering the row). The consumer listens on the element they
+ * returned and mutates its DOM in place. Bubbles + composed so listeners
+ * on the store or further up also receive it.
+ */
+export interface FileRowUpdateEventDetail {
+    /** Live reference to the full file state, post-mutation */
+    file: FileState;
+}
+
+/**
+ * Event detail for `files-changed` — a coalesced "queue updated" tick
+ * dispatched once per animation frame. Aggregates all granular events
+ * (`file-added` / `file-removed` / `file-progress` /
+ * `file-status-changed`) that happened within the window. Mode-3 /
+ * reactive consumers subscribe to this in place of the four granular
+ * events to get one diff per frame.
+ */
+export interface FilesChangedEventDetail {
+    /** Set of file ids that triggered the tick (alive or removed). */
+    changedIds: string[];
+    /** Current snapshot of the full files list. */
+    files: FileState[];
 }
 
 /**

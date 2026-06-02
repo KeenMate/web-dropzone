@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lit integration — Web Dropzone</title>
+    <link rel="stylesheet" href="examples-shared.css">
+    <style>
+        .lit-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .lit-row {
+            display: grid;
+            grid-template-columns: 1.5rem 1fr 6rem 3.5rem auto;
+            gap: 0.75rem;
+            align-items: center;
+            padding: 0.6rem 0.8rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+        .lit-row__name { font-weight: 500; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lit-row__status {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 700;
+            text-align: center;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+        }
+        .lit-row__status--pending  { background: #e2e8f0; color: #475569; }
+        .lit-row__status--uploading{ background: #dbeafe; color: #1e40af; }
+        .lit-row__status--paused   { background: #fef3c7; color: #92400e; }
+        .lit-row__status--complete { background: #dcfce7; color: #166534; }
+        .lit-row__status--error    { background: #fee2e2; color: #991b1b; }
+        .lit-row__pct {
+            font-variant-numeric: tabular-nums;
+            text-align: right;
+            color: #475569;
+            font-size: 0.85rem;
+        }
+        .lit-row__actions {
+            display: flex;
+            gap: 0.35rem;
+        }
+        .lit-row__action {
+            border: 1px solid #cbd5e0;
+            background: white;
+            border-radius: 6px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            color: #334155;
+            cursor: pointer;
+        }
+        .lit-row__action:hover { background: #f1f5f9; }
+        .lit-empty {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: #94a3b8;
+            font-style: italic;
+            border: 1px dashed #cbd5e0;
+            border-radius: 8px;
+        }
+        .lit-summary {
+            display: flex;
+            gap: 1.25rem;
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background: #eef2ff;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #3730a3;
+        }
+        .lit-summary strong { color: #1e1b4b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to examples</a>
+            <h1>Lit integration</h1>
+            <p class="subtitle">A <code>LitElement</code> wraps a headless <code>&lt;web-dropzone&gt;</code> store, listens for <code>files-changed</code>, and renders its own reactive file list with <code>lit-html</code> templates.</p>
+        </header>
+
+        <section class="example-section">
+            <h2>Why Lit + headless mode is a natural fit</h2>
+            <p>Web-dropzone is already a custom element, so it composes inside a Lit component the same way any other element does. With <code>mode="headless"</code> the store stops rendering its own list — your Lit element subscribes to the <code>files-changed</code> event and reactivity does the rest. The native <code>&lt;web-dropzone-picker&gt;</code> satellite still handles drag/drop so you keep the polished picker UI for free.</p>
+            <div class="note">
+                <div class="note-title">Pattern</div>
+                <ul>
+                    <li><code>&lt;web-dropzone mode="headless"&gt;</code> is the store — fires events, owns FileState, never renders.</li>
+                    <li><code>&lt;web-dropzone-picker for="…"&gt;</code> stays as the drag/drop surface — bind via <code>for=""</code>.</li>
+                    <li>Your <code>LitElement</code> stores <code>@state() files</code>, subscribes once in <code>firstUpdated</code>, and re-renders on every event.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="example-section">
+            <h2>Live demo</h2>
+            <p>The <code>&lt;lit-uploader&gt;</code> below uses <code>createRenderRoot()</code> to opt into light-DOM rendering so the satellite's <code>for=""</code> resolution (via <code>document.getElementById</code>) works without extra plumbing. Drop a few files — the list, summary line, and per-row pause/resume/retry are all driven by Lit reactive state.</p>
+            <lit-uploader></lit-uploader>
+        </section>
+
+        <section class="example-section">
+            <h2>The whole component</h2>
+            <div class="code-block">
+<pre>import { LitElement, html } from 'https://esm.sh/lit@3'
+
+class LitUploader extends LitElement {
+    static properties = { files: { state: true } }
+
+    constructor() {
+        super()
+        this.files = []
+    }
+
+    // Render in light DOM so &lt;web-dropzone-picker for="…"&gt; can resolve
+    // the store via document.getElementById without piercing a shadow root.
+    createRenderRoot() { return this }
+
+    firstUpdated() {
+        const store = this.querySelector('#lit-store')
+        store.uploadFileCallback = simulateUpload({ durationMs: 4000 })
+        store.addEventListener('files-changed', (e) =&gt; {
+            this.files = e.detail.files
+        })
+    }
+
+    rowAction(file) {
+        const store = this.querySelector('#lit-store')
+        if (file.status === 'uploading') return store.pauseFile(file.id)
+        if (file.status === 'paused')    return store.resumeFile(file.id)
+        if (file.status === 'error')     return store.retryFile(file.id)
+    }
+
+    render() {
+        const summary = this.files.reduce((acc, f) =&gt; {
+            acc[f.status] = (acc[f.status] ?? 0) + 1
+            return acc
+        }, {})
+
+        return html`
+            &lt;web-dropzone id="lit-store" mode="headless" multiple max-file-count="6"&gt;&lt;/web-dropzone&gt;
+            &lt;web-dropzone-picker for="lit-store" selector-appearance="card" label="Drop files for Lit"&gt;&lt;/web-dropzone-picker&gt;
+
+            ${this.files.length === 0
+                ? html`&lt;div class="lit-empty"&gt;No files yet — drop something above.&lt;/div&gt;`
+                : html`&lt;div class="lit-list"&gt;
+                    ${this.files.map(f =&gt; html`
+                        &lt;div class="lit-row"&gt;
+                            &lt;span&gt;${iconFor(f.status)}&lt;/span&gt;
+                            &lt;span class="lit-row__name"&gt;${f.name}&lt;/span&gt;
+                            &lt;span class="lit-row__status lit-row__status--${f.status}"&gt;${f.status}&lt;/span&gt;
+                            &lt;span class="lit-row__pct"&gt;${Math.round(f.progress)}%&lt;/span&gt;
+                            &lt;span class="lit-row__actions"&gt;
+                                ${actionLabel(f.status)
+                                    ? html`&lt;button class="lit-row__action" @click=${() =&gt; this.rowAction(f)}&gt;${actionLabel(f.status)}&lt;/button&gt;`
+                                    : null}
+                            &lt;/span&gt;
+                        &lt;/div&gt;
+                    `)}
+                &lt;/div&gt;`}
+
+            &lt;div class="lit-summary"&gt;
+                &lt;span&gt;total &lt;strong&gt;${this.files.length}&lt;/strong&gt;&lt;/span&gt;
+                &lt;span&gt;uploading &lt;strong&gt;${summary.uploading ?? 0}&lt;/strong&gt;&lt;/span&gt;
+                &lt;span&gt;done &lt;strong&gt;${summary.complete ?? 0}&lt;/strong&gt;&lt;/span&gt;
+                &lt;span&gt;failed &lt;strong&gt;${summary.error ?? 0}&lt;/strong&gt;&lt;/span&gt;
+            &lt;/div&gt;
+        `
+    }
+}
+
+customElements.define('lit-uploader', LitUploader)</pre>
+            </div>
+        </section>
+
+        <footer>
+            <p>Web Dropzone · <a href="https://github.com/keenmate/web-dropzone">GitHub</a> · <a href="examples-architecture.html">Architecture</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { LitElement, html } from 'https://esm.sh/lit@3'
+
+        // Shared simulated upload — supports resume via context.startPercent
+        // so pause/resume picks up from where the bytes stopped instead of
+        // restarting at 0. Same shape as examples-architecture.html.
+        function simulateUpload({ durationMs = 4000, failureRate = 0 } = {}) {
+            return (file, onProgress, signal, context) => new Promise((resolve, reject) => {
+                const startPct = context?.startPercent ?? 0
+                if (startPct >= 100) {
+                    resolve({ metadata: { uploadedAt: new Date().toISOString() } })
+                    return
+                }
+                const remainingPct = 100 - startPct
+                const remainingMs = durationMs * (remainingPct / 100)
+                const start = performance.now()
+                let aborted = false
+                signal?.addEventListener('abort', () => {
+                    aborted = true
+                    reject(new DOMException('Aborted', 'AbortError'))
+                })
+                const tick = () => {
+                    if (aborted) return
+                    const elapsed = performance.now() - start
+                    const pct = Math.min(100, startPct + remainingPct * (elapsed / remainingMs))
+                    onProgress(pct)
+                    if (pct >= 100) {
+                        if (Math.random() < failureRate) {
+                            reject(new Error('Simulated upload failure'))
+                        } else {
+                            resolve({ metadata: { uploadedAt: new Date().toISOString() } })
+                        }
+                        return
+                    }
+                    requestAnimationFrame(tick)
+                }
+                requestAnimationFrame(tick)
+            })
+        }
+
+        const iconFor = (status) => ({
+            pending: '⏳', uploading: '⬆️', paused: '⏸️',
+            complete: '✅', error: '⚠️'
+        }[status] ?? '·')
+
+        const actionLabel = (status) => ({
+            uploading: 'Pause', paused: 'Resume', error: 'Retry'
+        }[status])
+
+        class LitUploader extends LitElement {
+            static properties = { files: { state: true } }
+
+            constructor() {
+                super()
+                this.files = []
+            }
+
+            // Light-DOM rendering — keeps `for="…"` resolution simple AND
+            // lets the page's CSS reach the rendered rows.
+            createRenderRoot() { return this }
+
+            firstUpdated() {
+                const store = this.querySelector('#lit-store')
+                store.uploadFileCallback = simulateUpload({ durationMs: 4000 })
+                store.addEventListener('files-changed', (e) => {
+                    this.files = e.detail.files
+                })
+            }
+
+            rowAction(file) {
+                const store = this.querySelector('#lit-store')
+                if (file.status === 'uploading') return store.pauseFile(file.id)
+                if (file.status === 'paused')    return store.resumeFile(file.id)
+                if (file.status === 'error')     return store.retryFile(file.id)
+            }
+
+            render() {
+                const summary = this.files.reduce((acc, f) => {
+                    acc[f.status] = (acc[f.status] ?? 0) + 1
+                    return acc
+                }, {})
+
+                return html`
+                    <web-dropzone id="lit-store" mode="headless" multiple max-file-count="6"></web-dropzone>
+                    <web-dropzone-picker for="lit-store" selector-appearance="card" label="Drop files for Lit"></web-dropzone-picker>
+
+                    ${this.files.length === 0
+                        ? html`<div class="lit-empty">No files yet — drop something above.</div>`
+                        : html`<div class="lit-list">
+                            ${this.files.map(f => html`
+                                <div class="lit-row">
+                                    <span>${iconFor(f.status)}</span>
+                                    <span class="lit-row__name">${f.name}</span>
+                                    <span class="lit-row__status lit-row__status--${f.status}">${f.status}</span>
+                                    <span class="lit-row__pct">${Math.round(f.progress)}%</span>
+                                    <span class="lit-row__actions">
+                                        ${actionLabel(f.status)
+                                            ? html`<button class="lit-row__action" @click=${() => this.rowAction(f)}>${actionLabel(f.status)}</button>`
+                                            : null}
+                                    </span>
+                                </div>
+                            `)}
+                        </div>`}
+
+                    <div class="lit-summary">
+                        <span>total <strong>${this.files.length}</strong></span>
+                        <span>uploading <strong>${summary.uploading ?? 0}</strong></span>
+                        <span>done <strong>${summary.complete ?? 0}</strong></span>
+                        <span>failed <strong>${summary.error ?? 0}</strong></span>
+                    </div>
+                `
+            }
+        }
+
+        customElements.define('lit-uploader', LitUploader)
+    </script>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>

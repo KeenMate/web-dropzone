@@ -16,17 +16,26 @@
 
         <!-- INTRO -->
         <div class="card">
-            <h2>Three render callbacks</h2>
-            <p>Each callback can return either an HTML string or a live <code>HTMLElement</code>. They're set as JavaScript properties on the element:</p>
+            <h2>Structural mode (<code>mode="structural"</code>)</h2>
+            <p>This page covers <strong>mode 2 of 3</strong> — the framework owns when and what to render, you provide the HTML structure via callbacks. The hard-switch <code>mode="structural"</code> attribute is required: setting a render callback alone does nothing in the default <code>mode="bulk"</code>.</p>
 
             <div class="code-block">
-                <pre><code>el.renderPromptCallback   = ()        =&gt; '...'  // dropzone prompt content
-el.renderFileItemCallback = (file, ctx) =&gt; '...'  // a single file row
-el.renderSummaryCallback  = (files)    =&gt; '...'  // compact-mode summary line
-
-// To customize the look of your custom HTML inside the shadow root,
-// inject styles via customStylesCallback:
-el.customStylesCallback   = () =&gt; `.my-cls { color: red; }`</code></pre>
+                <pre><code>&lt;web-dropzone mode="structural" display-mode="detailed" id="x"&gt;&lt;/web-dropzone&gt;
+&lt;script&gt;
+  const el = document.getElementById('x')
+  el.renderPromptCallback      = ()           =&gt; '...'  // dropzone prompt
+  el.renderFileItemCallback    = (file, ctx)  =&gt; '...'  // one file row
+  el.renderListWrapperCallback = (rows)       =&gt; '...'  // wraps the rows
+  el.renderSummaryCallback     = (files)      =&gt; '...'  // compact-mode summary
+&lt;/script&gt;</code></pre>
+            </div>
+            <div class="note">
+                <div class="note-title">When to use which mode</div>
+                <ul>
+                    <li><code>mode="bulk"</code> (default) — you want the working UI fast; style via CSS variables.</li>
+                    <li><code>mode="structural"</code> — you want custom HTML shape (this page).</li>
+                    <li><code>mode="headless"</code> — you want pure events + own renderer (see <a href="examples-architecture.html">Architecture</a>).</li>
+                </ul>
             </div>
         </div>
 
@@ -38,12 +47,12 @@ el.customStylesCallback   = () =&gt; `.my-cls { color: red; }`</code></pre>
             <div class="grid">
                 <div class="form-group">
                     <label>Cloud upload prompt</label>
-                    <web-dropzone id="prompt-cloud" display-mode="detailed"></web-dropzone>
+                    <web-dropzone id="prompt-cloud" mode="structural" display-mode="detailed"></web-dropzone>
                 </div>
 
                 <div class="form-group">
                     <label>Two-line marketing prompt</label>
-                    <web-dropzone id="prompt-marketing" display-mode="detailed"></web-dropzone>
+                    <web-dropzone id="prompt-marketing" mode="structural" display-mode="detailed"></web-dropzone>
                 </div>
             </div>
 
@@ -72,6 +81,7 @@ el.customStylesCallback   = () =&gt; `.my-cls { color: red; }`</code></pre>
                 <label>Receipts list with date + currency formatting</label>
                 <web-dropzone
                     id="item-receipts"
+                    mode="structural"
                     display-mode="list"
                     accept=".pdf,image/*"
                     prompt-text="Drop receipts">
@@ -108,6 +118,7 @@ el.customStylesCallback   = () =&gt; `.my-cls { color: red; }`</code></pre>
                 <label>Files with click-to-preview links</label>
                 <web-dropzone
                     id="item-dom"
+                    mode="structural"
                     display-mode="list"
                     accept="*/*"
                     prompt-text="Drop files (click row to preview in new tab)">
@@ -150,6 +161,7 @@ el.customStylesCallback   = () =&gt; `.my-cls { color: red; }`</code></pre>
                 <label>Counter pill with total size</label>
                 <web-dropzone
                     id="summary-custom"
+                    mode="structural"
                     display-mode="compact"
                     accept="*/*"
                     prompt-text="Drop files">
@@ -177,6 +189,106 @@ el.customStylesCallback = () =&gt; `
         font-weight: 600; font-size: 0.85em;
     }
 `</code></pre>
+            </div>
+        </div>
+
+        <!-- LIST WRAPPER -->
+        <div class="card">
+            <h2>Custom List Wrapper (<code>renderListWrapperCallback</code>)</h2>
+            <p>Replaces the <code>&lt;div class="dz__file-list"&gt;</code> shell around the rows. Pairs with <code>renderFileItemCallback</code> to build table layouts. The wrapper receives the rows as an HTML string and the files array, returns the surrounding HTML.</p>
+
+            <div class="form-group">
+                <label>File queue as a real &lt;table&gt; — auto-upload, pause/resume/retry per row, completed rows reorder to the bottom</label>
+                <web-dropzone
+                    id="wrapper-table"
+                    mode="structural"
+                    display-mode="list"
+                    accept="*/*"
+                    multiple
+                    auto-upload
+                    reorder-completed
+                    reorder-completed-delay="1200"
+                    prompt-text="Drop files into the table">
+                </web-dropzone>
+                <small class="form-text">~20% of files randomly fail mid-upload — click 🔄 to retry from where they left off, not from 0.</small>
+            </div>
+
+            <div class="code-block">
+                <pre><code>el.renderListWrapperCallback = (rowsHtml) =&gt; `
+    &lt;table class="receipt-table"&gt;
+        &lt;thead&gt;&lt;tr&gt;
+            &lt;th&gt;Name&lt;/th&gt;&lt;th&gt;Type&lt;/th&gt;&lt;th&gt;Size&lt;/th&gt;&lt;th&gt;&lt;/th&gt;
+        &lt;/tr&gt;&lt;/thead&gt;
+        &lt;tbody&gt;${rowsHtml}&lt;/tbody&gt;
+    &lt;/table&gt;
+`
+el.renderFileItemCallback = (file) =&gt; `
+    &lt;tr data-file-id="${file.id}"&gt;
+        &lt;td&gt;${file.name}&lt;/td&gt;
+        &lt;td&gt;${file.type || '—'}&lt;/td&gt;
+        &lt;td&gt;${(file.size/1024).toFixed(1)} KB&lt;/td&gt;
+        &lt;td&gt;&lt;button data-action="remove" data-file-id="${file.id}"&gt;×&lt;/button&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+`</code></pre>
+            </div>
+
+            <div class="note">
+                <div class="note-title">Caveats</div>
+                <ul>
+                    <li>Keep <code>data-file-id</code> on each row so internal patching can target it.</li>
+                    <li>Combining the wrapper with an <em>HTMLElement</em>-returning row callback (see next section) falls back to the string path — element identity is not preserved through wrapper composition.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ELEMENT-RETURNING ROW + EVENTS -->
+        <div class="card">
+            <h2>Event-driven rows (<code>file-row-update</code>)</h2>
+            <p>When <code>renderFileItemCallback</code> returns an <code>HTMLElement</code>, the framework preserves it across state changes — instead of re-rendering, it dispatches a <code>file-row-update</code> CustomEvent on the row. Listeners attached during the initial render survive every tick, so you can wire complex per-row behavior without redoing it on every progress event.</p>
+
+            <div class="form-group">
+                <label>Click a row to ⭐ favorite — the toggle survives every upload tick, pause, resume, retry, and reorder</label>
+                <web-dropzone
+                    id="event-rows"
+                    mode="structural"
+                    display-mode="list"
+                    accept="*/*"
+                    multiple
+                    auto-upload
+                    reorder-completed
+                    reorder-completed-delay="1200"
+                    progress-throttle="120"
+                    prompt-text="Drop files (click a row to toggle ⭐)">
+                </web-dropzone>
+                <small class="form-text">Simulated upload runs on selection. ⏸ pause / ▶ resume / 🔄 retry buttons appear based on each file's status; the framework's <code>data-action="row-action"</code> convention auto-wires them.</small>
+            </div>
+
+            <div class="code-block">
+                <pre><code>el.renderFileItemCallback = (file) =&gt; {
+    const row = document.createElement('div')
+    row.dataset.fileId = file.id
+    row.innerHTML = `
+        &lt;span class="star"&gt;☆&lt;/span&gt;
+        &lt;span class="name"&gt;${file.name}&lt;/span&gt;
+        &lt;progress class="bar" max="100" value="0"&gt;&lt;/progress&gt;
+        &lt;span class="pct"&gt;0%&lt;/span&gt;
+    `
+    row.querySelector('.star').addEventListener('click', e =&gt; {
+        e.currentTarget.textContent =
+            e.currentTarget.textContent === '☆' ? '⭐' : '☆'
+    })
+    row.addEventListener('file-row-update', e =&gt; {
+        const { file } = e.detail
+        row.querySelector('.bar').value  = file.progress
+        row.querySelector('.pct').textContent = Math.round(file.progress) + '%'
+    })
+    return row
+}</code></pre>
+            </div>
+
+            <div class="note">
+                <div class="note-title">Why the throttle?</div>
+                <p>The <code>progress-throttle="120"</code> attribute caps per-file event emission and DOM patching at one every 120 ms. Without it, a 20-file upload at the default 50 ms tick rate would fire 400 <code>file-row-update</code> events / sec.</p>
             </div>
         </div>
 
@@ -304,6 +416,239 @@ el.customStylesCallback = () =&gt; `
                 </div>
             `
         }
+
+        // ---------------------------------------------------------------- shared upload simulator
+
+        // Resume-aware fake upload. `context.startPercent` is the file's
+        // current progress at the moment uploadFileCallback is (re)invoked
+        // — non-zero after pause/resume or retry from error, so the bar
+        // continues from where it left off instead of restarting at 0.
+        // ~20% of files fail at a random point on the FIRST attempt;
+        // retries pick up cleanly from the failure point with no further
+        // random failures.
+        function simulateUpload({ durationMs = 4500, failRate = 0.2 } = {}) {
+            const seenAttempts = new WeakMap()
+            return (file, onProgress, signal, context) => new Promise((resolve, reject) => {
+                const startPct = context?.startPercent ?? 0
+                if (startPct >= 100) { resolve(); return }
+                const attempt = (seenAttempts.get(file) ?? 0) + 1
+                seenAttempts.set(file, attempt)
+                // Only the first attempt has a chance of failing — retries
+                // succeed so the user can see the resume-from-where-it-stopped
+                // story without an endless retry loop.
+                const failAt = attempt === 1 && Math.random() < failRate
+                    ? startPct + 20 + Math.random() * 50
+                    : null
+                const remainingPct = 100 - startPct
+                const remainingMs = durationMs * (remainingPct / 100)
+                const start = performance.now()
+                let aborted = false
+                signal?.addEventListener('abort', () => {
+                    aborted = true
+                    reject(new DOMException('Aborted', 'AbortError'))
+                })
+                const tick = () => {
+                    if (aborted) return
+                    const elapsed = performance.now() - start
+                    const pctOfRemaining = Math.min(1, elapsed / remainingMs)
+                    const pct = Math.min(100, startPct + remainingPct * pctOfRemaining)
+                    onProgress(pct)
+                    if (failAt !== null && pct >= failAt) {
+                        reject(new Error('Simulated network failure'))
+                        return
+                    }
+                    if (pct >= 100) {
+                        resolve()
+                    } else {
+                        setTimeout(tick, 50)
+                    }
+                }
+                tick()
+            })
+        }
+
+        // Map file.status → the data-action="row-action" button's icon
+        // + tooltip. The framework dispatches the appropriate store call
+        // (pauseFile / resumeFile / retryFile) based on the same mapping.
+        function actionIconFor(status) {
+            if (status === 'uploading') return { icon: '⏸', title: 'Pause' }
+            if (status === 'paused')    return { icon: '▶',  title: 'Resume' }
+            if (status === 'error')     return { icon: '🔄', title: 'Retry' }
+            return null
+        }
+
+        // ---------------------------------------------------------------- list wrapper (table)
+
+        const wrapperTable = document.getElementById('wrapper-table')
+        wrapperTable.customStylesCallback = () => `
+            .receipt-table { width: 100%; border-collapse: collapse; }
+            .receipt-table th,
+            .receipt-table td {
+                padding: 0.5rem 0.75rem;
+                border-bottom: 1px solid #e5e7eb;
+                text-align: left;
+                font-size: 0.9rem;
+                vertical-align: middle;
+            }
+            .receipt-table thead th {
+                background: #f9fafb;
+                font-weight: 600;
+                color: #374151;
+            }
+            .receipt-table tbody tr[data-status="complete"] td { color: #16a34a; }
+            .receipt-table tbody tr[data-status="error"] td    { color: #dc2626; }
+            .receipt-table tbody tr[data-status="paused"] td   { color: #a16207; }
+            .receipt-table .progress-cell { width: 14rem; }
+            .receipt-table progress {
+                width: 100%; height: 0.5rem;
+                appearance: none; -webkit-appearance: none;
+                border: 1px solid #e5e7eb; border-radius: 999px;
+                background: #f3f4f6;
+            }
+            .receipt-table progress::-webkit-progress-bar { background: transparent; }
+            .receipt-table progress::-webkit-progress-value { background: #667eea; border-radius: 999px; }
+            .receipt-table progress::-moz-progress-bar     { background: #667eea; border-radius: 999px; }
+            .receipt-table .pct {
+                font-variant-numeric: tabular-nums;
+                font-size: 0.8rem; color: #6b7280;
+                margin-left: 0.4rem;
+            }
+            .receipt-table .actions { text-align: right; white-space: nowrap; }
+            .receipt-table .actions button {
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                color: #6b7280;
+                font-size: 1rem;
+                padding: 0.1rem 0.3rem;
+                line-height: 1;
+            }
+            .receipt-table .actions button:hover { color: #111827; }
+            .receipt-table .actions .rm:hover    { color: #dc2626; }
+        `
+        wrapperTable.renderListWrapperCallback = (rowsHtml) => `
+            <table class="receipt-table">
+                <thead><tr>
+                    <th>Name</th><th>Type</th><th>Size</th><th>Progress</th><th></th>
+                </tr></thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+        `
+        wrapperTable.renderFileItemCallback = (file) => {
+            const a = actionIconFor(file.status)
+            const actionBtn = a
+                ? `<button data-action="row-action" data-file-id="${file.id}" title="${a.title}">${a.icon}</button>`
+                : ''
+            return `
+                <tr data-file-id="${file.id}" data-status="${file.status}">
+                    <td>${escapeHtml(file.name)}</td>
+                    <td>${escapeHtml(file.type || '—')}</td>
+                    <td>${(file.size/1024).toFixed(1)} KB</td>
+                    <td class="progress-cell">
+                        <progress max="100" value="${file.progress}"></progress>
+                        <span class="pct">${Math.round(file.progress)}%</span>
+                    </td>
+                    <td class="actions">
+                        ${actionBtn}
+                        <button class="rm" data-action="remove" data-file-id="${file.id}" title="Remove">×</button>
+                    </td>
+                </tr>
+            `
+        }
+        wrapperTable.uploadFileCallback = simulateUpload({ durationMs: 5000, failRate: 0.2 })
+
+        // ---------------------------------------------------------------- event-driven rows
+
+        const eventRows = document.getElementById('event-rows')
+        eventRows.customStylesCallback = () => `
+            .event-row {
+                display: flex;
+                align-items: center;
+                gap: 0.6rem;
+                padding: 0.5rem 0.75rem;
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                background: white;
+                margin-bottom: 0.4rem;
+            }
+            .event-row[data-status="complete"] { border-color: #bbf7d0; background: #f0fdf4; }
+            .event-row[data-status="error"]    { border-color: #fecaca; background: #fef2f2; }
+            .event-row[data-status="paused"]   { border-color: #fde68a; background: #fffbeb; }
+            .event-row .star {
+                cursor: pointer;
+                font-size: 1.1rem;
+                user-select: none;
+            }
+            .event-row .name {
+                flex: 1;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .event-row progress { width: 6rem; height: 0.6rem; }
+            .event-row .pct {
+                width: 3rem;
+                text-align: right;
+                font-variant-numeric: tabular-nums;
+                color: #6b7280;
+                font-size: 0.85rem;
+            }
+            .event-row .action,
+            .event-row .rm {
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                color: #6b7280;
+                font-size: 1rem;
+                padding: 0.1rem 0.3rem;
+                line-height: 1;
+            }
+            .event-row .action:hover { color: #111827; }
+            .event-row .rm:hover     { color: #dc2626; }
+            .event-row .action[hidden] { display: none; }
+        `
+        eventRows.renderFileItemCallback = (file) => {
+            const row = document.createElement('div')
+            row.className = 'event-row'
+            row.dataset.fileId = file.id
+            row.dataset.status = file.status
+            row.innerHTML = `
+                <span class="star" title="Toggle favorite">☆</span>
+                <span class="name">${escapeHtml(file.name)}</span>
+                <progress class="bar" max="100" value="${file.progress}"></progress>
+                <span class="pct">${Math.round(file.progress)}%</span>
+                <button class="action" data-action="row-action" data-file-id="${file.id}" hidden></button>
+                <button class="rm" data-action="remove" data-file-id="${file.id}" title="Remove">×</button>
+            `
+            const starBtn = row.querySelector('.star')
+            const barEl   = row.querySelector('.bar')
+            const pctEl   = row.querySelector('.pct')
+            const actBtn  = row.querySelector('.action')
+            starBtn.addEventListener('click', (e) => {
+                e.stopPropagation()
+                starBtn.textContent = starBtn.textContent === '☆' ? '⭐' : '☆'
+            })
+            const syncAction = (f) => {
+                const a = actionIconFor(f.status)
+                if (a) {
+                    actBtn.textContent = a.icon
+                    actBtn.title = a.title
+                    actBtn.hidden = false
+                } else {
+                    actBtn.hidden = true
+                }
+            }
+            syncAction(file)
+            row.addEventListener('file-row-update', (e) => {
+                const f = e.detail.file
+                row.dataset.status = f.status
+                barEl.value = f.progress
+                pctEl.textContent = Math.round(f.progress) + '%'
+                syncAction(f)
+            })
+            return row
+        }
+        eventRows.uploadFileCallback = simulateUpload({ durationMs: 5000, failRate: 0.2 })
 
         // ---------------------------------------------------------------- helpers
 

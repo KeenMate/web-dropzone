@@ -400,38 +400,54 @@ export class DropzoneIndicatorElement extends BaseElement {
     private populateDrawer(): void {
         if (!this.drawerEl) return;
         const labelAttr = this.getAttribute('label') ?? 'Uploads';
+        // Body intentionally empty — the embedded `<web-dropzone-list>` is
+        // mounted in `bindEmbeddedList` once `storeEl` is known, so we can
+        // call `bindToStore` BEFORE the list is connected. Putting the
+        // list in this innerHTML string would have its `connectedCallback`
+        // fire mid-parse with no binding, logging "store not found".
         this.drawerEl.innerHTML = `
             <header class="dz__indicator__drawer-header">
                 <span class="dz__indicator__drawer-title">${escapeHtml(labelAttr)}</span>
                 <button type="button" class="dz__indicator__drawer-close" aria-label="Close">×</button>
             </header>
-            <div class="dz__indicator__drawer-body">
-                <web-dropzone-list list-appearance="detailed"></web-dropzone-list>
-            </div>
+            <div class="dz__indicator__drawer-body"></div>
         `;
         this.drawerCloseBtn = this.drawerEl.querySelector('.dz__indicator__drawer-close');
         if (this.drawerCloseBtn) {
             this.drawerCloseBtn.addEventListener('click', () => this.setDrawerOpen(false));
         }
-        // Bind the embedded list — may be a no-op if storeEl isn't resolved
-        // yet (populateDrawer runs during connectedCallback, before
-        // whenStoreReady fires); the whenStoreReady callback re-binds.
+        // Try to mount immediately — no-op if storeEl isn't resolved yet
+        // (populateDrawer runs during connectedCallback, before
+        // whenStoreReady fires). The whenStoreReady callback re-invokes us.
         this.bindEmbeddedList();
     }
 
     /**
-     * Wire the drawer's embedded `<web-dropzone-list>` to the same store
-     * this indicator is bound to. Idempotent — safe to call from both
-     * `populateDrawer` (which may run before the store resolves) and the
-     * `whenStoreReady` callback (which runs once it does). bindToStore on
-     * the list is itself idempotent so the second call is cheap.
+     * Mount + wire the drawer's embedded `<web-dropzone-list>` to the
+     * same store this indicator is bound to. Idempotent: creates the
+     * list element on the first call where both `drawerEl` and `storeEl`
+     * exist, and re-binds (cheap) on subsequent calls. Safe to invoke
+     * from both `populateDrawer` (which may run before the store
+     * resolves) and the `whenStoreReady` callback (which runs once it
+     * does).
      */
     private bindEmbeddedList(): void {
         if (!this.drawerEl || !this.storeEl) return;
-        const embeddedList = this.drawerEl.querySelector(
-            'web-dropzone-list'
-        ) as (HTMLElement & { bindToStore?: (el: DropzoneElement) => void }) | null;
-        embeddedList?.bindToStore?.(this.storeEl);
+        const body = this.drawerEl.querySelector('.dz__indicator__drawer-body');
+        if (!body) return;
+        type BindableList = HTMLElement & { bindToStore?: (el: DropzoneElement) => void };
+        let embeddedList = body.querySelector('web-dropzone-list') as BindableList | null;
+        if (!embeddedList) {
+            embeddedList = document.createElement('web-dropzone-list') as BindableList;
+            embeddedList.setAttribute('list-appearance', 'detailed');
+            // bindToStore BEFORE appendChild — sets `programmaticStoreEl`
+            // so the list's connectedCallback uses it instead of looking
+            // up the `for=` attribute (which we don't set).
+            embeddedList.bindToStore?.(this.storeEl);
+            body.appendChild(embeddedList);
+        } else {
+            embeddedList.bindToStore?.(this.storeEl);
+        }
     }
 
     private refresh(): void {

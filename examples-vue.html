@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue 3 integration — Web Dropzone</title>
+    <link rel="stylesheet" href="examples-shared.css">
+    <style>
+        .vu-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .vu-row {
+            display: grid;
+            grid-template-columns: 1.5rem 1fr 6rem 4rem auto;
+            gap: 0.75rem;
+            align-items: center;
+            padding: 0.6rem 0.8rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+        .vu-row__name { font-weight: 500; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .vu-row__status {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 700;
+            text-align: center;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+        }
+        .vu-row__status--pending  { background: #e2e8f0; color: #475569; }
+        .vu-row__status--uploading{ background: #dbeafe; color: #1e40af; }
+        .vu-row__status--paused   { background: #fef3c7; color: #92400e; }
+        .vu-row__status--complete { background: #dcfce7; color: #166534; }
+        .vu-row__status--error    { background: #fee2e2; color: #991b1b; }
+        .vu-row__bar {
+            position: relative;
+            height: 0.45rem;
+            background: #e2e8f0;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        /* No CSS transition — Vue updates `:style="{ width }"` on every
+           `files-changed` (≈ 60 Hz during an upload). A 180 ms transition
+           would mean the bar visibly trails the rest of the row by ~11 frames. */
+        .vu-row__bar-fill {
+            position: absolute;
+            inset: 0 auto 0 0;
+            background: #10b981;
+        }
+        .vu-row__actions { display: flex; gap: 0.35rem; }
+        .vu-row__action {
+            border: 1px solid #cbd5e0;
+            background: white;
+            border-radius: 6px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            color: #334155;
+            cursor: pointer;
+        }
+        .vu-row__action:hover { background: #f1f5f9; }
+        .vu-empty {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: #94a3b8;
+            font-style: italic;
+            border: 1px dashed #cbd5e0;
+            border-radius: 8px;
+        }
+        .vu-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        .vu-stat {
+            padding: 0.6rem 0.8rem;
+            background: #ecfdf5;
+            border: 1px solid #d1fae5;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .vu-stat__label {
+            display: block;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #065f46;
+            margin-bottom: 0.2rem;
+        }
+        .vu-stat__value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #064e3b;
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to examples</a>
+            <h1>Vue 3 integration</h1>
+            <p class="subtitle">A Vue 3 component listens to a headless <code>&lt;web-dropzone&gt;</code> store via <code>onMounted</code> + <code>files-changed</code>, then renders its own template-driven list with reactive computed stats.</p>
+        </header>
+
+        <section class="example-section">
+            <h2>What you need to tell Vue about custom elements</h2>
+            <p>Vue treats unknown tags as components by default and warns when it can't resolve them. Tell the compiler that <code>web-dropzone*</code> tags are custom elements via <code>app.config.compilerOptions.isCustomElement</code>, and they pass through as native DOM. From there it's plain Vue reactivity: a <code>ref</code> for the store element, a <code>ref</code> for the file array, and a <code>computed</code> for whatever derived state the UI needs.</p>
+            <div class="note">
+                <div class="note-title">Pattern</div>
+                <ul>
+                    <li><code>isCustomElement: (tag) =&gt; tag.startsWith('web-dropzone')</code> on the app config silences false-positive warnings.</li>
+                    <li><code>ref&lt;HTMLElement&gt;</code> + <code>onMounted</code> wires the listener — Vue's <code>v-on</code> shortcut doesn't bind to <code>files-changed</code> on a child component because it isn't part of Vue's emit graph.</li>
+                    <li><code>computed</code> drives the stats grid; <code>v-for</code> with a <code>:key</code> keyed by <code>file.id</code> avoids row churn.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="example-section">
+            <h2>Live demo</h2>
+            <p>The Vue app below renders the picker, the file list, and a stats grid that updates reactively on every coalesced event tick. Pause / resume / retry buttons call directly into the store's imperative API.</p>
+            <div id="vue-root"></div>
+        </section>
+
+        <section class="example-section">
+            <h2>The whole component</h2>
+            <div class="code-block">
+<pre>import { createApp, ref, computed, onMounted, onBeforeUnmount } from 'https://esm.sh/vue@3/dist/vue.esm-browser.js'
+
+const App = {
+    setup() {
+        const storeRef = ref(null)
+        const files = ref([])
+
+        const stats = computed(() =&gt; {
+            const acc = { total: files.value.length, pending: 0, uploading: 0, complete: 0, error: 0 }
+            for (const f of files.value) acc[f.status] = (acc[f.status] ?? 0) + 1
+            return acc
+        })
+
+        const onChange = (e) =&gt; { files.value = e.detail.files }
+
+        onMounted(() =&gt; {
+            const s = storeRef.value
+            s.uploadFileCallback = simulateUpload({ durationMs: 4000 })
+            s.addEventListener('files-changed', onChange)
+        })
+
+        onBeforeUnmount(() =&gt; {
+            storeRef.value?.removeEventListener('files-changed', onChange)
+        })
+
+        const rowAction = (f) =&gt; {
+            const s = storeRef.value
+            if (f.status === 'uploading') return s.pauseFile(f.id)
+            if (f.status === 'paused')    return s.resumeFile(f.id)
+            if (f.status === 'error')     return s.retryFile(f.id)
+        }
+
+        return { storeRef, files, stats, rowAction, iconFor, actionLabel }
+    },
+    template: `
+        &lt;web-dropzone ref="storeRef" id="vu-store" mode="headless" multiple max-file-count="6"&gt;&lt;/web-dropzone&gt;
+        &lt;web-dropzone-picker for="vu-store" selector-appearance="card" label="Drop files for Vue"&gt;&lt;/web-dropzone-picker&gt;
+        &lt;div v-if="files.length === 0" class="vu-empty"&gt;No files yet&lt;/div&gt;
+        &lt;div v-else class="vu-list"&gt;
+            &lt;div v-for="f in files" :key="f.id" class="vu-row"&gt;
+                &lt;span&gt;{{ iconFor(f.status) }}&lt;/span&gt;
+                &lt;span class="vu-row__name"&gt;{{ f.name }}&lt;/span&gt;
+                &lt;span :class="['vu-row__status', 'vu-row__status--' + f.status]"&gt;{{ f.status }}&lt;/span&gt;
+                &lt;span class="vu-row__bar"&gt;&lt;span class="vu-row__bar-fill" :style="{ width: f.progress + '%' }"&gt;&lt;/span&gt;&lt;/span&gt;
+                &lt;button v-if="actionLabel(f.status)" class="vu-row__action" @click="rowAction(f)"&gt;{{ actionLabel(f.status) }}&lt;/button&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    `
+}
+
+const app = createApp(App)
+app.config.compilerOptions.isCustomElement = (tag) =&gt; tag.startsWith('web-dropzone')
+app.mount('#vue-root')</pre>
+            </div>
+        </section>
+
+        <footer>
+            <p>Web Dropzone · <a href="https://github.com/keenmate/web-dropzone">GitHub</a> · <a href="examples-architecture.html">Architecture</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { createApp, ref, computed, onMounted, onBeforeUnmount } from 'https://esm.sh/vue@3/dist/vue.esm-browser.js'
+
+        function simulateUpload({ durationMs = 4000, failureRate = 0 } = {}) {
+            return (file, onProgress, signal, context) => new Promise((resolve, reject) => {
+                const startPct = context?.startPercent ?? 0
+                if (startPct >= 100) {
+                    resolve({ metadata: { uploadedAt: new Date().toISOString() } })
+                    return
+                }
+                const remainingPct = 100 - startPct
+                const remainingMs = durationMs * (remainingPct / 100)
+                const start = performance.now()
+                let aborted = false
+                signal?.addEventListener('abort', () => {
+                    aborted = true
+                    reject(new DOMException('Aborted', 'AbortError'))
+                })
+                const tick = () => {
+                    if (aborted) return
+                    const elapsed = performance.now() - start
+                    const pct = Math.min(100, startPct + remainingPct * (elapsed / remainingMs))
+                    onProgress(pct)
+                    if (pct >= 100) {
+                        if (Math.random() < failureRate) {
+                            reject(new Error('Simulated upload failure'))
+                        } else {
+                            resolve({ metadata: { uploadedAt: new Date().toISOString() } })
+                        }
+                        return
+                    }
+                    requestAnimationFrame(tick)
+                }
+                requestAnimationFrame(tick)
+            })
+        }
+
+        const iconFor = (status) => ({
+            pending: '⏳', uploading: '⬆️', paused: '⏸️',
+            complete: '✅', error: '⚠️'
+        }[status] ?? '·')
+
+        const actionLabel = (status) => ({
+            uploading: 'Pause', paused: 'Resume', error: 'Retry'
+        }[status])
+
+        const App = {
+            setup() {
+                const storeRef = ref(null)
+                const files = ref([])
+
+                const stats = computed(() => {
+                    const acc = { total: files.value.length, pending: 0, uploading: 0, complete: 0, error: 0, paused: 0 }
+                    for (const f of files.value) acc[f.status] = (acc[f.status] ?? 0) + 1
+                    return acc
+                })
+
+                const onChange = (e) => { files.value = e.detail.files }
+
+                onMounted(() => {
+                    const s = storeRef.value
+                    s.uploadFileCallback = simulateUpload({ durationMs: 4000 })
+                    s.addEventListener('files-changed', onChange)
+                })
+
+                onBeforeUnmount(() => {
+                    storeRef.value?.removeEventListener('files-changed', onChange)
+                })
+
+                const rowAction = (f) => {
+                    const s = storeRef.value
+                    if (f.status === 'uploading') return s.pauseFile(f.id)
+                    if (f.status === 'paused')    return s.resumeFile(f.id)
+                    if (f.status === 'error')     return s.retryFile(f.id)
+                }
+
+                return { storeRef, files, stats, rowAction, iconFor, actionLabel }
+            },
+            template: `
+                <web-dropzone ref="storeRef" id="vu-store" mode="headless" multiple max-file-count="6"></web-dropzone>
+                <web-dropzone-picker for="vu-store" selector-appearance="card" label="Drop files for Vue"></web-dropzone-picker>
+
+                <div v-if="files.length === 0" class="vu-empty">No files yet — drop something above.</div>
+                <div v-else class="vu-list">
+                    <div v-for="f in files" :key="f.id" class="vu-row">
+                        <span>{{ iconFor(f.status) }}</span>
+                        <span class="vu-row__name">{{ f.name }}</span>
+                        <span :class="['vu-row__status', 'vu-row__status--' + f.status]">{{ f.status }}</span>
+                        <span class="vu-row__bar"><span class="vu-row__bar-fill" :style="{ width: f.progress + '%' }"></span></span>
+                        <span class="vu-row__actions">
+                            <button v-if="actionLabel(f.status)" class="vu-row__action" @click="rowAction(f)">{{ actionLabel(f.status) }}</button>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="vu-stats">
+                    <div class="vu-stat"><span class="vu-stat__label">Total</span><span class="vu-stat__value">{{ stats.total }}</span></div>
+                    <div class="vu-stat"><span class="vu-stat__label">Uploading</span><span class="vu-stat__value">{{ stats.uploading }}</span></div>
+                    <div class="vu-stat"><span class="vu-stat__label">Paused</span><span class="vu-stat__value">{{ stats.paused }}</span></div>
+                    <div class="vu-stat"><span class="vu-stat__label">Done</span><span class="vu-stat__value">{{ stats.complete }}</span></div>
+                    <div class="vu-stat"><span class="vu-stat__label">Failed</span><span class="vu-stat__value">{{ stats.error }}</span></div>
+                </div>
+            `
+        }
+
+        const app = createApp(App)
+        app.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('web-dropzone')
+        app.mount('#vue-root')
+    </script>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>

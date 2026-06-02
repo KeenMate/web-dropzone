@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React integration — Web Dropzone</title>
+    <link rel="stylesheet" href="examples-shared.css">
+    <style>
+        .rx-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .rx-row {
+            display: grid;
+            grid-template-columns: 1.5rem 1fr 6rem 1fr 3rem auto;
+            gap: 0.75rem;
+            align-items: center;
+            padding: 0.6rem 0.8rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+        .rx-row__name { font-weight: 500; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rx-row__status {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 700;
+            text-align: center;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+        }
+        .rx-row__status--pending  { background: #e2e8f0; color: #475569; }
+        .rx-row__status--uploading{ background: #dbeafe; color: #1e40af; }
+        .rx-row__status--paused   { background: #fef3c7; color: #92400e; }
+        .rx-row__status--complete { background: #dcfce7; color: #166534; }
+        .rx-row__status--error    { background: #fee2e2; color: #991b1b; }
+        /* Width is driven by the `--rx-progress` custom property on .rx-row
+           rather than an inline style on the fill, which gives React's
+           reconciler one stable element with a single changing CSS variable.
+           Avoids any per-tick remount / inline-style edge case in htm + React. */
+        .rx-row__bar {
+            position: relative;
+            height: 0.45rem;
+            background: #e2e8f0;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        /* No CSS transition — width is driven by --rx-progress which React
+           updates on every `files-changed` (≈ 60 Hz during an upload). A 180 ms
+           transition would mean the bar visibly trails the numeric % by ~11
+           frames; with the transition removed, the bar tracks the percentage
+           text exactly. */
+        .rx-row__bar-fill {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: var(--rx-progress, 0%);
+            background: #6366f1;
+        }
+        .rx-row__pct {
+            font-variant-numeric: tabular-nums;
+            text-align: right;
+            color: #475569;
+            font-size: 0.85rem;
+        }
+        .rx-row__actions { display: flex; gap: 0.35rem; }
+        .rx-row__action {
+            border: 1px solid #cbd5e0;
+            background: white;
+            border-radius: 6px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            color: #334155;
+            cursor: pointer;
+        }
+        .rx-row__action:hover { background: #f1f5f9; }
+        .rx-empty {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: #94a3b8;
+            font-style: italic;
+            border: 1px dashed #cbd5e0;
+            border-radius: 8px;
+        }
+        .rx-toolbar {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .rx-toolbar button {
+            border: 1px solid #cbd5e0;
+            background: white;
+            border-radius: 6px;
+            padding: 0.4rem 0.85rem;
+            font-size: 0.85rem;
+            color: #334155;
+            cursor: pointer;
+        }
+        .rx-toolbar button:hover { background: #f1f5f9; }
+        .rx-toolbar button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to examples</a>
+            <h1>React integration</h1>
+            <p class="subtitle">A React component subscribes to a headless <code>&lt;web-dropzone&gt;</code> store via <code>useEffect</code> + <code>files-changed</code>, then renders its own JSX file list with full pause / resume / retry control.</p>
+        </header>
+
+        <section class="example-section">
+            <h2>Why headless mode unlocks React patterns</h2>
+            <p>React expects to own the DOM it manages. With <code>mode="headless"</code> the dropzone steps back: it holds <code>FileState[]</code>, dispatches events, and lets your component own the rendering. The native <code>&lt;web-dropzone-picker&gt;</code> satellite is still used as the drop surface, because re-implementing drag-and-drop in React would mean re-implementing a feature web-dropzone already ships.</p>
+            <div class="note">
+                <div class="note-title">Pattern</div>
+                <ul>
+                    <li>One <code>useRef</code> on the store element, one <code>useEffect</code> attaches the listener + upload callback.</li>
+                    <li><code>useState</code> holds the file array; the <code>files-changed</code> handler replaces it whole (the event is rAF-coalesced so this is cheap).</li>
+                    <li>Per-row actions call <code>store.pauseFile(id)</code> / <code>resumeFile</code> / <code>retryFile</code> — the next event tick re-renders.</li>
+                </ul>
+            </div>
+            <p>This demo uses <a href="https://github.com/developit/htm" target="_blank">htm</a> for tagged-template JSX so the page works without a build step. With Babel or a real bundler you'd write the same code in regular JSX.</p>
+            <p><strong>Heads-up:</strong> htm passes attribute names through verbatim, so you still write <code>className</code> (not <code>class</code>) and <code>onClick</code> (not <code>onclick</code>) — anything React expects. <code>class</code> is silently dropped by React, which means CSS classes vanish and styled elements like the progress bar end up invisible.</p>
+            <p><strong>CSS transitions on the progress bar:</strong> avoid <code>transition: width Xms</code> on the bar fill. <code>files-changed</code> fires ≈ 60 Hz during an upload, so a 180 ms transition makes the bar lag the numeric % by ~11 frames — looks like the bar is barely moving while the text shoots ahead. Drive the width directly from a CSS custom property on the row and skip the transition; React's per-event commits already give you smooth motion.</p>
+        </section>
+
+        <section class="example-section">
+            <h2>Live demo</h2>
+            <p>The React tree below renders the picker, list, and a toolbar with <em>pause all / resume all / retry all / clear</em>. Drop a few files and watch React re-render on every coalesced <code>files-changed</code> event.</p>
+            <div id="react-root"></div>
+        </section>
+
+        <section class="example-section">
+            <h2>The whole component (htm flavour)</h2>
+            <div class="code-block">
+<pre>import React, { useEffect, useRef, useState } from 'https://esm.sh/react@18'
+import { createRoot } from 'https://esm.sh/react-dom@18/client'
+import htm from 'https://esm.sh/htm@3'
+const html = htm.bind(React.createElement)
+
+function Uploader() {
+    const storeRef = useRef(null)
+    const [files, setFiles] = useState([])
+
+    useEffect(() =&gt; {
+        const store = storeRef.current
+        store.uploadFileCallback = simulateUpload({ durationMs: 4000 })
+        const onChange = (e) =&gt; setFiles(e.detail.files)
+        store.addEventListener('files-changed', onChange)
+        return () =&gt; store.removeEventListener('files-changed', onChange)
+    }, [])
+
+    const rowAction = (f) =&gt; {
+        const s = storeRef.current
+        if (f.status === 'uploading') return s.pauseFile(f.id)
+        if (f.status === 'paused')    return s.resumeFile(f.id)
+        if (f.status === 'error')     return s.retryFile(f.id)
+    }
+
+    return html`
+        &lt;web-dropzone ref=${storeRef} id="rx-store" mode="headless" multiple max-file-count="6"&gt;&lt;/web-dropzone&gt;
+        &lt;web-dropzone-picker for="rx-store" selector-appearance="card" label="Drop files for React"&gt;&lt;/web-dropzone-picker&gt;
+        ${files.length === 0
+            ? html`&lt;div className="rx-empty"&gt;No files yet&lt;/div&gt;`
+            : html`&lt;div className="rx-list"&gt;
+                ${files.map((f) =&gt; html`
+                    &lt;div key=${f.id} className="rx-row" style=${{ '--rx-progress': f.progress + '%' }}&gt;
+                        &lt;span&gt;${iconFor(f.status)}&lt;/span&gt;
+                        &lt;span className="rx-row__name"&gt;${f.name}&lt;/span&gt;
+                        &lt;span className=${`rx-row__status rx-row__status--${f.status}`}&gt;${f.status}&lt;/span&gt;
+                        &lt;span className="rx-row__bar"&gt;&lt;span className="rx-row__bar-fill"&gt;&lt;/span&gt;&lt;/span&gt;
+                        &lt;span className="rx-row__pct"&gt;${Math.round(f.progress)}%&lt;/span&gt;
+                        &lt;span className="rx-row__actions"&gt;
+                            ${actionLabel(f.status) &amp;&amp; html`&lt;button className="rx-row__action" onClick=${() =&gt; rowAction(f)}&gt;${actionLabel(f.status)}&lt;/button&gt;`}
+                        &lt;/span&gt;
+                    &lt;/div&gt;
+                `)}
+            &lt;/div&gt;`}
+    `
+}
+
+createRoot(document.getElementById('react-root')).render(React.createElement(Uploader))</pre>
+            </div>
+        </section>
+
+        <footer>
+            <p>Web Dropzone · <a href="https://github.com/keenmate/web-dropzone">GitHub</a> · <a href="examples-architecture.html">Architecture</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        // Bare specifiers (`'react'`, `'react-dom/client'`) would normally be
+        // resolved by a browser importmap, but Vite's dev server runs its own
+        // import-analysis on inline modules and rejects them before the
+        // browser ever sees the importmap. Use full CDN URLs instead so Vite
+        // passes them through untouched.
+        import React, { useEffect, useRef, useState } from 'https://esm.sh/react@18'
+        import { createRoot } from 'https://esm.sh/react-dom@18/client'
+        import htm from 'https://esm.sh/htm@3'
+        const html = htm.bind(React.createElement)
+
+        function simulateUpload({ durationMs = 4000, failureRate = 0 } = {}) {
+            return (file, onProgress, signal, context) => new Promise((resolve, reject) => {
+                const startPct = context?.startPercent ?? 0
+                if (startPct >= 100) {
+                    resolve({ metadata: { uploadedAt: new Date().toISOString() } })
+                    return
+                }
+                const remainingPct = 100 - startPct
+                const remainingMs = durationMs * (remainingPct / 100)
+                const start = performance.now()
+                let aborted = false
+                signal?.addEventListener('abort', () => {
+                    aborted = true
+                    reject(new DOMException('Aborted', 'AbortError'))
+                })
+                const tick = () => {
+                    if (aborted) return
+                    const elapsed = performance.now() - start
+                    const pct = Math.min(100, startPct + remainingPct * (elapsed / remainingMs))
+                    onProgress(pct)
+                    if (pct >= 100) {
+                        if (Math.random() < failureRate) {
+                            reject(new Error('Simulated upload failure'))
+                        } else {
+                            resolve({ metadata: { uploadedAt: new Date().toISOString() } })
+                        }
+                        return
+                    }
+                    requestAnimationFrame(tick)
+                }
+                requestAnimationFrame(tick)
+            })
+        }
+
+        const iconFor = (status) => ({
+            pending: '⏳', uploading: '⬆️', paused: '⏸️',
+            complete: '✅', error: '⚠️'
+        }[status] ?? '·')
+
+        const actionLabel = (status) => ({
+            uploading: 'Pause', paused: 'Resume', error: 'Retry'
+        }[status])
+
+        function Uploader() {
+            const storeRef = useRef(null)
+            const [files, setFiles] = useState([])
+            // Diagnostic — counts how many files-changed events the listener
+            // actually receives. If this barely moves during an upload while
+            // progress visibly changes elsewhere, React is dropping renders.
+            const [eventCount, setEventCount] = useState(0)
+
+            useEffect(() => {
+                const store = storeRef.current
+                store.uploadFileCallback = simulateUpload({ durationMs: 4000 })
+                const onChange = (e) => {
+                    setFiles(e.detail.files)
+                    setEventCount((c) => c + 1)
+                }
+                store.addEventListener('files-changed', onChange)
+                return () => store.removeEventListener('files-changed', onChange)
+            }, [])
+
+            const rowAction = (f) => {
+                const s = storeRef.current
+                if (f.status === 'uploading') return s.pauseFile(f.id)
+                if (f.status === 'paused')    return s.resumeFile(f.id)
+                if (f.status === 'error')     return s.retryFile(f.id)
+            }
+
+            const callAll = (method) => () => storeRef.current?.[method]?.()
+
+            const anyUploading = files.some((f) => f.status === 'uploading')
+            const anyPaused    = files.some((f) => f.status === 'paused')
+            const anyError     = files.some((f) => f.status === 'error')
+
+            return html`
+                <web-dropzone ref=${storeRef} id="rx-store" mode="headless" multiple max-file-count="6"></web-dropzone>
+                <web-dropzone-picker for="rx-store" selector-appearance="card" label="Drop files for React"></web-dropzone-picker>
+
+                ${files.length === 0
+                    ? html`<div className="rx-empty">No files yet — drop something above.</div>`
+                    : html`<div className="rx-list">
+                        ${files.map((f) => html`
+                            <div key=${f.id} className="rx-row" style=${{ '--rx-progress': f.progress + '%' }}>
+                                <span>${iconFor(f.status)}</span>
+                                <span className="rx-row__name">${f.name}</span>
+                                <span className=${`rx-row__status rx-row__status--${f.status}`}>${f.status}</span>
+                                <span className="rx-row__bar">
+                                    <span className="rx-row__bar-fill"></span>
+                                </span>
+                                <span className="rx-row__pct">${f.progress.toFixed(1)}%</span>
+                                <span className="rx-row__actions">
+                                    ${actionLabel(f.status) && html`<button className="rx-row__action" onClick=${() => rowAction(f)}>${actionLabel(f.status)}</button>`}
+                                </span>
+                            </div>
+                        `)}
+                    </div>`}
+
+                <div className="rx-toolbar">
+                    <button onClick=${callAll('pauseAll')} disabled=${!anyUploading}>Pause all</button>
+                    <button onClick=${callAll('resumeAll')} disabled=${!anyPaused}>Resume all</button>
+                    <button onClick=${callAll('retryAll')} disabled=${!anyError}>Retry all</button>
+                    <button onClick=${callAll('clear')} disabled=${files.length === 0}>Clear</button>
+                    <span style=${{ marginLeft: 'auto', alignSelf: 'center', fontSize: '0.85rem', color: '#475569', fontVariantNumeric: 'tabular-nums' }}>
+                        files-changed received: <strong>${eventCount}</strong>
+                    </span>
+                </div>
+            `
+        }
+
+        createRoot(document.getElementById('react-root')).render(React.createElement(Uploader))
+    </script>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>

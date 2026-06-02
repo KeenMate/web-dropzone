@@ -41,8 +41,8 @@
 
         <!-- MAX SIZE -->
         <div class="card">
-            <h2>Max File Size (<code>max-size</code>)</h2>
-            <p><code>max-size</code> is in bytes. Files larger than the limit are rejected with code <code>'size'</code>.</p>
+            <h2>Max File Size (<code>max-file-size</code>)</h2>
+            <p><code>max-file-size</code> accepts bytes or a human suffix (<code>5MB</code>, <code>300kB</code>, <code>1.5GB</code> — binary/1024-based units). Files larger than the limit are rejected with code <code>'size'</code>.</p>
 
             <div class="grid">
                 <div class="form-group">
@@ -72,7 +72,7 @@
 
         <!-- MAX FILES -->
         <div class="card">
-            <h2>Max File Count (<code>max-files</code>)</h2>
+            <h2>Max File Count (<code>max-file-count</code>)</h2>
             <p>Once the count is reached, subsequent files are rejected with code <code>'count'</code>.</p>
 
             <div class="grid">

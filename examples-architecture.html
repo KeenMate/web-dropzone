@@ -608,6 +608,39 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
             </div>
         </section>
 
+        <!-- USE CASE F: BYO renderer via files-changed -->
+        <section class="card">
+            <span class="scenario-mode">USE CASE F</span>
+            <h2>Bring your own renderer — <code>mode="headless"</code> + <code>files-changed</code></h2>
+            <p>The most decoupled story: skip satellites entirely and react to the coalesced <code>files-changed</code> CustomEvent. The store fires it once per animation frame with the current snapshot — your renderer (vanilla DOM, Lit, Svelte, anything) diffs and updates whatever UI it owns. Granular events (<code>file-progress</code> / <code>file-status-changed</code>) still fire if you want per-tick fidelity instead.</p>
+
+            <web-dropzone id="dz-byo" multiple max-file-count="8"></web-dropzone>
+
+            <div class="grid" style="margin-top:1rem">
+                <div>
+                    <web-dropzone-picker for="dz-byo" selector-appearance="card" label="Drop files for BYO renderer"></web-dropzone-picker>
+                </div>
+                <div>
+                    <strong style="display:block;margin-bottom:0.4rem">Hand-rolled list (no satellite)</strong>
+                    <ul id="byo-list" style="list-style:none;padding:0;margin:0;font-family:ui-monospace,monospace;font-size:0.85rem"></ul>
+                </div>
+            </div>
+
+            <div class="code-block">
+<pre>const store = document.getElementById('dz-byo')
+const list  = document.getElementById('byo-list')
+
+store.addEventListener('files-changed', (e) =&gt; {
+    const { files } = e.detail
+    list.replaceChildren(...files.map(f =&gt; {
+        const li = document.createElement('li')
+        li.textContent = `${f.name} — ${f.status} ${Math.round(f.progress)}%`
+        return li
+    }))
+})</pre>
+            </div>
+        </section>
+
         <footer>
             <p>Web Dropzone · <a href="https://github.com/keenmate/web-dropzone">GitHub</a> · <a href="ARCHITECTURE.md">ARCHITECTURE.md</a></p>
         </footer>
@@ -1143,6 +1176,45 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
                 if (lastProgress.get(id) === bucket) return;
                 lastProgress.set(id, bucket);
                 addLogRow('file-progress', `${id.slice(-6)}: ${e.detail.progress.toFixed(0)}%`);
+            });
+        }
+
+        // --- Use case F: BYO renderer (mode=headless + files-changed) ---
+        // The dropzone is a pure store; the <ul> below is owned by this
+        // script. One listener, one diff per rAF. No satellites involved.
+        const dzByo = document.getElementById('dz-byo');
+        if (dzByo) {
+            dzByo.uploadFileCallback = simulateUpload({ bucket: 'byo', durationMs: 4000 });
+            const list = document.getElementById('byo-list');
+            const colorForStatus = (s) => ({
+                pending: '#6b7280', uploading: '#2563eb',
+                complete: '#16a34a', error: '#dc2626', paused: '#a16207'
+            })[s] || '#6b7280';
+            dzByo.addEventListener('files-changed', (e) => {
+                const items = e.detail.files.map((f) => {
+                    const li = document.createElement('li');
+                    li.style.display = 'flex';
+                    li.style.gap = '0.5rem';
+                    li.style.padding = '0.25rem 0';
+                    li.style.borderBottom = '1px solid #e5e7eb';
+                    const name = document.createElement('span');
+                    name.textContent = f.name;
+                    name.style.flex = '1';
+                    name.style.overflow = 'hidden';
+                    name.style.textOverflow = 'ellipsis';
+                    name.style.whiteSpace = 'nowrap';
+                    const status = document.createElement('span');
+                    status.textContent = f.status;
+                    status.style.color = colorForStatus(f.status);
+                    const pct = document.createElement('span');
+                    pct.textContent = Math.round(f.progress) + '%';
+                    pct.style.width = '3rem';
+                    pct.style.textAlign = 'right';
+                    pct.style.color = '#6b7280';
+                    li.append(name, status, pct);
+                    return li;
+                });
+                list.replaceChildren(...items);
             });
         }
     </script>

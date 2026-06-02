@@ -15,42 +15,49 @@ import type { DropzoneElement } from './web-component';
 /**
  * Look up the `<web-dropzone>` element a satellite binds to via its `for=`
  * attribute. Returns null if the element is missing or isn't a
- * DropzoneElement (e.g. `for="some-div"`). Does NOT wait for the store to be
- * initialized — callers should pair this with `whenStoreReady`.
+ * `<web-dropzone>` (e.g. `for="some-div"`). Does NOT wait for the store to
+ * be upgraded or initialized — callers should pair this with
+ * `whenStoreReady`, which handles both races.
+ *
+ * Note: we check by `tagName` rather than duck-typing on `getStore` because
+ * the store custom element may not have upgraded yet (satellites can
+ * register before `<web-dropzone>` does — see index.ts).
  */
 export function resolveStoreElement(forId: string | null): DropzoneElement | null {
     if (!forId) return null;
     const el = document.getElementById(forId);
     if (!el) return null;
-    // Avoid a hard `instanceof` check that would fail across bundles/HMR.
-    // Duck-type on `getStore` instead — DropzoneElement is the only thing
-    // with that method.
-    if (typeof (el as DropzoneElement).getStore !== 'function') return null;
+    if (el.tagName !== 'WEB-DROPZONE') return null;
     return el as DropzoneElement;
 }
 
 /**
  * Resolve a store's underlying `WebDropzone` instance, waiting if the store
- * hasn't run its `connectedCallback` yet. Resolves with the instance once
- * available; calls `onResolved` exactly once. Returns a teardown function
- * that cancels the wait if the satellite is disconnected before resolution.
+ * hasn't upgraded or run its `connectedCallback` yet. Resolves with the
+ * instance once available; calls `onResolved` exactly once. Returns a
+ * teardown function that cancels the wait if the satellite is disconnected
+ * before resolution.
  *
- * Race handling: when the satellite connects before the store, `getStore()`
- * returns undefined. We then listen for the store's `store-ready` event and
- * re-call `getStore()`. The store dispatches `store-ready` synchronously at
- * the end of its `initializeDropzone()`, so this is reliable.
+ * Race handling: a satellite can connect before the store does — either
+ * because the store hasn't upgraded yet (custom element registration
+ * order) or because its `connectedCallback` hasn't run yet. In both cases
+ * `getStore` is either missing or returns undefined. We listen for
+ * `store-ready` (dispatched at the end of `initializeDropzone()`) and
+ * re-check then. The listener is attached even on the un-upgraded element —
+ * `addEventListener` is inherited from `HTMLElement`, so the upgrade
+ * preserves it.
  */
 export function whenStoreReady(
     storeEl: DropzoneElement,
     onResolved: (store: WebDropzone) => void
 ): () => void {
-    const immediate = storeEl.getStore();
+    const immediate = typeof storeEl.getStore === 'function' ? storeEl.getStore() : undefined;
     if (immediate) {
         onResolved(immediate);
         return () => { /* nothing to tear down */ };
     }
     const handler = () => {
-        const ready = storeEl.getStore();
+        const ready = typeof storeEl.getStore === 'function' ? storeEl.getStore() : undefined;
         if (ready) {
             storeEl.removeEventListener('store-ready', handler);
             onResolved(ready);

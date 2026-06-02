@@ -71,7 +71,7 @@ import type {
 /**
  * Default configuration values
  */
-const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCallback' | 'removeCallback' | 'changeCallback' | 'rejectCallback' | 'retryCallback' | 'uploadFileCallback' | 'uploadedCallback' | 'deleteCallback' | 'renderFileItemCallback' | 'renderPromptCallback' | 'renderSummaryCallback' | 'customStylesCallback' | 'persistStateCallback' | 'loadStateCallback' | 'storageKey' | 'container' | 'hostElement' | 'overlayTarget' | 'selectorAppearance' | 'listAppearance' | 'cardSize' | 'isShowThumbnailsEnabled' | 'retryPolicy' | 'rollingRotation' | 'isHeadless' | 'renderRollingBodyCallback' | 'renderRollingFileInfoCallback' | 'renderRollingProgressCallback'>> = {
+const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCallback' | 'removeCallback' | 'changeCallback' | 'rejectCallback' | 'retryCallback' | 'uploadFileCallback' | 'uploadedCallback' | 'deleteCallback' | 'renderFileItemCallback' | 'renderListWrapperCallback' | 'renderPromptCallback' | 'renderSummaryCallback' | 'customStylesCallback' | 'persistStateCallback' | 'loadStateCallback' | 'storageKey' | 'container' | 'hostElement' | 'overlayTarget' | 'selectorAppearance' | 'listAppearance' | 'cardSize' | 'isShowThumbnailsEnabled' | 'retryPolicy' | 'rollingRotation' | 'isHeadless' | 'renderRollingBodyCallback' | 'renderRollingFileInfoCallback' | 'renderRollingProgressCallback'>> = {
     isMultipleEnabled: true,
     accept: '',
     maxFileSize: 0,
@@ -82,6 +82,11 @@ const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCal
     maxVisibleFiles: 7,
     dedupeMode: 'name',
     isDisabled: false,
+    // Default for programmatic (non-web-component) usage. The web-component
+    // wrapper always resolves an explicit mode in `buildConfig` before
+    // construction reaches here.
+    mode: 'bulk',
+    progressThrottle: 0,
     displayMode: 'list',
     isFilesInsideEnabled: false,
     icon: '📤',
@@ -283,6 +288,37 @@ export class WebDropzone {
      * in-class renderer is in use.
      */
     private satelliteListEl: HTMLElement | null = null;
+    /**
+     * Cache of element-returning `renderFileItemCallback` outputs, keyed by
+     * file id. When present for a file, `patchFileRow` skips the re-render
+     * path and dispatches a `file-row-update` event on the cached element
+     * instead — preserving listeners and DOM identity across state ticks.
+     * Pruned in `renderFileList` (files no longer visible) and in
+     * `removeFile`.
+     */
+    private fileRowElements: Map<string, HTMLElement> = new Map();
+    /**
+     * Per-file progress throttling. `lastFireAt` holds the last
+     * `performance.now()` we ran the tick for each file. When a new
+     * progress call lands within the throttle window, the latest value
+     * is stashed in `pendingProgress` and a trailing-edge timer
+     * (`pendingTimer`) fires it after the window elapses. The final
+     * value (e.g. 100%) is never dropped — held values flush as a
+     * single trailing tick. See `progressThrottle` config.
+     */
+    private throttleLastFireAt: Map<string, number> = new Map();
+    private throttlePendingTimer: Map<string, ReturnType<typeof setTimeout>> = new Map();
+    private throttlePendingProgress: Map<string, number> = new Map();
+    /**
+     * Coalesced `files-changed` event state. Any granular emit
+     * (`file-added` / `file-removed` / `file-progress` /
+     * `file-status-changed`) marks the file id dirty and schedules an
+     * rAF; the rAF dispatches a single `files-changed` with the current
+     * snapshot. Mode-3 / reactive consumers subscribe to this one event
+     * instead of the four granular ones to get one diff per frame.
+     */
+    private dirtyFileIds: Set<string> = new Set();
+    private filesChangedRafHandle: number | null = null;
 
     // Rolling list status-surface memoization. Encapsulates the three
     // `*Prev` snapshots (body / fileInfo / progress) so identical results
@@ -383,6 +419,9 @@ export class WebDropzone {
         const file = this.files[index];
         const hasServerState = this.hasServerSideState(file);
         this.files.splice(index, 1);
+        this.fileRowElements.delete(id);
+        this.throttleLastFireAt.delete(id);
+        this.clearThrottlePending(id);
 
         fileLogger.debug('File removed', { id, name: file.name, hasServerState });
 
@@ -492,6 +531,14 @@ export class WebDropzone {
         this.pausedIds.clear();
         this.activeIds.clear();
 
+        // Cancel coalesced rAF; clear all per-file throttle timers.
+        if (this.filesChangedRafHandle !== null) {
+            cancelAnimationFrame(this.filesChangedRafHandle);
+            this.filesChangedRafHandle = null;
+        }
+        for (const handle of this.throttlePendingTimer.values()) clearTimeout(handle);
+        this.throttlePendingTimer.clear();
+
         this.detachEventListeners();
         this.closePopover();
         this.cleanupOverlay();
@@ -505,12 +552,52 @@ export class WebDropzone {
      * pipelines that emit progress events at 50ms intervals across many files.
      */
     updateFileProgress(id: string, progress: number): void {
+        const throttleMs = this.config.progressThrottle ?? 0;
+        if (throttleMs <= 0) {
+            this.flushProgressTick(id, progress);
+            return;
+        }
+
+        const now = performance.now();
+        const lastFire = this.throttleLastFireAt.get(id) ?? 0;
+        const elapsed = now - lastFire;
+
+        if (elapsed >= throttleMs) {
+            // Cooldown elapsed — fire immediately, mark timestamp.
+            this.flushProgressTick(id, progress);
+            this.throttleLastFireAt.set(id, performance.now());
+            this.clearThrottlePending(id);
+            return;
+        }
+
+        // Within cooldown — overwrite pending value; schedule a
+        // trailing-edge fire if one isn't already queued.
+        this.throttlePendingProgress.set(id, progress);
+        if (!this.throttlePendingTimer.has(id)) {
+            const wait = throttleMs - elapsed;
+            const handle = setTimeout(() => {
+                this.throttlePendingTimer.delete(id);
+                const pending = this.throttlePendingProgress.get(id);
+                this.throttlePendingProgress.delete(id);
+                if (pending !== undefined) {
+                    this.flushProgressTick(id, pending);
+                    this.throttleLastFireAt.set(id, performance.now());
+                }
+            }, wait);
+            this.throttlePendingTimer.set(id, handle);
+        }
+    }
+
+    /**
+     * Apply a single progress tick — clamp value, auto-flip status, run
+     * the centralized mutator so events fire atomically, then patch the
+     * row. Hot-path helper for `updateFileProgress`; also used by the
+     * throttle's trailing-edge timer with the latest stashed progress
+     * value.
+     */
+    private flushProgressTick(id: string, progress: number): void {
         const file = this.files.find(f => f.id === id);
         if (!file) return;
-
-        // Compute clamped progress + auto-flip status, then commit through
-        // the centralized mutator so file-progress / file-status-changed
-        // fire atomically (one mutator call → at most one of each event).
         const clamped = Math.max(0, Math.min(100, progress));
         let nextStatus = file.status;
         if (clamped > 0 && clamped < 100 && file.status === 'pending') {
@@ -519,10 +606,15 @@ export class WebDropzone {
             nextStatus = 'complete';
         }
         this.mutateFileState(file, { progress: clamped, status: nextStatus });
-
         fileLogger.debug('File progress updated', { id, progress: file.progress, status: file.status });
-
         this.patchFileRow(file);
+    }
+
+    private clearThrottlePending(id: string): void {
+        const handle = this.throttlePendingTimer.get(id);
+        if (handle !== undefined) clearTimeout(handle);
+        this.throttlePendingTimer.delete(id);
+        this.throttlePendingProgress.delete(id);
     }
 
     /**
@@ -1243,12 +1335,13 @@ export class WebDropzone {
      * Convenience-form rendering paths that decompose cleanly into a
      * `<web-dropzone-picker>` + `<web-dropzone-list>` pair.
      *
-     * Excluded: custom render callbacks (`renderFileItemCallback`,
-     * `renderPromptCallback`, `renderSummaryCallback`) — the satellites
-     * don't honor these store-level callbacks, so users who set any of
-     * them keep the in-class render so their customization still works.
+     * Gated by mode (hard switch — see DropzoneMode):
+     *   - 'bulk' (default)  → satellite path; render callbacks IGNORED.
+     *   - 'structural'      → in-class render path so render callbacks
+     *                         (`renderFileItemCallback`, etc.) take effect.
+     *   - 'headless'        → render() short-circuits before reaching us.
      *
-     * Notes:
+     * Notes on the satellite path:
      *  - `popover` is satellite — the list satellite renders the summary
      *    anchor and dispatches `dz-summary-click`. The popover wrapper
      *    (Floating UI + resize + persistence) stays in-class and opens on
@@ -1261,10 +1354,13 @@ export class WebDropzone {
      */
     private shouldUseSatelliteRendering(): boolean {
         if (!this.config.hostElement) return false;
-        if (this.config.renderFileItemCallback) return false;
-        if (this.config.renderPromptCallback) return false;
-        if (this.config.renderSummaryCallback) return false;
+        if (this.config.mode === 'structural') return false;
         return true;
+    }
+
+    /** True only when consumer-provided render callbacks should be honored. */
+    private isStructuralMode(): boolean {
+        return this.config.mode === 'structural';
     }
 
     /**
@@ -1473,7 +1569,7 @@ export class WebDropzone {
      * `renderPromptCallback` if provided.
      */
     private renderCardContent(cardSize: CardSize): string {
-        if (this.config.renderPromptCallback) {
+        if (this.isStructuralMode() && this.config.renderPromptCallback) {
             const result = this.config.renderPromptCallback();
             return typeof result === 'string' ? result : result.outerHTML;
         }
@@ -1636,24 +1732,58 @@ export class WebDropzone {
      * context.
      */
     private htmlToElement(html: string): HTMLElement | null {
+        const trimmed = html.trim();
+        // Table-content fragments (`<tr>`, `<td>`, `<tbody>`, etc.) can't
+        // be parsed via a bare <template> in every browser — the HTML
+        // parser's "in body" insertion mode handles them inconsistently
+        // when they have no enclosing <table>. Parse them with explicit
+        // context so the wrapper-callback table demo's per-tick row swap
+        // (patchFileRow) actually finds the new <tr>.
+        const lower = trimmed.toLowerCase();
+        if (lower.startsWith('<tr')) {
+            const tbody = document.createElement('tbody');
+            tbody.innerHTML = trimmed;
+            return tbody.firstElementChild as HTMLElement | null;
+        }
+        if (lower.startsWith('<td') || lower.startsWith('<th')) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = trimmed;
+            return tr.firstElementChild as HTMLElement | null;
+        }
+        if (lower.startsWith('<tbody') || lower.startsWith('<thead') || lower.startsWith('<tfoot')) {
+            const table = document.createElement('table');
+            table.innerHTML = trimmed;
+            return table.firstElementChild as HTMLElement | null;
+        }
         const template = document.createElement('template');
-        template.innerHTML = html.trim();
+        template.innerHTML = trimmed;
         return template.content.firstElementChild as HTMLElement | null;
     }
 
-    /** Attach the main-list remove-button click handler within a subtree. */
+    /**
+     * Attach the main-list remove + row-action click handlers within a
+     * subtree. Element-returning row callbacks (see `fileRowElements`)
+     * cause this to be called multiple times against the SAME buttons
+     * across re-renders — without the `data-dz-bound-*` marker, each
+     * click would fire N handlers (one per render), which for retry
+     * actions kicks off parallel uploads.
+     */
     private bindListRemoveHandlers(root: ParentNode): void {
-        root.querySelectorAll('[data-action="remove"]').forEach(btn => {
+        root.querySelectorAll<HTMLElement>('[data-action="remove"]').forEach(btn => {
+            if (btn.dataset.dzBoundRemove === '1') return;
+            btn.dataset.dzBoundRemove = '1';
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const id = (btn as HTMLElement).dataset.fileId;
+                const id = btn.dataset.fileId;
                 if (id) this.handleUserRemoveClick(id);
             });
         });
-        root.querySelectorAll('[data-action="row-action"]').forEach(btn => {
+        root.querySelectorAll<HTMLElement>('[data-action="row-action"]').forEach(btn => {
+            if (btn.dataset.dzBoundRowAction === '1') return;
+            btn.dataset.dzBoundRowAction = '1';
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const id = (btn as HTMLElement).dataset.fileId;
+                const id = btn.dataset.fileId;
                 if (id) this.handleUserActionClick(id);
             });
         });
@@ -1732,8 +1862,15 @@ export class WebDropzone {
      */
     private patchFileRow(file: FileState): void {
         const { listAppearance } = resolveDisplayConfig(this.config);
-        const hasCustomRenderer = !!this.config.renderFileItemCallback;
+        const hasCustomRenderer = this.isStructuralMode() && !!this.config.renderFileItemCallback;
         const index = this.files.indexOf(file);
+
+        // Element-returning row callback opts in to the event-driven
+        // update model — framework dispatches `file-row-update` on the
+        // cached element instead of re-rendering. Wrapper callback
+        // sacrifices identity (rows go through outerHTML), so this only
+        // engages when wrapper is NOT set.
+        const cachedRowEl = this.fileRowElements.get(file.id);
 
         const targetEl = this.config.isFilesInsideEnabled ? this.filesInsideEl : this.fileListEl;
         if (targetEl) {
@@ -1743,7 +1880,17 @@ export class WebDropzone {
                 // complete-boundary crossing for the (delayed) reorder.
                 const prevStatus = existing.dataset.status;
 
-                if (hasCustomRenderer) {
+                if (cachedRowEl && existing === cachedRowEl) {
+                    // Event-driven update: hand control to the consumer
+                    // via a CustomEvent on the row itself. Bubbles +
+                    // composed so listeners on the store element (or
+                    // anywhere above) can also observe.
+                    cachedRowEl.dispatchEvent(new CustomEvent('file-row-update', {
+                        detail: { file },
+                        bubbles: true,
+                        composed: true
+                    }));
+                } else if (hasCustomRenderer) {
                     const next = this.htmlToElement(this.renderFileItem(file, index, false));
                     if (next) {
                         existing.replaceWith(next);
@@ -2011,6 +2158,7 @@ export class WebDropzone {
         if (!targetEl) return;
 
         if (this.files.length === 0) {
+            this.fileRowElements.clear();
             targetEl.innerHTML = this.config.isFilesInsideEnabled ? '' : `<div class="dz__empty">${escapeHtml(this.config.emptyMessage || DEFAULT_CONFIG.emptyMessage)}</div>`;
             return;
         }
@@ -2027,10 +2175,65 @@ export class WebDropzone {
         }
 
         const visible = this.getVisibleFiles();
-        const items = visible.map((file, index) => this.renderFileItem(file, index, false)).join('');
+        const structural = this.isStructuralMode();
+        const wrapperCb = structural ? this.config.renderListWrapperCallback : null;
         const toggle = this.renderToggleButton(listAppearance);
 
-        targetEl.innerHTML = items + toggle;
+        // Build the row nodes — strings for the default path, HTMLElements
+        // when the consumer's renderFileItemCallback returns one. Element
+        // identity is preserved across re-renders via fileRowElements so
+        // listeners survive and `file-row-update` events stay meaningful.
+        type RowNode = { file: FileState; node: string | HTMLElement };
+        const rows: RowNode[] = visible.map((file, index) => {
+            const cached = this.fileRowElements.get(file.id);
+            if (cached) return { file, node: cached };
+            const rendered = this.renderFileItemForList(file, index);
+            if (rendered instanceof HTMLElement) {
+                this.fileRowElements.set(file.id, rendered);
+            }
+            return { file, node: rendered };
+        });
+
+        // Prune cached elements for files no longer visible (removed, or
+        // filtered out by show-more cap). They're gone from the DOM
+        // anyway after the upcoming replaceChildren / innerHTML.
+        const visibleIds = new Set(visible.map(f => f.id));
+        for (const id of this.fileRowElements.keys()) {
+            if (!visibleIds.has(id)) this.fileRowElements.delete(id);
+        }
+
+        const hasElementRow = rows.some(r => r.node instanceof HTMLElement);
+
+        if (wrapperCb) {
+            // Wrapper callback path. Element identity is sacrificed here
+            // because the wrapper signature is string-based — documented.
+            const itemsHtml = rows.map(r => typeof r.node === 'string' ? r.node : r.node.outerHTML).join('');
+            const wrapped = wrapperCb(itemsHtml, visible);
+            if (typeof wrapped === 'string') {
+                targetEl.innerHTML = wrapped + toggle;
+            } else {
+                targetEl.replaceChildren(wrapped);
+                if (toggle) targetEl.insertAdjacentHTML('beforeend', toggle);
+            }
+        } else if (hasElementRow) {
+            // Element-preserving path — no wrapper callback in play, but
+            // at least one row is an HTMLElement. Use replaceChildren so
+            // we keep the same DOM nodes (and their listeners) across
+            // re-renders.
+            targetEl.replaceChildren();
+            for (const r of rows) {
+                if (typeof r.node === 'string') {
+                    targetEl.insertAdjacentHTML('beforeend', r.node);
+                } else {
+                    targetEl.appendChild(r.node);
+                }
+            }
+            if (toggle) targetEl.insertAdjacentHTML('beforeend', toggle);
+        } else {
+            // Default fast path — all rows are strings, single innerHTML.
+            const items = rows.map(r => r.node as string).join('');
+            targetEl.innerHTML = items + toggle;
+        }
 
         this.bindListRemoveHandlers(targetEl);
         this.bindToggleHandler(targetEl);
@@ -2040,6 +2243,33 @@ export class WebDropzone {
             visible: visible.length,
             filesInside: this.config.isFilesInsideEnabled
         });
+    }
+
+    /**
+     * Like `renderFileItem(file, i, false)` but preserves an
+     * HTMLElement return from `renderFileItemCallback`. The popover and
+     * the rolling path keep using `renderFileItem` (string-only) because
+     * those layouts don't benefit from element identity — they re-render
+     * the front row / table-row anyway.
+     */
+    private renderFileItemForList(file: FileState, index: number): string | HTMLElement {
+        const { listAppearance } = resolveDisplayConfig(this.config);
+        if (this.isStructuralMode() && this.config.renderFileItemCallback) {
+            const displayMode = this.config.displayMode ?? this.deriveLegacyDisplayMode(listAppearance);
+            const context: FileItemRenderContext = { index, displayMode, isInPopover: false };
+            return this.config.renderFileItemCallback(file, context);
+        }
+        // Fall through to the string-only path — same selection logic as
+        // renderFileItem, popover branch removed.
+        switch (listAppearance) {
+            case 'grid':     return this.renderGridItem(file);
+            case 'detailed': return this.renderDetailedItem(file);
+            case 'badges':   return this.renderBadgeItem(file);
+            case 'popover':  return this.renderCompactItem(file);
+            case 'none':     return '';
+            case 'list':
+            default:         return this.renderListItem(file);
+        }
     }
 
     /**
@@ -2093,7 +2323,7 @@ export class WebDropzone {
         // container (no animation slots, no queue badge). Skipped when
         // returns null (library default). `false` hides the rolling block.
         const args = buildStatusSurfaceArgs(this.files, this);
-        const bodyResult = this.config.renderRollingBodyCallback
+        const bodyResult = this.isStructuralMode() && this.config.renderRollingBodyCallback
             ? this.config.renderRollingBodyCallback(args)
             : null;
         const { current, previous } = this.rollingSurface.applyBody(targetEl, bodyResult);
@@ -2195,7 +2425,8 @@ export class WebDropzone {
         // content. No fallback: a null result leaves the row template's
         // pre-rendered name span alone (covers the common case where users
         // only want to customize progress).
-        const fileInfoCb = this.config.renderRollingFileInfoCallback;
+        const structural = this.isStructuralMode();
+        const fileInfoCb = structural ? this.config.renderRollingFileInfoCallback : null;
         const fileInfoSlot = currentEl.querySelector<HTMLElement>('.dz__file-item__name');
         if (fileInfoCb && fileInfoSlot) {
             this.rollingSurface.applyFileInfo(fileInfoSlot, fileInfoCb(args));
@@ -2203,7 +2434,7 @@ export class WebDropzone {
 
         // Progress slot — same pattern. Default is the bar + percent text
         // that came out of renderListItem.
-        const progressCb = this.config.renderRollingProgressCallback;
+        const progressCb = structural ? this.config.renderRollingProgressCallback : null;
         const progressSlot = currentEl.querySelector<HTMLElement>('.dz__file-item__progress');
         if (progressCb && progressSlot) {
             this.rollingSurface.applyProgress(progressSlot, progressCb(args));
@@ -2294,7 +2525,7 @@ export class WebDropzone {
         // The custom renderer keeps its legacy `displayMode` field for backward
         // compatibility — populated from the shorthand if set, otherwise
         // derived from listAppearance.
-        if (this.config.renderFileItemCallback) {
+        if (this.isStructuralMode() && this.config.renderFileItemCallback) {
             const displayMode = this.config.displayMode ?? this.deriveLegacyDisplayMode(listAppearance);
             const context: FileItemRenderContext = { index, displayMode, isInPopover };
             const result = this.config.renderFileItemCallback(file, context);
@@ -2516,7 +2747,7 @@ export class WebDropzone {
         }
 
         let content: string;
-        if (this.config.renderSummaryCallback) {
+        if (this.isStructuralMode() && this.config.renderSummaryCallback) {
             const result = this.config.renderSummaryCallback(this.files);
             content = typeof result === 'string' ? result : result.outerHTML;
         } else {
@@ -3497,6 +3728,7 @@ export class WebDropzone {
             composed: true
         });
         this.element.dispatchEvent(event);
+        this.markFilesChanged(file.id);
 
         if (this.config.addCallback) {
             this.config.addCallback([file]);
@@ -3510,10 +3742,35 @@ export class WebDropzone {
             composed: true
         });
         this.element.dispatchEvent(event);
+        this.markFilesChanged(file.id);
 
         if (this.config.removeCallback) {
             this.config.removeCallback(file);
         }
+    }
+
+    /**
+     * Mark a file id as dirty and schedule the coalesced
+     * `files-changed` event for the next animation frame. Multiple
+     * calls within the same frame collapse into a single dispatch
+     * with the union of dirty ids. The dispatch carries the current
+     * `getFiles()` snapshot — reactive consumers diff against their
+     * own last-seen list.
+     */
+    private markFilesChanged(id: string): void {
+        this.dirtyFileIds.add(id);
+        if (this.filesChangedRafHandle !== null) return;
+        this.filesChangedRafHandle = requestAnimationFrame(() => {
+            this.filesChangedRafHandle = null;
+            const changedIds = Array.from(this.dirtyFileIds);
+            this.dirtyFileIds.clear();
+            const event = new CustomEvent('files-changed', {
+                detail: { changedIds, files: this.getFiles() },
+                bubbles: true,
+                composed: true
+            });
+            this.element.dispatchEvent(event);
+        });
     }
 
     private emitChangeEvent(): void {
@@ -3595,6 +3852,7 @@ export class WebDropzone {
             composed: true
         });
         this.element.dispatchEvent(event);
+        this.markFilesChanged(file.id);
     }
 
     /**
@@ -3613,6 +3871,7 @@ export class WebDropzone {
             composed: true
         });
         this.element.dispatchEvent(event);
+        this.markFilesChanged(file.id);
     }
 
     /**
