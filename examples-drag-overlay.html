@@ -61,6 +61,42 @@
             font-size: 0.9rem;
             color: #4b5563;
         }
+        .reject-toast {
+            margin-top: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        .reject-toast[hidden] { display: none; }
+        .reject-toast strong { color: #7f1d1d; }
+        .demo-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.7rem;
+            margin-bottom: 1rem;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #4b5563;
+            cursor: pointer;
+            user-select: none;
+        }
+        .demo-toggle input { margin: 0; cursor: pointer; }
+        .card:has(.demo-toggle input:checked) .demo-toggle {
+            background: #dcfce7;
+            border-color: #86efac;
+            color: #166534;
+        }
+        .card:not(:has(.demo-toggle input:checked)) {
+            opacity: 0.6;
+        }
     </style>
 </head>
 <body>
@@ -87,23 +123,23 @@
         </div>
 
         <!-- COMPACT + OVERLAY ON A FORM -->
-        <div class="card">
-            <h2>Compact selector + form-as-target</h2>
-            <p>The dropzone here is rendered in compact mode (small inline summary). Dragging files anywhere will cover the <strong>form card below</strong> with a drop overlay.</p>
+        <div class="card" data-demo="form">
+            <h2>Form-as-target (no visible selector)</h2>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="form" checked>
+                <span>Active demo</span>
+            </label>
+            <p>The dropzone itself is hidden — only the form is visible. Dragging files anywhere will cover the <strong>form below</strong> with a drop overlay.</p>
 
-            <div class="form-group">
-                <label>Attachments (compact)</label>
-                <web-dropzone
-                    id="overlay-compact"
-                    display-mode="compact"
-                    overlay-target="overlay-form-target"
-                    overlay-text="Drop attachments onto the form"
-                    overlay-icon="📨"
-                    max-file-count="5"
-                    accept="*/*">
-                </web-dropzone>
-                <small class="form-text">Drag any file from your desktop — the form card below highlights as a drop zone.</small>
-            </div>
+            <web-dropzone
+                id="overlay-compact"
+                style="display:none"
+                overlay-target="overlay-form-target"
+                overlay-text="Drop attachments onto the form"
+                overlay-icon="📨"
+                max-file-count="5"
+                accept="*/*">
+            </web-dropzone>
 
             <div id="overlay-form-target" class="mock-form">
                 <div class="form-row">
@@ -118,35 +154,59 @@
                     <label>Message</label>
                     <textarea>Sharing the latest revision of the spec — feedback welcome.</textarea>
                 </div>
+                <div class="form-row">
+                    <label>Attachments</label>
+                    <web-dropzone-list
+                        for="overlay-compact"
+                        list-appearance="badges"
+                        empty-message="No attachments yet — drop files anywhere on the page.">
+                    </web-dropzone-list>
+                </div>
             </div>
         </div>
 
         <!-- OVERLAY ON A SPECIFIC CARD -->
-        <div class="card">
-            <h2>Specific card as the drop target</h2>
-            <p>Drop onto the highlighted card below — it acts as the overlay target while the dropzone control sits compactly above.</p>
+        <div class="card" data-demo="card">
+            <h2>Button selector + card as the drop target</h2>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="card">
+                <span>Active demo</span>
+            </label>
+            <p>The visible selector is a <strong>click-only button</strong> (<code>selector-appearance="button"</code>) — it doesn't look like a drop area itself, so there's no visual ambiguity. Drag-drop happens via the overlay that covers the highlighted card below.</p>
 
-            <div class="form-group">
-                <label>Reports (compact)</label>
+            <div class="form-group" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
                 <web-dropzone
                     id="overlay-card"
-                    display-mode="compact"
+                    selector-appearance="button"
+                    list-appearance="none"
+                    multiple
+                    accept=".pdf,.xlsx,.csv"
                     overlay-target="reports-card"
                     overlay-text="Drop reports here"
-                    overlay-icon="📊"
-                    accept=".pdf,.xlsx,.csv">
+                    overlay-icon="📊">
                 </web-dropzone>
+                <small class="form-text" style="margin:0;">Click to browse, or drag onto the card. PDF / XLSX / CSV only.</small>
             </div>
 
             <div id="reports-card" class="mock-card">
                 <h3>📊 Q4 Reports</h3>
-                <p style="color:#6b7280;font-size:0.9rem;margin:0;">Drop PDF / XLSX / CSV files here. The overlay covers this card while you're dragging.</p>
+                <p style="color:#6b7280;font-size:0.9rem;margin:0 0 0.75rem 0;">The overlay covers this card while you're dragging.</p>
+                <web-dropzone-list
+                    for="overlay-card"
+                    list-appearance="badges"
+                    empty-message="No reports yet.">
+                </web-dropzone-list>
+                <div class="reject-toast" id="overlay-card-reject" hidden></div>
             </div>
         </div>
 
         <!-- FULL PAGE OVERLAY VIA JS -->
-        <div class="card">
+        <div class="card" data-demo="fullpage">
             <h2>Full-page overlay (target via JS property)</h2>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="fullpage">
+                <span>Active demo</span>
+            </label>
             <p>You can also pass an <code>HTMLElement</code> to <code>overlayTarget</code> in JavaScript — useful when the element you want as the target is dynamic or not addressable by id.</p>
 
             <div class="form-group">
@@ -180,13 +240,54 @@ el.overlayTarget = document.body
     </div>
 
     <script type="module">
-        // Full-page overlay: pass body as an element via the property.
-        const fullpage = document.getElementById('overlay-fullpage')
-        // Wait a tick so the underlying dropzone has booted and seen the
-        // initial attribute-driven config, then swap in document.body.
-        requestAnimationFrame(() => {
-            fullpage.overlayTarget = document.body
+        // Only one demo is "live" at a time — otherwise all three dropzones
+        // race their document-level dragenter listeners and the first one to
+        // create its overlay wins (visible bug: dragging over the full-page
+        // demo would show the Q4 card overlay). The radio buttons toggle
+        // `disabled` on the inactive dropzones so they ignore drags.
+        const demoDropzones = {
+            form: document.getElementById('overlay-compact'),
+            card: document.getElementById('overlay-card'),
+            fullpage: document.getElementById('overlay-fullpage'),
+        }
+        function applyActiveDemo(value) {
+            for (const [key, el] of Object.entries(demoDropzones)) {
+                if (key === value) el.removeAttribute('disabled')
+                else el.setAttribute('disabled', '')
+            }
+        }
+        document.querySelectorAll('input[name="active-demo"]').forEach(input => {
+            input.addEventListener('change', () => {
+                if (input.checked) applyActiveDemo(input.value)
+            })
         })
+        applyActiveDemo(document.querySelector('input[name="active-demo"]:checked')?.value ?? 'form')
+
+        // files-rejected demo on the card target — show a small toast inside
+        // the card whenever the dropzone refuses a file. Auto-clears after 4s.
+        const card = document.getElementById('overlay-card')
+        const rejectToast = document.getElementById('overlay-card-reject')
+        let rejectClearTimer = null
+        card.addEventListener('files-rejected', (e) => {
+            const { rejectedFiles } = e.detail
+            if (!rejectedFiles || rejectedFiles.length === 0) return
+            const lines = rejectedFiles.map(({ file, validation }) =>
+                `<strong>${file.name}</strong> — ${validation.error || 'rejected'}`
+            )
+            rejectToast.innerHTML = `Rejected:<br>${lines.join('<br>')}`
+            rejectToast.hidden = false
+            if (rejectClearTimer) clearTimeout(rejectClearTimer)
+            rejectClearTimer = setTimeout(() => {
+                rejectToast.hidden = true
+                rejectToast.innerHTML = ''
+            }, 4000)
+        })
+
+        // Full-page overlay: pass body as an element via the property.
+        // The setter stashes the element on the host even before the
+        // underlying store is constructed — buildConfig picks it up.
+        const fullpage = document.getElementById('overlay-fullpage')
+        fullpage.overlayTarget = document.body
 
         const out = document.getElementById('fullpage-output')
         fullpage.addEventListener('change', (e) => {

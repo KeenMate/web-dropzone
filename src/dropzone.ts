@@ -329,6 +329,13 @@ export class WebDropzone {
     // Drag overlay elements
     private overlayTarget: HTMLElement | null = null;
     private dragOverlay: HTMLElement | null = null;
+    // Heartbeat state for detecting drag cancellation (Esc on an external
+    // file drag never reaches JS as a keydown — browsers handle it at the
+    // OS level — so we watch the `dragover` pulse instead).
+    private overlayLastDragoverAt: number = 0;
+    private overlayHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    private boundOverlayWindowDragover: ((e: DragEvent) => void) | null = null;
+    private boundOverlayWindowDragend: (() => void) | null = null;
 
     // Event handler references for cleanup
     private boundHandleDragOver: (e: DragEvent) => void;
@@ -3952,28 +3959,67 @@ export class WebDropzone {
         const icon = this.config.overlayIcon || DEFAULT_CONFIG.overlayIcon;
         const text = this.config.overlayText || DEFAULT_CONFIG.overlayText;
 
+        // The overlay lives in light DOM (document.body) so it can cover any
+        // target on the page, but the `.dz__overlay*` rules in _modifiers.css
+        // are scoped to the shadow root and don't reach here. We inline every
+        // style the overlay needs, reading themable values from the host's
+        // `--dz-overlay-*` custom properties when present.
+        const hostStyles = this.config.hostElement
+            ? getComputedStyle(this.config.hostElement)
+            : null;
+        const themeVar = (name: string, fallback: string): string => {
+            const v = hostStyles?.getPropertyValue(name).trim();
+            return v && v.length > 0 ? v : fallback;
+        };
+
         this.dragOverlay = document.createElement('div');
         this.dragOverlay.className = 'dz__overlay';
-        // Only the rect-derived positioning is inline; the rest (position:fixed,
-        // z-index, colors, layout) lives in _modifiers.css under .dz__overlay.
-        this.dragOverlay.style.top = `${rect.top}px`;
-        this.dragOverlay.style.left = `${rect.left}px`;
-        this.dragOverlay.style.width = `${rect.width}px`;
-        this.dragOverlay.style.height = `${rect.height}px`;
+        Object.assign(this.dragOverlay.style, {
+            position: 'fixed',
+            top: `${rect.top}px`,
+            left: `${rect.left}px`,
+            width: `${rect.width}px`,
+            height: `${rect.height}px`,
+            zIndex: themeVar('--dz-overlay-z-index', '9999'),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: themeVar('--dz-overlay-bg', 'rgba(59, 130, 246, 0.92)'),
+            border: themeVar('--dz-overlay-border', '3px dashed #ffffff'),
+            borderRadius: themeVar('--dz-overlay-border-radius', '8px'),
+            color: themeVar('--dz-overlay-color', '#ffffff'),
+            pointerEvents: 'all',
+            boxSizing: 'border-box',
+        });
+
+        const contentGap = themeVar('--dz-overlay-gap', '12px');
+        const iconSize = themeVar('--dz-overlay-icon-size', '48px');
+        const textSize = themeVar('--dz-overlay-text-font-size', '18px');
+        const textWeight = themeVar('--dz-overlay-text-font-weight', '500');
 
         this.dragOverlay.innerHTML = `
-            <div class="dz__overlay__content">
-                <div class="dz__overlay__icon">${icon}</div>
-                <div class="dz__overlay__text">${escapeHtml(text)}</div>
+            <div class="dz__overlay__content" style="display:flex;flex-direction:column;align-items:center;gap:${contentGap};color:inherit;text-align:center;">
+                <div class="dz__overlay__icon" style="font-size:${iconSize};line-height:1;">${icon}</div>
+                <div class="dz__overlay__text" style="font-size:${textSize};font-weight:${textWeight};">${escapeHtml(text)}</div>
             </div>
         `;
 
         document.body.appendChild(this.dragOverlay);
 
+        // Fade-in via WAAPI (no global keyframes needed).
+        this.dragOverlay.animate(
+            [
+                { opacity: 0, transform: 'scale(0.98)' },
+                { opacity: 1, transform: 'scale(1)' },
+            ],
+            { duration: 150, easing: 'ease-out', fill: 'both' },
+        );
+
         // Handle drag events on overlay
         this.dragOverlay.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            this.overlayLastDragoverAt = performance.now();
         });
 
         this.dragOverlay.addEventListener('drop', (e) => {
@@ -3997,8 +4043,36 @@ export class WebDropzone {
             this.removeOverlay();
         });
 
-        // ESC to close
+        // ESC to close — only effective for in-page drags; external file
+        // drags swallow keydown at the OS level, hence the heartbeat below.
         document.addEventListener('keydown', this.handleOverlayKeyDown);
+
+        // Window-level dragover keeps the heartbeat alive even before the
+        // cursor reaches the overlay (e.g. when the user is dragging over
+        // a different area of the page).
+        this.boundOverlayWindowDragover = (e: DragEvent) => {
+            if (!e.dataTransfer?.types.includes('Files')) return;
+            this.overlayLastDragoverAt = performance.now();
+        };
+        window.addEventListener('dragover', this.boundOverlayWindowDragover, { capture: true });
+
+        // `dragend` fires for in-page drag sources when the user presses
+        // Esc — useful as a belt-and-suspenders.
+        this.boundOverlayWindowDragend = () => this.removeOverlay();
+        window.addEventListener('dragend', this.boundOverlayWindowDragend);
+
+        // Heartbeat: a live native drag pulses `dragover` ~every 250ms.
+        // When the user presses Esc (or the drag otherwise ends without a
+        // drop), pulses stop. After ~350ms of silence we treat the drag
+        // as gone and tear the overlay down.
+        this.overlayLastDragoverAt = performance.now();
+        this.overlayHeartbeatTimer = setInterval(() => {
+            if (!this.dragOverlay) return;
+            if (performance.now() - this.overlayLastDragoverAt > 350) {
+                uiLogger.debug('Overlay closed via dragover-heartbeat timeout');
+                this.removeOverlay();
+            }
+        }, 150);
 
         uiLogger.debug('Overlay created');
     }
@@ -4012,6 +4086,18 @@ export class WebDropzone {
     private removeOverlay(): void {
         if (this.dragOverlay) {
             document.removeEventListener('keydown', this.handleOverlayKeyDown);
+            if (this.boundOverlayWindowDragover) {
+                window.removeEventListener('dragover', this.boundOverlayWindowDragover, { capture: true } as EventListenerOptions);
+                this.boundOverlayWindowDragover = null;
+            }
+            if (this.boundOverlayWindowDragend) {
+                window.removeEventListener('dragend', this.boundOverlayWindowDragend);
+                this.boundOverlayWindowDragend = null;
+            }
+            if (this.overlayHeartbeatTimer !== null) {
+                clearInterval(this.overlayHeartbeatTimer);
+                this.overlayHeartbeatTimer = null;
+            }
             this.dragOverlay.remove();
             this.dragOverlay = null;
             uiLogger.debug('Overlay removed');

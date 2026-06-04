@@ -279,6 +279,11 @@ export class DropzoneElement extends BaseElement {
     private shadow: ShadowRoot;
     private internals?: ElementInternals;
     private customStyleSheet?: HTMLStyleElement;
+    // Holds an HTMLElement overlay target assigned via the JS property — the
+    // `overlay-target` HTML attribute can only carry strings, so passing
+    // `el.overlayTarget = document.body` is routed straight to updateConfig
+    // instead of being stringified by setAttribute.
+    private _overlayTargetEl: HTMLElement | null = null;
 
     /**
      * Underlying store instance — accessor used by satellite renderers
@@ -469,8 +474,15 @@ export class DropzoneElement extends BaseElement {
 
     private buildConfig(): DropzoneConfig {
         const mode = this.resolveMode();
+        const attrConfig = this.parseAttributesFromTable();
         return {
-            ...this.parseAttributesFromTable(),
+            ...attrConfig,
+            // HTMLElement assignments to `el.overlayTarget` made *before*
+            // initializeDropzone() runs are stashed on `_overlayTargetEl`;
+            // overlay-target attribute (string) parses through attrConfig.
+            // Element wins when both are present so a programmatic assignment
+            // isn't lost on a later reinit.
+            ...(this._overlayTargetEl ? { overlayTarget: this._overlayTargetEl } : {}),
 
             mode,
             isHeadless: mode === 'headless',
@@ -772,8 +784,28 @@ export class DropzoneElement extends BaseElement {
     get popoverPlacement(): string { return this.getAttribute('popover-placement') || 'bottom-start'; }
     set popoverPlacement(value: string) { this.setAttribute('popover-placement', value); }
 
-    get overlayTarget(): string { return this.getAttribute('overlay-target') || ''; }
-    set overlayTarget(value: string) { this.setAttribute('overlay-target', value); }
+    get overlayTarget(): HTMLElement | string {
+        return this._overlayTargetEl ?? this.getAttribute('overlay-target') ?? '';
+    }
+    set overlayTarget(value: HTMLElement | string | null | undefined) {
+        if (value instanceof HTMLElement) {
+            this._overlayTargetEl = value;
+            // Drop any stale string attribute so the element resolution path
+            // in WebDropzone.setupOverlayTarget unambiguously sees the element.
+            if (this.hasAttribute('overlay-target')) this.removeAttribute('overlay-target');
+            // If the underlying store hasn't been constructed yet, the element
+            // is preserved on `_overlayTargetEl` and picked up by buildConfig
+            // when initializeDropzone runs.
+            this.dropzone?.updateConfig({ overlayTarget: value });
+            return;
+        }
+        this._overlayTargetEl = null;
+        if (value == null || value === '') {
+            this.removeAttribute('overlay-target');
+        } else {
+            this.setAttribute('overlay-target', value);
+        }
+    }
 
     get overlayText(): string { return this.getAttribute('overlay-text') || ''; }
     set overlayText(value: string) { this.setAttribute('overlay-text', value); }
