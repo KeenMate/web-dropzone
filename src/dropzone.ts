@@ -336,6 +336,7 @@ export class WebDropzone {
     private overlayHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
     private boundOverlayWindowDragover: ((e: DragEvent) => void) | null = null;
     private boundOverlayWindowDragend: (() => void) | null = null;
+    private boundOverlayDragEndedSignal: (() => void) | null = null;
 
     // Event handler references for cleanup
     private boundHandleDragOver: (e: DragEvent) => void;
@@ -4015,11 +4016,57 @@ export class WebDropzone {
             { duration: 150, easing: 'ease-out', fill: 'both' },
         );
 
+        // Hover state — closure-scoped so each overlay tracks itself.
+        // Emits overlay-enter / overlay-leave on the host so consumers can
+        // surface contextual info (remaining quota, hint text, etc.).
+        const baseBorder = themeVar('--dz-overlay-border', '3px dashed #ffffff');
+        let isOverlayHovered = false;
+        const applyOverlayHover = (): void => {
+            if (!this.dragOverlay || isOverlayHovered) return;
+            isOverlayHovered = true;
+            Object.assign(this.dragOverlay.style, {
+                filter: themeVar('--dz-overlay-hover-filter', 'brightness(1.12) saturate(1.05)'),
+                border: themeVar('--dz-overlay-hover-border', '3px solid #ffffff'),
+                boxShadow: themeVar('--dz-overlay-hover-shadow', '0 10px 36px rgba(0, 0, 0, 0.25)'),
+                transition: 'filter 140ms ease, border-color 140ms ease, box-shadow 140ms ease',
+            });
+            this.dragOverlay.classList.add('dz__overlay--hover');
+            this.element.dispatchEvent(new CustomEvent('overlay-enter', {
+                detail: { files: this.getFiles(), overlayElement: this.dragOverlay },
+                bubbles: true,
+                composed: true,
+            }));
+        };
+        const revertOverlayHover = (): void => {
+            if (!this.dragOverlay || !isOverlayHovered) return;
+            isOverlayHovered = false;
+            Object.assign(this.dragOverlay.style, {
+                filter: '',
+                border: baseBorder,
+                boxShadow: '',
+            });
+            this.dragOverlay.classList.remove('dz__overlay--hover');
+            this.element.dispatchEvent(new CustomEvent('overlay-leave', {
+                detail: { files: this.getFiles(), overlayElement: this.dragOverlay },
+                bubbles: true,
+                composed: true,
+            }));
+        };
+
         // Handle drag events on overlay
+        this.dragOverlay.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            applyOverlayHover();
+        });
+
         this.dragOverlay.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
             this.overlayLastDragoverAt = performance.now();
+            // Belt-and-braces: if the overlay was inserted under an existing
+            // drag, dragenter may not fire — dragover still does.
+            applyOverlayHover();
         });
 
         this.dragOverlay.addEventListener('drop', (e) => {
@@ -4036,9 +4083,17 @@ export class WebDropzone {
         });
 
         this.dragOverlay.addEventListener('dragleave', (e) => {
-            // Only remove if leaving the overlay entirely
-            const relatedTarget = e.relatedTarget as HTMLElement;
+            const relatedTarget = e.relatedTarget as HTMLElement | null;
+            // Moving within our own children — stay hovered, stay alive
             if (this.dragOverlay?.contains(relatedTarget)) return;
+            // Truly left the overlay — emit leave + revert hover styles
+            revertOverlayHover();
+            // Crossing into a sibling dropzone overlay (split-overlay
+            // patterns) — keep us alive; the heartbeat will close us if the
+            // drag actually ends. Without this, slowly crossing the border
+            // between two overlays makes the one being left disappear before
+            // the cursor is firmly inside the next one.
+            if (relatedTarget?.closest?.('.dz__overlay')) return;
 
             this.removeOverlay();
         });
@@ -4060,6 +4115,14 @@ export class WebDropzone {
         // Esc — useful as a belt-and-suspenders.
         this.boundOverlayWindowDragend = () => this.removeOverlay();
         window.addEventListener('dragend', this.boundOverlayWindowDragend);
+
+        // Sibling-overlay sync: when any overlay terminates (drop, Esc,
+        // heartbeat timeout), it broadcasts on document. Every still-alive
+        // overlay tears itself down too — otherwise a drop on one half of a
+        // split-overlay leaves the other half lingering until its own
+        // heartbeat times out ~350ms later.
+        this.boundOverlayDragEndedSignal = () => this.removeOverlay();
+        document.addEventListener('dz:overlay-drag-ended', this.boundOverlayDragEndedSignal);
 
         // Heartbeat: a live native drag pulses `dragover` ~every 250ms.
         // When the user presses Esc (or the drag otherwise ends without a
@@ -4094,6 +4157,10 @@ export class WebDropzone {
                 window.removeEventListener('dragend', this.boundOverlayWindowDragend);
                 this.boundOverlayWindowDragend = null;
             }
+            if (this.boundOverlayDragEndedSignal) {
+                document.removeEventListener('dz:overlay-drag-ended', this.boundOverlayDragEndedSignal);
+                this.boundOverlayDragEndedSignal = null;
+            }
             if (this.overlayHeartbeatTimer !== null) {
                 clearInterval(this.overlayHeartbeatTimer);
                 this.overlayHeartbeatTimer = null;
@@ -4101,6 +4168,10 @@ export class WebDropzone {
             this.dragOverlay.remove();
             this.dragOverlay = null;
             uiLogger.debug('Overlay removed');
+            // Tell sibling overlays the drag is over so they close immediately
+            // rather than waiting on their own heartbeats. This instance's own
+            // listener was already removed above, so we won't re-enter.
+            document.dispatchEvent(new Event('dz:overlay-drag-ended'));
         }
     }
 

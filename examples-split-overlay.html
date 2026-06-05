@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Split Overlay (Outlook-style) - Web Dropzone</title>
+    <link rel="stylesheet" href="examples-shared.css">
+    <style>
+        .compose {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            border: 1px solid #e5e7eb;
+        }
+        .compose .row {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 0.75rem;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .compose label { font-weight: 500; color: #4b5563; font-size: 0.9rem; }
+        .compose input {
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            font: inherit;
+            font-size: 0.95rem;
+            width: 100%;
+        }
+
+        /* Fake WYSIWYG toolbar */
+        .toolbar {
+            display: flex;
+            gap: 0.25rem;
+            padding: 0.4rem 0.5rem;
+            border: 1px solid #d1d5db;
+            border-bottom: 0;
+            border-radius: 6px 6px 0 0;
+            background: #f9fafb;
+        }
+        .toolbar button {
+            background: transparent;
+            border: 0;
+            padding: 0.3rem 0.55rem;
+            border-radius: 4px;
+            font: inherit;
+            font-size: 0.85rem;
+            color: #4b5563;
+            cursor: pointer;
+        }
+        .toolbar button:hover { background: #e5e7eb; }
+        .toolbar .sep {
+            width: 1px;
+            background: #d1d5db;
+            margin: 0.15rem 0.3rem;
+        }
+
+        /* WYSIWYG editor shell — this is the "body element" that splits.
+           position:relative so the invisible split grid can overlay it. */
+        .editor-shell {
+            position: relative;
+        }
+        .wysiwyg {
+            border: 1px solid #d1d5db;
+            border-radius: 0 0 6px 6px;
+            padding: 1rem 1rem 1.25rem;
+            min-height: 220px;
+            font: inherit;
+            font-size: 0.95rem;
+            line-height: 1.55;
+            color: #1f2937;
+            outline: none;
+        }
+        .wysiwyg:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+        .wysiwyg p { margin: 0 0 0.6rem 0; }
+        .wysiwyg .sig { color: #6b7280; font-size: 0.9rem; }
+
+        /* The shared split grid covers the editor only. Invisible by
+           default; each dropzone's overlay covers one half during drag.
+           pointer-events:none so it doesn't block typing into the editor. */
+        .split-target {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            pointer-events: none;
+        }
+        .split-half { /* empty positioning shell */ }
+
+        .compose-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #f3f4f6;
+        }
+        .compose-actions button {
+            background: #2563eb;
+            color: white;
+            border: 0;
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .compose-actions button.secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .attached {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #f3f4f6;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+        .attached h4 {
+            margin: 0 0 0.5rem 0;
+            font-size: 0.8rem;
+            color: #6b7280;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .hint {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: #6b7280;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to Examples</a>
+            <h1>📨 Split Overlay (Outlook-style)</h1>
+            <p class="subtitle">The WYSIWYG email body splits in half during drag — left side attaches the file, right side shares it as a link.</p>
+        </header>
+
+        <div class="card">
+            <h2>What it is</h2>
+            <p>Outlook online turns the message body into <strong>two drop targets</strong> the moment you start dragging a file into a draft: drop on the left to <em>attach as a file</em>, drop on the right to <em>share as a OneDrive link</em>. We can build that with what we have today: two <code>&lt;web-dropzone&gt;</code> instances, each with its own <code>overlay-target</code> pointing to one half of a grid container that overlays the editor.</p>
+            <div class="note">
+                <div class="note-title">Why it works without new API</div>
+                <p>The split grid sits invisibly on top of the editor with <code>pointer-events: none</code>. It just carves the editor's rect into a left half and a right half. Each dropzone's overlay independently covers one half — they don't overlap, so they don't fight.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Try it</h2>
+            <p>Drag any file from your desktop onto the message body below. It splits in half — drop on the <strong>left</strong> to attach as a file, drop on the <strong>right</strong> to share as a OneDrive-style link.</p>
+
+            <div class="compose">
+                <div class="row">
+                    <label>To</label>
+                    <input type="email" value="team@example.com">
+                </div>
+                <div class="row">
+                    <label>Subject</label>
+                    <input type="text" value="Friday's deck">
+                </div>
+
+                <div class="toolbar">
+                    <button title="Bold"><strong>B</strong></button>
+                    <button title="Italic"><em>I</em></button>
+                    <button title="Underline"><u>U</u></button>
+                    <span class="sep"></span>
+                    <button>• List</button>
+                    <button>1. List</button>
+                    <span class="sep"></span>
+                    <button>🔗 Link</button>
+                </div>
+
+                <!-- The editor shell — this is the WYSIWYG body that splits. -->
+                <div class="editor-shell">
+                    <div class="wysiwyg" contenteditable="true" spellcheck="false">
+                        <p>Hey team,</p>
+                        <p>Wanted to share the latest version of Friday's deck — let me know what you think before tomorrow's review.</p>
+                        <p>Drop a file on the <strong>left</strong> half of this editor to attach it. Drop it on the <strong>right</strong> half to share it as a OneDrive link instead.</p>
+                        <p class="sig">— Ondrej</p>
+                    </div>
+
+                    <!-- Invisible split grid overlaying just the editor. -->
+                    <div class="split-target">
+                        <div id="split-half-left" class="split-half"></div>
+                        <div id="split-half-right" class="split-half"></div>
+                    </div>
+                </div>
+
+                <div class="attached">
+                    <div>
+                        <h4>📎 Attached files</h4>
+                        <web-dropzone-list
+                            for="split-attach"
+                            list-appearance="badges"
+                            empty-message="No attachments yet.">
+                        </web-dropzone-list>
+                    </div>
+                    <div>
+                        <h4>☁️ OneDrive links</h4>
+                        <web-dropzone-list
+                            for="split-onedrive"
+                            list-appearance="badges"
+                            empty-message="No shared links yet.">
+                        </web-dropzone-list>
+                    </div>
+                </div>
+
+                <div class="compose-actions">
+                    <button>Send</button>
+                    <button class="secondary">Save draft</button>
+                </div>
+            </div>
+
+            <p class="hint">Tip: hold <kbd>Esc</kbd> or drop outside the editor to cancel.</p>
+        </div>
+
+        <!-- Hidden dropzones — only their overlays render during drag.
+             Each one styles its own overlay via --dz-overlay-* host vars.
+             max-file-count on the left side gives us something concrete
+             to show as remaining-quota text on hover. -->
+        <web-dropzone
+            id="split-attach"
+            style="display:none; --dz-overlay-bg: rgba(0, 120, 212, 0.92);"
+            overlay-target="split-half-left"
+            overlay-text="Attach as file"
+            overlay-icon="📎"
+            multiple
+            max-file-count="5"
+            accept="*/*">
+        </web-dropzone>
+
+        <web-dropzone
+            id="split-onedrive"
+            style="display:none; --dz-overlay-bg: rgba(20, 184, 166, 0.92);"
+            overlay-target="split-half-right"
+            overlay-text="Share as OneDrive link"
+            overlay-icon="☁️"
+            multiple
+            accept="*/*">
+        </web-dropzone>
+
+        <script type="module">
+            // Each overlay broadcasts overlay-enter / overlay-leave on its
+            // host as the cursor crosses into / out of it during a drag.
+            // detail = { files, overlayElement }. We mutate the overlay's
+            // text node to show contextual info — remaining-slot count on
+            // the left, a static reassurance on the right.
+            function wireHoverHint(hostId, getEnterText, baseText) {
+                const host = document.getElementById(hostId);
+                host.addEventListener('overlay-enter', (e) => {
+                    const textEl = e.detail.overlayElement.querySelector('.dz__overlay__text');
+                    if (textEl) textEl.textContent = getEnterText(e.detail.files);
+                });
+                host.addEventListener('overlay-leave', (e) => {
+                    const textEl = e.detail.overlayElement.querySelector('.dz__overlay__text');
+                    if (textEl) textEl.textContent = baseText;
+                });
+            }
+            wireHoverHint(
+                'split-attach',
+                (files) => {
+                    const used = files.length;
+                    const max = 5;
+                    const remaining = max - used;
+                    return remaining > 0
+                        ? `Attach as file · ${remaining} of ${max} slots free`
+                        : `Attachment limit reached (${max} files)`;
+                },
+                'Attach as file',
+            );
+            wireHoverHint(
+                'split-onedrive',
+                () => 'Share as OneDrive link · no size limit',
+                'Share as OneDrive link',
+            );
+        </script>
+
+        <div class="card">
+            <h2>How it works</h2>
+            <ol>
+                <li>The editor shell is <code>position: relative</code>. Inside it sits the WYSIWYG element and a sibling <code>.split-target</code> grid with <code>position: absolute; inset: 0</code> — the grid lays exactly over the editor.</li>
+                <li>The grid is <code>pointer-events: none</code>, so typing into the editor still works while no drag is happening.</li>
+                <li>The grid has two empty halves. Two <code>&lt;web-dropzone&gt;</code> instances (both <code>display: none</code>) each set <code>overlay-target</code> to one half.</li>
+                <li>On the first <code>dragenter</code>, each dropzone reads its target's <code>getBoundingClientRect()</code> and renders a fixed-position overlay over that rect. Neither overlay extends past the editor.</li>
+                <li>Each overlay's background comes from <code>--dz-overlay-bg</code> on its host element, so the two halves can look visually distinct.</li>
+                <li>Picked files render in <code>&lt;web-dropzone-list&gt;</code> satellites placed in the attachments row beneath the editor.</li>
+                <li>Each overlay fires <code>overlay-enter</code> / <code>overlay-leave</code> on its host as the cursor crosses in / out during the drag — useful for surfacing remaining-quota text or other contextual info. Detail: <code>{ files, overlayElement }</code>. The hovered overlay also gets a solid border, brighter fill, and a <code>dz__overlay--hover</code> class hook.</li>
+            </ol>
+            <div class="code-block">
+                <pre><code>&lt;div class="editor-shell" style="position:relative"&gt;
+  &lt;div contenteditable="true" class="wysiwyg"&gt;...message body...&lt;/div&gt;
+
+  &lt;!-- Invisible grid overlaying the editor --&gt;
+  &lt;div style="position:absolute; inset:0; display:grid;
+              grid-template-columns:1fr 1fr; pointer-events:none"&gt;
+    &lt;div id="left-half"&gt;&lt;/div&gt;
+    &lt;div id="right-half"&gt;&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- Hidden dropzones, each targeting one half --&gt;
+&lt;web-dropzone style="display:none; --dz-overlay-bg: rgba(0,120,212,0.92)"
+              overlay-target="left-half"
+              overlay-text="Attach as file"
+              overlay-icon="📎"&gt;&lt;/web-dropzone&gt;
+
+&lt;web-dropzone style="display:none; --dz-overlay-bg: rgba(20,184,166,0.92)"
+              overlay-target="right-half"
+              overlay-text="Share as OneDrive link"
+              overlay-icon="☁️"&gt;&lt;/web-dropzone&gt;</code></pre>
+            </div>
+        </div>
+
+        <footer>
+            <p><a href="index.html">← Back to Examples</a></p>
+        </footer>
+    </div>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>
