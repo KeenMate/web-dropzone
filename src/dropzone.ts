@@ -4086,16 +4086,16 @@ export class WebDropzone {
             const relatedTarget = e.relatedTarget as HTMLElement | null;
             // Moving within our own children — stay hovered, stay alive
             if (this.dragOverlay?.contains(relatedTarget)) return;
-            // Truly left the overlay — emit leave + revert hover styles
+            // Truly left the overlay — emit leave + revert hover styles.
+            // We deliberately do NOT call removeOverlay here. As long as the
+            // drag is still live somewhere on the page, the dragover-pulse
+            // heartbeat keeps us alive; real termination (drop, Esc, drag
+            // out of window) is handled by the drop / dragend / heartbeat /
+            // sibling-broadcast paths. Closing here would flicker overlays
+            // whenever the cursor crosses a non-overlay gap between sibling
+            // drop targets (e.g. two editor cards with a margin between
+            // them in a multi-editor split-overlay layout).
             revertOverlayHover();
-            // Crossing into a sibling dropzone overlay (split-overlay
-            // patterns) — keep us alive; the heartbeat will close us if the
-            // drag actually ends. Without this, slowly crossing the border
-            // between two overlays makes the one being left disappear before
-            // the cursor is firmly inside the next one.
-            if (relatedTarget?.closest?.('.dz__overlay')) return;
-
-            this.removeOverlay();
         });
 
         // ESC to close — only effective for in-page drags; external file

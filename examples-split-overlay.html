@@ -283,6 +283,97 @@
         </script>
 
         <div class="card">
+            <h2>Stress test: two editors on one page</h2>
+            <p>Same pattern repeated. Each draft has its own pair of dropzones with distinct overlay colors so you can see which is which. Things to verify by dragging:</p>
+            <ul style="margin: 0 0 1rem 1.25rem">
+                <li>Dragging onto the page lights up <strong>all four halves</strong> at once (the two pairs are independent stores; the document-level dragenter fires each of their createOverlay paths).</li>
+                <li>Crossing the cursor from Draft A's overlays → through the gap → into Draft B's overlays should <strong>not flicker</strong> all four out. Each one stays lit until the drag actually ends.</li>
+                <li>Hovering each half should only highlight that one (solid border, brighter fill) and only fire <code>overlay-enter</code> on its host. The other three stay translucent.</li>
+                <li>Dropping on any one of the four should close <strong>all four</strong> together (the <code>dz:overlay-drag-ended</code> broadcast).</li>
+                <li>Files dropped on Draft A's halves go to Draft A's lists; Draft B's halves to Draft B's lists. No cross-pollination.</li>
+            </ul>
+
+            <h3 style="margin-top:1rem">Draft A — Q3 retrospective</h3>
+            <div class="editor-shell">
+                <div class="wysiwyg" contenteditable="true" spellcheck="false">
+                    <p>Putting together notes for the Q3 retro — drop anything relevant onto this draft's halves. Blue/teal overlay = this draft.</p>
+                </div>
+                <div class="split-target">
+                    <div id="split-half-left-2"></div>
+                    <div id="split-half-right-2"></div>
+                </div>
+            </div>
+            <div class="attached">
+                <div>
+                    <h4>📎 Files A</h4>
+                    <web-dropzone-list for="split-attach-2" list-appearance="badges" empty-message="No files."></web-dropzone-list>
+                </div>
+                <div>
+                    <h4>☁️ Links A</h4>
+                    <web-dropzone-list for="split-onedrive-2" list-appearance="badges" empty-message="No links."></web-dropzone-list>
+                </div>
+            </div>
+
+            <h3 style="margin-top:1.5rem">Draft B — onboarding doc</h3>
+            <div class="editor-shell">
+                <div class="wysiwyg" contenteditable="true" spellcheck="false">
+                    <p>Drafting the new-hire onboarding doc — drop anything related onto this one. Indigo/amber overlay = this draft.</p>
+                </div>
+                <div class="split-target">
+                    <div id="split-half-left-3"></div>
+                    <div id="split-half-right-3"></div>
+                </div>
+            </div>
+            <div class="attached">
+                <div>
+                    <h4>📎 Files B</h4>
+                    <web-dropzone-list for="split-attach-3" list-appearance="badges" empty-message="No files."></web-dropzone-list>
+                </div>
+                <div>
+                    <h4>☁️ Links B</h4>
+                    <web-dropzone-list for="split-onedrive-3" list-appearance="badges" empty-message="No links."></web-dropzone-list>
+                </div>
+            </div>
+        </div>
+
+        <web-dropzone
+            id="split-attach-2"
+            style="display:none; --dz-overlay-bg: rgba(0, 120, 212, 0.92);"
+            overlay-target="split-half-left-2"
+            overlay-text="A · Attach as file"
+            overlay-icon="📎"
+            multiple
+            accept="*/*">
+        </web-dropzone>
+        <web-dropzone
+            id="split-onedrive-2"
+            style="display:none; --dz-overlay-bg: rgba(20, 184, 166, 0.92);"
+            overlay-target="split-half-right-2"
+            overlay-text="A · Share as link"
+            overlay-icon="☁️"
+            multiple
+            accept="*/*">
+        </web-dropzone>
+        <web-dropzone
+            id="split-attach-3"
+            style="display:none; --dz-overlay-bg: rgba(99, 102, 241, 0.92);"
+            overlay-target="split-half-left-3"
+            overlay-text="B · Attach as file"
+            overlay-icon="📎"
+            multiple
+            accept="*/*">
+        </web-dropzone>
+        <web-dropzone
+            id="split-onedrive-3"
+            style="display:none; --dz-overlay-bg: rgba(245, 158, 11, 0.92);"
+            overlay-target="split-half-right-3"
+            overlay-text="B · Share as link"
+            overlay-icon="☁️"
+            multiple
+            accept="*/*">
+        </web-dropzone>
+
+        <div class="card">
             <h2>How it works</h2>
             <ol>
                 <li>The editor shell is <code>position: relative</code>. Inside it sits the WYSIWYG element and a sibling <code>.split-target</code> grid with <code>position: absolute; inset: 0</code> — the grid lays exactly over the editor.</li>
