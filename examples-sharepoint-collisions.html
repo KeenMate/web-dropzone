@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SharePoint-style name-collision check - Web Dropzone</title>
+    <link rel="stylesheet" href="examples-shared.css">
+    <style>
+        /* Server-inventory panel — shows what names exist server-side. */
+        .sp-inventory {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 0.85rem 1rem;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .sp-inventory .sp-inv-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.6rem;
+            background: white;
+            border: 1px solid #bfdbfe;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            color: #1e40af;
+            font-family: 'SF Mono', Consolas, monospace;
+        }
+        .sp-inventory .sp-inv-pill.is-new {
+            background: #ecfdf5;
+            border-color: #86efac;
+            color: #166534;
+        }
+        .sp-inv-download {
+            font: inherit;
+            background: transparent;
+            border: none;
+            padding: 0 0.1rem;
+            margin-left: 0.2rem;
+            cursor: pointer;
+            color: currentColor;
+            opacity: 0.6;
+            font-size: 0.95rem;
+            line-height: 1;
+            border-radius: 4px;
+        }
+        .sp-inv-download:hover {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.08);
+        }
+        .sp-inventory-label {
+            width: 100%;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #1e40af;
+            margin-bottom: 0.25rem;
+        }
+
+        /* Custom row rendering for the structural-mode list. */
+        .sp-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        .sp-list:empty::before {
+            content: 'No files yet — drop something onto the dropzone above.';
+            display: block;
+            padding: 1rem;
+            color: #94a3b8;
+            font-style: italic;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .sp-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .sp-row--pending {
+            background: #fffbeb;
+            border-color: #fcd34d;
+        }
+        .sp-row--overwrite {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+        .sp-row--rename {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+        }
+        .sp-row--new {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+        .sp-row__meta {
+            min-width: 0;
+        }
+        .sp-row__name {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 0.95rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .sp-row__name del {
+            color: #9ca3af;
+            text-decoration: line-through;
+            font-weight: 500;
+            margin-right: 0.4rem;
+        }
+        .sp-row__name ins {
+            color: #1d4ed8;
+            text-decoration: none;
+        }
+        .sp-row__sub {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 0.15rem;
+        }
+        .sp-row__sub strong {
+            font-weight: 600;
+            color: #475569;
+        }
+        .sp-row__actions {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .sp-btn {
+            font: inherit;
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 0.35rem 0.7rem;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            background: transparent;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .sp-btn--overwrite {
+            background: #fee2e2;
+            border-color: #fecaca;
+            color: #991b1b;
+        }
+        .sp-btn--overwrite:hover { background: #fecaca; }
+        .sp-btn--rename {
+            background: #dbeafe;
+            border-color: #bfdbfe;
+            color: #1e40af;
+        }
+        .sp-btn--rename:hover { background: #bfdbfe; }
+        .sp-btn--skip {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+            color: #4b5563;
+        }
+        .sp-btn--skip:hover { background: #e5e7eb; }
+        .sp-btn--change {
+            background: transparent;
+            border-color: transparent;
+            color: #64748b;
+            text-decoration: underline;
+            font-weight: 500;
+            font-size: 0.78rem;
+            padding: 0.25rem 0.4rem;
+        }
+        .sp-btn--change:hover { color: #1f2937; }
+        .sp-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .sp-badge--overwrite {
+            background: #fecaca;
+            color: #7f1d1d;
+        }
+        .sp-badge--rename {
+            background: #bfdbfe;
+            color: #1e3a8a;
+        }
+        .sp-badge--new {
+            background: #bbf7d0;
+            color: #14532d;
+        }
+        .sp-badge--complete {
+            background: #d1fae5;
+            color: #064e3b;
+        }
+        .sp-rename-input {
+            font: inherit;
+            font-size: 0.85rem;
+            padding: 0.3rem 0.6rem;
+            border: 1px solid #93c5fd;
+            border-radius: 6px;
+            min-width: 200px;
+            background: white;
+            color: #1e3a8a;
+            font-family: 'SF Mono', Consolas, monospace;
+        }
+        .sp-rename-input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+        .sp-rename-error {
+            color: #b91c1c;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Toolbar above the list — status + Upload button. */
+        .sp-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        .sp-toolbar__status {
+            font-size: 0.85rem;
+            color: #475569;
+        }
+        .sp-toolbar__status strong { color: #1e293b; }
+        .sp-toolbar__status .is-warn { color: #92400e; }
+        .sp-upload-btn {
+            font: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 0.55rem 1.1rem;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .sp-upload-btn:hover:not(:disabled) { background: #1d4ed8; }
+        .sp-upload-btn:disabled {
+            background: #cbd5e0;
+            color: #f1f5f9;
+            cursor: not-allowed;
+        }
+
+        /* Activity log — server-call trace. */
+        .sp-log {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 8px;
+            font-family: 'SF Mono', Consolas, monospace;
+            font-size: 0.82rem;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .sp-log__empty {
+            color: #64748b;
+            font-style: italic;
+        }
+        .sp-log__entry {
+            padding: 0.25rem 0;
+            display: flex;
+            gap: 0.6rem;
+            border-bottom: 1px solid #1e293b;
+        }
+        .sp-log__entry:last-child { border-bottom: none; }
+        .sp-log__time { color: #64748b; min-width: 5.5rem; }
+        .sp-log__tag {
+            font-weight: 700;
+            min-width: 5.5rem;
+        }
+        .sp-log__tag--check { color: #60a5fa; }
+        .sp-log__tag--keep  { color: #4ade80; }
+        .sp-log__tag--coll  { color: #fbbf24; }
+        .sp-log__tag--ovr   { color: #f87171; }
+        .sp-log__tag--ren   { color: #93c5fd; }
+        .sp-log__tag--skip  { color: #94a3b8; }
+        .sp-log__tag--up    { color: #c084fc; }
+        .sp-log__msg { color: #cbd5e0; flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to Examples</a>
+            <h1>🗂️ SharePoint-style name collision</h1>
+            <p class="subtitle">Check filenames against a server inventory before upload — let the user choose Overwrite / Rename / Skip per file</p>
+        </header>
+
+        <div class="card">
+            <h2>What this demonstrates</h2>
+            <p>This is the flow a SharePoint / OneDrive document library uses when you drop files into a folder:</p>
+            <ol style="margin:0.75rem 0 0 1.5rem;line-height:1.8;">
+                <li>The user drops files onto the zone.</li>
+                <li>Before any bytes leave the browser, the page <code>POST</code>s the filenames to the server and asks <em>"do any of these already exist?"</em></li>
+                <li>For each collision, the user picks an action per row: <strong>Overwrite</strong>, <strong>Rename</strong> (with a suggested non-conflicting name), or <strong>Skip</strong>.</li>
+                <li>Once every collision has a decision, the upload starts. Renamed files upload under the new name.</li>
+            </ol>
+            <p style="margin-top:1rem;">No core API changes were needed for this — it's a straight application of <code>mode="structural"</code> (custom per-row rendering), <code>auto-upload="false"</code> (stage instead of upload-on-add), <code>removeFile(id)</code> (skip), and a closure-captured decisions map (read by both the row renderer and the <code>uploadFileCallback</code>).</p>
+        </div>
+
+        <!-- LIVE DEMO -->
+        <div class="card">
+            <h2>Live demo</h2>
+            <p>The "server" here is just an in-page <code>Set</code> of filenames, with a fake 300ms round-trip. Drop a file matching one of these and you'll see the collision flow:</p>
+
+            <div class="sp-inventory" id="sp-inventory">
+                <span class="sp-inventory-label">Server inventory (click ⬇ to grab a copy and drop it back)</span>
+                <!-- Populated by refreshInventoryUI() so the download buttons
+                     are wired the same way for seeded + freshly-uploaded names. -->
+            </div>
+
+            <web-dropzone
+                id="sp-dz"
+                mode="structural"
+                auto-upload="false"
+                multiple
+                max-file-count="20"
+                accept="*/*"
+                prompt-text="Drop files to check against the inventory">
+            </web-dropzone>
+
+            <!-- The framework renders this list via our renderFileItemCallback +
+                 renderListWrapperCallback. The toolbar below is independent. -->
+
+            <div class="sp-toolbar">
+                <div class="sp-toolbar__status" id="sp-status">Drop files to begin.</div>
+                <button type="button" class="sp-upload-btn" id="sp-upload" disabled>Upload</button>
+            </div>
+
+            <div class="sp-log" id="sp-log">
+                <div class="sp-log__empty">Server calls and decisions will appear here…</div>
+            </div>
+        </div>
+
+        <!-- WIRING -->
+        <div class="card">
+            <h2>How the wiring works</h2>
+            <p>Three pieces:</p>
+
+            <p><strong>1. A side <code>Map</code> holds the user's decision for each colliding file.</strong> It's keyed by <code>FileState.id</code> and updated by the per-row UI. The framework doesn't need to know it exists — the upload callback closes over it.</p>
+
+            <pre class="code-block"><code>const decisions = new Map() // fileId -> { action: 'pending'|'overwrite'|'rename', renameTo? }</code></pre>
+
+            <p><strong>2. <code>files-changed</code> drives the collision check.</strong> Every time a file is added we ask the server, then either seed the decisions map with <code>'pending'</code> (collision) or leave the file untracked (new — will upload as-is).</p>
+
+            <pre class="code-block"><code>dz.addEventListener('files-changed', async (e) => {
+    const newFiles = e.detail.files.filter(f =&gt; !seenIds.has(f.id))
+    if (!newFiles.length) return
+    const report = await checkNames(newFiles.map(f =&gt; f.name))
+    for (const file of newFiles) {
+        seenIds.add(file.id)
+        const exists = report.find(r =&gt; r.name === file.name)?.exists
+        if (exists) decisions.set(file.id, { action: 'pending', renameTo: suggestRename(file.name) })
+    }
+    refreshToolbar()
+})</code></pre>
+
+            <p><strong>3. The row renderer reads the decisions map and re-renders <em>itself</em> when the user clicks.</strong> Element-returning <code>renderFileItemCallback</code> means each row owns its own DOM and event listeners; no need to bother the framework when local state changes.</p>
+
+            <pre class="code-block"><code>dz.renderFileItemCallback = (file) =&gt; {
+    const row = document.createElement('div')
+    const repaint = () =&gt; {
+        const d = decisions.get(file.id)
+        row.innerHTML = renderRowHtml(file, d)
+        row.querySelector('[data-action=overwrite]')?.addEventListener('click', () =&gt; {
+            decisions.set(file.id, { action: 'overwrite' }); repaint(); refreshToolbar()
+        })
+        // … rename, skip buttons …
+    }
+    repaint()
+    return row
+}</code></pre>
+
+            <p><strong>4. The upload callback closes over the decisions map.</strong> The first arg is the native <code>File</code>; we find the matching <code>FileState</code> to pull its <code>id</code>, then send the right thing. Returning <code>{ name }</code> renames the file in the UI on success.</p>
+
+            <pre class="code-block"><code>dz.uploadFileCallback = async (rawFile, onProgress, signal, ctx) =&gt; {
+    const fileState = dz.files.find(f =&gt; f.file === rawFile)
+    const decision  = decisions.get(fileState.id)
+    const finalName = decision?.action === 'rename' ? decision.renameTo : rawFile.name
+    // …simulated upload progress…
+    SERVER_INVENTORY.add(finalName) // server now knows about it
+    if (decision?.action === 'rename') return { name: finalName }
+}</code></pre>
+        </div>
+
+        <footer>
+            <p>Web Dropzone · <a href="https://github.com/keenmate/web-dropzone">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        // -----------------------------------------------------------
+        // Fake "server" — pre-seeded inventory + 300 ms latency.
+        // The inventory is mutated when uploads complete so the user
+        // can see follow-up uploads of the same name re-collide.
+        // -----------------------------------------------------------
+        const SERVER_INVENTORY = new Set([
+            'report.pdf',
+            'meeting-notes.docx',
+            'budget.xlsx',
+            'logo.png',
+            'presentation.pptx',
+        ])
+        const SEEDED = new Set(SERVER_INVENTORY) // immutable copy for UI pill styling
+
+        async function checkNames(names) {
+            await new Promise(r => setTimeout(r, 300)) // fake RTT
+            return names.map(name => ({ name, exists: SERVER_INVENTORY.has(name) }))
+        }
+
+        // Suggest "report (2).pdf" / "report (3).pdf" / … — first slot that
+        // isn't on the server. The user can edit the suggestion in the input.
+        function suggestRename(originalName) {
+            const dot = originalName.lastIndexOf('.')
+            const base = dot > 0 ? originalName.slice(0, dot) : originalName
+            const ext  = dot > 0 ? originalName.slice(dot)    : ''
+            for (let i = 2; i < 100; i++) {
+                const candidate = `${base} (${i})${ext}`
+                if (!SERVER_INVENTORY.has(candidate)) return candidate
+            }
+            return originalName
+        }
+
+        function refreshInventoryUI() {
+            const panel = document.querySelector('.sp-inventory')
+            // Re-render: keep label, replace pills.
+            const label = panel.querySelector('.sp-inventory-label')
+            panel.innerHTML = ''
+            panel.appendChild(label)
+            for (const name of SERVER_INVENTORY) {
+                const pill = document.createElement('span')
+                pill.className = 'sp-inv-pill'
+                if (!SEEDED.has(name)) pill.classList.add('is-new')
+                const nameEl = document.createElement('span')
+                nameEl.textContent = name
+                const dl = document.createElement('button')
+                dl.type = 'button'
+                dl.className = 'sp-inv-download'
+                dl.title = `Download a placeholder "${name}" to test the collision flow`
+                dl.textContent = '⬇'
+                dl.addEventListener('click', () => downloadPlaceholder(name))
+                pill.append(nameEl, dl)
+                panel.appendChild(pill)
+            }
+        }
+
+        // Generate a tiny placeholder file with the given name and trigger a
+        // browser download. Lets the user re-drop the same name onto the
+        // dropzone to exercise the collision flow without having to create
+        // matching files themselves. Content is irrelevant — only the name
+        // and (for accept-attribute matching) the MIME type are checked here.
+        function downloadPlaceholder(name) {
+            const ext = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : ''
+            const mime = ({
+                pdf:  'application/pdf',
+                docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                png:  'image/png',
+                jpg:  'image/jpeg',
+                jpeg: 'image/jpeg',
+                txt:  'text/plain',
+            }[ext]) ?? 'application/octet-stream'
+            const blob = new Blob(
+                [`Placeholder content for "${name}" — generated by the demo for collision testing.`],
+                { type: mime }
+            )
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = name
+            document.body.appendChild(a)
+            a.click()
+            a.remove()
+            setTimeout(() => URL.revokeObjectURL(url), 1000)
+        }
+
+        // -----------------------------------------------------------
+        // Activity log.
+        // -----------------------------------------------------------
+        const logEl = document.getElementById('sp-log')
+        function logEntry(tag, msg) {
+            const empty = logEl.querySelector('.sp-log__empty')
+            if (empty) empty.remove()
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false })
+            const row = document.createElement('div')
+            row.className = 'sp-log__entry'
+            row.innerHTML = `
+                <span class="sp-log__time">${time}</span>
+                <span class="sp-log__tag sp-log__tag--${tag.toLowerCase()}">[${tag}]</span>
+                <span class="sp-log__msg"></span>
+            `
+            row.querySelector('.sp-log__msg').textContent = msg
+            logEl.appendChild(row)
+            logEl.scrollTop = logEl.scrollHeight
+        }
+
+        // -----------------------------------------------------------
+        // Decisions: per-file action chosen by the user. Files NOT in
+        // the map are either "no collision — will upload as-is" or
+        // "skipped — removed from the dropzone entirely".
+        // -----------------------------------------------------------
+        const decisions = new Map() // fileId -> { action, renameTo? }
+        const seenIds   = new Set() // ids we've already collision-checked
+
+        // Paint the seeded inventory immediately so the download buttons are
+        // available before the web component upgrades.
+        refreshInventoryUI()
+
+        // Wait for the custom element to upgrade before touching JS props.
+        customElements.whenDefined('web-dropzone').then(() => {
+            const dz = document.getElementById('sp-dz')
+            const statusEl = document.getElementById('sp-status')
+            const uploadBtn = document.getElementById('sp-upload')
+
+            // -------------------------------------------------------
+            // Per-row rendering — element-returning callback so each
+            // row owns its DOM + listeners across decision changes.
+            // -------------------------------------------------------
+            dz.renderFileItemCallback = (file) => {
+                const row = document.createElement('div')
+                row.className = 'sp-row'
+                row.dataset.fileId = file.id
+
+                const repaint = () => {
+                    row.classList.remove('sp-row--pending', 'sp-row--overwrite', 'sp-row--rename', 'sp-row--new')
+                    const d = decisions.get(file.id)
+
+                    if (file.status === 'complete') {
+                        row.innerHTML = `
+                            <div class="sp-row__meta">
+                                <div class="sp-row__name">${escapeHtml(file.name)}</div>
+                                <div class="sp-row__sub">${formatSize(file.size)} · uploaded</div>
+                            </div>
+                            <div class="sp-row__actions">
+                                <span class="sp-badge sp-badge--complete">✓ Done</span>
+                            </div>
+                        `
+                        return
+                    }
+
+                    if (!d) {
+                        // Still waiting on the server check? Show "Checking…"
+                        // instead of "New" so we don't flash a green badge for
+                        // a file that's about to turn into a collision.
+                        if (!seenIds.has(file.id)) {
+                            row.innerHTML = `
+                                <div class="sp-row__meta">
+                                    <div class="sp-row__name">${escapeHtml(file.name)}</div>
+                                    <div class="sp-row__sub">${formatSize(file.size)} · checking server…</div>
+                                </div>
+                                <div class="sp-row__actions">
+                                    <span class="sp-badge" style="background:#e0e7ff;color:#3730a3">⏳ Checking</span>
+                                </div>
+                            `
+                            return
+                        }
+
+                        // No collision — will upload as-is.
+                        row.classList.add('sp-row--new')
+                        row.innerHTML = `
+                            <div class="sp-row__meta">
+                                <div class="sp-row__name">${escapeHtml(file.name)}</div>
+                                <div class="sp-row__sub">${formatSize(file.size)} · new file</div>
+                            </div>
+                            <div class="sp-row__actions">
+                                <span class="sp-badge sp-badge--new">New</span>
+                                <button type="button" class="sp-btn sp-btn--skip" data-action="skip">Remove</button>
+                            </div>
+                        `
+                        row.querySelector('[data-action="skip"]').addEventListener('click', () => {
+                            logEntry('Skip', `Removed "${file.name}" from the queue`)
+                            dz.removeFile(file.id)
+                        })
+                        return
+                    }
+
+                    if (d.action === 'pending') {
+                        row.classList.add('sp-row--pending')
+                        row.innerHTML = `
+                            <div class="sp-row__meta">
+                                <div class="sp-row__name">${escapeHtml(file.name)}</div>
+                                <div class="sp-row__sub"><strong>Already exists on server.</strong> Choose what to do:</div>
+                            </div>
+                            <div class="sp-row__actions">
+                                <button type="button" class="sp-btn sp-btn--overwrite" data-action="overwrite">Overwrite</button>
+                                <button type="button" class="sp-btn sp-btn--rename"    data-action="rename">Rename</button>
+                                <button type="button" class="sp-btn sp-btn--skip"      data-action="skip">Skip</button>
+                            </div>
+                        `
+                        row.querySelector('[data-action="overwrite"]').addEventListener('click', () => {
+                            decisions.set(file.id, { action: 'overwrite' })
+                            logEntry('Ovr', `"${file.name}" → will overwrite server copy`)
+                            repaint(); refreshToolbar()
+                        })
+                        row.querySelector('[data-action="rename"]').addEventListener('click', () => {
+                            decisions.set(file.id, { action: 'rename', renameTo: d.renameTo })
+                            logEntry('Ren', `"${file.name}" → will upload as "${d.renameTo}"`)
+                            repaint(); refreshToolbar()
+                        })
+                        row.querySelector('[data-action="skip"]').addEventListener('click', () => {
+                            decisions.delete(file.id)
+                            logEntry('Skip', `Skipped "${file.name}"`)
+                            dz.removeFile(file.id)
+                            refreshToolbar()
+                        })
+                        return
+                    }
+
+                    if (d.action === 'overwrite') {
+                        row.classList.add('sp-row--overwrite')
+                        row.innerHTML = `
+                            <div class="sp-row__meta">
+                                <div class="sp-row__name">${escapeHtml(file.name)}</div>
+                                <div class="sp-row__sub">${formatSize(file.size)} · will replace the server copy</div>
+                            </div>
+                            <div class="sp-row__actions">
+                                <span class="sp-badge sp-badge--overwrite">⚠ Overwrite</span>
+                                <button type="button" class="sp-btn sp-btn--change" data-action="undo">Change…</button>
+                            </div>
+                        `
+                        row.querySelector('[data-action="undo"]').addEventListener('click', () => {
+                            decisions.set(file.id, { action: 'pending', renameTo: suggestRename(file.name) })
+                            repaint(); refreshToolbar()
+                        })
+                        return
+                    }
+
+                    if (d.action === 'rename') {
+                        row.classList.add('sp-row--rename')
+                        row.innerHTML = `
+                            <div class="sp-row__meta">
+                                <div class="sp-row__name">
+                                    <del>${escapeHtml(file.name)}</del>
+                                    <ins>${escapeHtml(d.renameTo)}</ins>
+                                </div>
+                                <div class="sp-row__sub">${formatSize(file.size)} · will upload under the new name</div>
+                                <div class="sp-rename-error" hidden></div>
+                            </div>
+                            <div class="sp-row__actions">
+                                <input class="sp-rename-input" type="text" value="${escapeHtml(d.renameTo)}">
+                                <span class="sp-badge sp-badge--rename">✎ Rename</span>
+                                <button type="button" class="sp-btn sp-btn--change" data-action="undo">Change…</button>
+                            </div>
+                        `
+                        const input = row.querySelector('.sp-rename-input')
+                        const errorEl = row.querySelector('.sp-rename-error')
+                        const commit = () => {
+                            const next = input.value.trim()
+                            if (!next) {
+                                errorEl.textContent = 'Name cannot be empty'
+                                errorEl.hidden = false
+                                return
+                            }
+                            if (SERVER_INVENTORY.has(next) && next !== d.renameTo) {
+                                errorEl.textContent = `"${next}" also exists on the server`
+                                errorEl.hidden = false
+                                return
+                            }
+                            errorEl.hidden = true
+                            if (next !== d.renameTo) {
+                                decisions.set(file.id, { action: 'rename', renameTo: next })
+                                logEntry('Ren', `"${file.name}" → will upload as "${next}"`)
+                                repaint(); refreshToolbar()
+                            }
+                        }
+                        input.addEventListener('change', commit)
+                        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commit() } })
+                        row.querySelector('[data-action="undo"]').addEventListener('click', () => {
+                            decisions.set(file.id, { action: 'pending', renameTo: d.renameTo })
+                            repaint(); refreshToolbar()
+                        })
+                        return
+                    }
+                }
+                repaint()
+
+                // file-row-update fires when the framework patches the file's
+                // state in place (e.g. status flipping to 'complete'). Repaint
+                // so the row reflects the upload outcome.
+                row.addEventListener('file-row-update', () => repaint())
+
+                return row
+            }
+
+            // -------------------------------------------------------
+            // Custom wrapper — just a flex column. Without this the
+            // framework would inject its default <div class="dz__file-list">.
+            // -------------------------------------------------------
+            dz.renderListWrapperCallback = (rowsHtml) => `<div class="sp-list">${rowsHtml}</div>`
+
+            // -------------------------------------------------------
+            // Collision check on add. files-changed fires per batch, so
+            // a single drop of N files = one server call.
+            // -------------------------------------------------------
+            dz.addEventListener('files-changed', async (e) => {
+                const newFiles = e.detail.files.filter(f => !seenIds.has(f.id))
+                if (!newFiles.length) return
+                // Mark seen BEFORE the await — otherwise a second drop while
+                // the first check is in flight would re-check the same files.
+                for (const f of newFiles) seenIds.add(f.id)
+
+                logEntry('Check', `POST /api/check-names — ${newFiles.length} name(s): ${newFiles.map(f => f.name).join(', ')}`)
+                const report = await checkNames(newFiles.map(f => f.name))
+
+                for (const file of newFiles) {
+                    const hit = report.find(r => r.name === file.name)
+                    if (hit?.exists) {
+                        decisions.set(file.id, {
+                            action: 'pending',
+                            renameTo: suggestRename(file.name)
+                        })
+                        logEntry('Coll', `"${file.name}" already exists — awaiting user decision`)
+                    } else {
+                        logEntry('Keep', `"${file.name}" is new — no decision needed`)
+                    }
+                    // The decision lives outside FileState so the framework
+                    // doesn't know to dispatch file-row-update. Fire it
+                    // ourselves so the row's listener repaints from the new
+                    // decision instead of staying in the "Checking…" state.
+                    const row = document.querySelector(`.sp-row[data-file-id="${file.id}"]`)
+                    row?.dispatchEvent(new CustomEvent('file-row-update'))
+                }
+                refreshToolbar()
+            })
+
+            // -------------------------------------------------------
+            // Upload callback — closes over decisions + SERVER_INVENTORY.
+            // Simulates 1.5 s of progress, then mutates the inventory.
+            // -------------------------------------------------------
+            dz.uploadFileCallback = (rawFile, onProgress, signal) => new Promise((resolve, reject) => {
+                const fileState = dz.files.find(f => f.file === rawFile)
+                if (!fileState) return reject(new Error('FileState not found'))
+                const decision  = decisions.get(fileState.id)
+                const finalName = decision?.action === 'rename' ? decision.renameTo : rawFile.name
+                const action    = decision?.action ?? 'new'
+
+                logEntry('Up', `Uploading "${rawFile.name}"${action === 'rename' ? ` as "${finalName}"` : ''} (${action})`)
+
+                let pct = 0
+                const ticks = 15
+                const interval = setInterval(() => {
+                    if (signal.aborted) {
+                        clearInterval(interval)
+                        reject(new DOMException('Aborted', 'AbortError'))
+                        return
+                    }
+                    pct += 100 / ticks
+                    if (pct >= 100) {
+                        clearInterval(interval)
+                        onProgress(100)
+                        // Mutate the server's inventory + repaint the pill panel.
+                        SERVER_INVENTORY.add(finalName)
+                        refreshInventoryUI()
+                        // For renames we return { name } so the FileState (and
+                        // therefore the displayed row) updates to the new name
+                        // on the next framework tick.
+                        resolve(decision?.action === 'rename' ? { name: finalName } : undefined)
+                        return
+                    }
+                    onProgress(pct)
+                }, 100)
+
+                signal.addEventListener('abort', () => {
+                    clearInterval(interval)
+                    reject(new DOMException('Aborted', 'AbortError'))
+                })
+            })
+
+            // -------------------------------------------------------
+            // Toolbar — counts pending decisions, enables Upload.
+            // -------------------------------------------------------
+            function refreshToolbar() {
+                const total   = dz.files.length
+                const done    = dz.files.filter(f => f.status === 'complete').length
+                const pending = dz.files.filter(f => decisions.get(f.id)?.action === 'pending').length
+                const ready   = total - done - pending
+
+                uploadBtn.disabled = ready <= 0
+
+                if (total === 0) {
+                    statusEl.textContent = 'Drop files to begin.'
+                } else if (pending > 0) {
+                    statusEl.innerHTML = `<strong>${pending}</strong> file(s) need a decision · <span class="is-warn">Upload blocked</span>`
+                } else if (done === total) {
+                    statusEl.innerHTML = `<strong>${done}</strong> file(s) uploaded.`
+                } else {
+                    statusEl.innerHTML = `<strong>${ready}</strong> file(s) ready to upload` +
+                        (done > 0 ? ` · <strong>${done}</strong> done` : '')
+                }
+            }
+
+            // file-removed fires after the skip flow; clean up decisions
+            // so the map doesn't leak across the demo's lifetime.
+            dz.addEventListener('file-removed', (e) => {
+                decisions.delete(e.detail.file.id)
+                seenIds.delete(e.detail.file.id)
+                refreshToolbar()
+            })
+
+            // change fires on every state mutation including status flips —
+            // good signal to keep the toolbar consistent across completes.
+            dz.addEventListener('change', () => refreshToolbar())
+
+            uploadBtn.addEventListener('click', () => {
+                logEntry('Up', `Starting upload of ready files…`)
+                dz.uploadAll()
+            })
+
+            refreshToolbar()
+        })
+
+        // -----------------------------------------------------------
+        // Small helpers.
+        // -----------------------------------------------------------
+        function escapeHtml(s) {
+            return String(s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+        }
+        function formatSize(bytes) {
+            if (bytes < 1024) return `${bytes} B`
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+            return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+        }
+    </script>
+
+    <script type="module" src="/src/index.ts"></script>
+</body>
+</html>
