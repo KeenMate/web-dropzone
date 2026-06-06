@@ -712,23 +712,22 @@ export interface DropzoneConfig {
 }
 
 /**
- * Event detail structure for file-added event
+ * Event detail structure for file-added event.
+ * The host element is on `e.target`; the full file list is on
+ * `e.target.files`. Detail carries only the file that triggered the event.
  */
 export interface FileAddedEventDetail {
     /** The file that was added */
     file: FileState;
-    /** All current files */
-    files: FileState[];
 }
 
 /**
- * Event detail structure for file-removed event
+ * Event detail structure for file-removed event. See FileAddedEventDetail
+ * for the snapshot-via-`e.target.files` convention.
  */
 export interface FileRemovedEventDetail {
     /** The file that was removed */
     file: FileState;
-    /** All remaining files */
-    files: FileState[];
 }
 
 /**
@@ -757,8 +756,6 @@ export interface ChangeEventDetail {
 export interface FileRetryEventDetail {
     /** The file being retried */
     file: FileState;
-    /** All current files */
-    files: FileState[];
 }
 
 /**
@@ -769,8 +766,6 @@ export interface FileRetryEventDetail {
 export interface FileUploadedEventDetail {
     /** The file that finished uploading */
     file: FileState;
-    /** All current files */
-    files: FileState[];
 }
 
 /**
@@ -783,8 +778,6 @@ export interface FileUploadedEventDetail {
 export interface FileDeletedEventDetail {
     /** The completed file being removed (includes metadata, downloadUrl) */
     file: FileState;
-    /** All remaining files after removal */
-    files: FileState[];
 }
 
 /**

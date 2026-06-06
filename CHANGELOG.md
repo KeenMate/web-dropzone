@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking Changes
 
+- **Per-file event detail payloads no longer carry the full `files` snapshot** — `file-added`, `file-removed`, `file-retry`, `file-uploaded`, `file-deleted` now dispatch with `detail: { file }` only. Listeners that need the full file list should read it from `e.target.files` (the host is already on the event) or subscribe to the snapshot-channel events (`files-changed` for the rAF-coalesced diff, `change` for the coarse per-mutation snapshot — both still carry `files`). The duplicate `files` field encouraged listeners to mix per-file and snapshot semantics interchangeably and inflated detail payloads on high-frequency events. Substrate events (`file-progress`, `file-status-changed`) and batch events (`files-rejected`, `files-changed`) were already on the new shape and are unchanged.
+
 - **Internal config keys renamed to KM house-style `is*` prefix** — `multiple` → `isMultipleEnabled`, `disabled` → `isDisabled`, `filesInside` → `isFilesInsideEnabled`. HTML attributes (`multiple`, `disabled`, `files-inside`) are unchanged, so declarative usage continues to work. JavaScript property setters on the element (`.multiple`, `.disabled`, `.filesInside`) also continue to work — only the internal `DropzoneConfig` keys passed to the core `WebDropzone` class changed.
 
 - **`updateConfig(partial)` signature** — now returns `boolean` (matches the KM family convention where `false` would signal a structural change needing reinit; dropzone applies every change in-place so it always returns `true`).

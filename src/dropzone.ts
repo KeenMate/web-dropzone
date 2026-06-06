@@ -3611,7 +3611,7 @@ export class WebDropzone {
     // ========================================================================
 
     private emitAddEvent(file: FileState): void {
-        dispatchComposedEvent(this.element, 'file-added', { file, files: this.getFiles() });
+        dispatchComposedEvent(this.element, 'file-added', { file });
         this.markFilesChanged(file.id);
 
         if (this.config.addCallback) {
@@ -3620,7 +3620,7 @@ export class WebDropzone {
     }
 
     private emitRemoveEvent(file: FileState): void {
-        dispatchComposedEvent(this.element, 'file-removed', { file, files: this.getFiles() });
+        dispatchComposedEvent(this.element, 'file-removed', { file });
         this.markFilesChanged(file.id);
 
         if (this.config.removeCallback) {
@@ -3666,7 +3666,7 @@ export class WebDropzone {
     }
 
     private emitRetryEvent(file: FileState): void {
-        dispatchComposedEvent(this.element, 'file-retry', { file, files: this.getFiles() });
+        dispatchComposedEvent(this.element, 'file-retry', { file });
 
         if (this.config.retryCallback) {
             this.config.retryCallback(file);
@@ -3674,7 +3674,7 @@ export class WebDropzone {
     }
 
     private emitUploadedEvent(file: FileState): void {
-        dispatchComposedEvent(this.element, 'file-uploaded', { file, files: this.getFiles() });
+        dispatchComposedEvent(this.element, 'file-uploaded', { file });
 
         if (this.config.uploadedCallback) {
             this.config.uploadedCallback(file);
@@ -3682,7 +3682,7 @@ export class WebDropzone {
     }
 
     private emitDeleteEvent(file: FileState): void {
-        dispatchComposedEvent(this.element, 'file-deleted', { file, files: this.getFiles() });
+        dispatchComposedEvent(this.element, 'file-deleted', { file });
 
         if (this.config.deleteCallback) {
             this.config.deleteCallback(file);
