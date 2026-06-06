@@ -26,19 +26,16 @@ import styles from './css/main.css?inline';
 import {
     resolveStoreElement,
     whenStoreReady,
-    subscribeStoreEvents
+    subscribeStoreEvents,
+    createMicrotaskScheduler,
+    warnStoreMissing
 } from './satellite-base';
+import { escapeHtml } from './dom-utils';
 import { formatFileSize } from './dropzone';
 import type { WebDropzone } from './dropzone';
 import type { DropzoneElement } from './web-component';
 
 const BaseElement = (typeof HTMLElement !== 'undefined' ? HTMLElement : class {}) as typeof HTMLElement;
-
-function escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
 type OverallProgress = ReturnType<WebDropzone['getOverallProgress']>;
 
@@ -56,7 +53,7 @@ export class DropzoneProgressElement extends BaseElement {
      * intervals across every active upload; a 20-file burst would
      * otherwise re-aggregate 400×/sec — overkill for a single bar.
      */
-    private refreshScheduled = false;
+    private scheduleRefresh = createMicrotaskScheduler(() => this.refresh());
 
     constructor() {
         super();
@@ -89,11 +86,7 @@ export class DropzoneProgressElement extends BaseElement {
             const forId = this.getAttribute('for');
             this.storeEl = resolveStoreElement(forId);
             if (!this.storeEl) {
-                // eslint-disable-next-line no-console
-                console.warn(
-                    `<web-dropzone-progress for="${forId ?? ''}"> — store not found. ` +
-                    `Make sure a <web-dropzone id="${forId ?? ''}"> exists on the page.`
-                );
+                warnStoreMissing('web-dropzone-progress', forId);
                 return;
             }
         }
@@ -150,15 +143,6 @@ export class DropzoneProgressElement extends BaseElement {
             'change':              () => this.scheduleRefresh(),
             'file-progress':       () => this.scheduleRefresh(),
             'file-status-changed': () => this.scheduleRefresh()
-        });
-    }
-
-    private scheduleRefresh(): void {
-        if (this.refreshScheduled) return;
-        this.refreshScheduled = true;
-        queueMicrotask(() => {
-            this.refreshScheduled = false;
-            this.refresh();
         });
     }
 

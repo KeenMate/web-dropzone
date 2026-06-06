@@ -90,3 +90,53 @@ export function subscribeStoreEvents(
         }
     };
 }
+
+/**
+ * Read an HTML attribute and validate it against a closed set of allowed
+ * values, returning the typed value or a fallback. Centralizes the
+ * `attribute → enum` pattern used by every satellite for things like
+ * `selector-appearance`, `list-appearance`, `position`, `drawer`.
+ */
+export function resolveEnumAttribute<T extends string>(
+    el: HTMLElement,
+    attr: string,
+    allowed: readonly T[],
+    fallback: T
+): T {
+    const raw = el.getAttribute(attr);
+    return (allowed as readonly string[]).includes(raw ?? '')
+        ? (raw as T)
+        : fallback;
+}
+
+/**
+ * Build a microtask-coalesced scheduler around `fn`. Multiple calls within
+ * the same task collapse into a single deferred invocation; the next call
+ * after the microtask flushes schedules a fresh one. Used by satellites to
+ * debounce per-event refreshes so a burst of `file-progress` / `change` /
+ * `file-status-changed` events in one frame results in exactly one render.
+ */
+export function createMicrotaskScheduler(fn: () => void): () => void {
+    let scheduled = false;
+    return () => {
+        if (scheduled) return;
+        scheduled = true;
+        queueMicrotask(() => {
+            scheduled = false;
+            fn();
+        });
+    };
+}
+
+/**
+ * Standard "the satellite couldn't find its store" warning. Every satellite
+ * needs to emit the same diagnostic with its own tag — passing the satellite's
+ * tag name (`web-dropzone-picker`, `web-dropzone-list`, …) is enough.
+ */
+export function warnStoreMissing(elementName: string, forId: string | null): void {
+    // eslint-disable-next-line no-console
+    console.warn(
+        `<${elementName} for="${forId ?? ''}"> — store not found. ` +
+        `Make sure a <web-dropzone id="${forId ?? ''}"> exists on the page.`
+    );
+}

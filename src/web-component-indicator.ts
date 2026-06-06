@@ -35,8 +35,12 @@ import indicatorStyles from './css/_indicator.css?inline';
 import {
     resolveStoreElement,
     whenStoreReady,
-    subscribeStoreEvents
+    subscribeStoreEvents,
+    resolveEnumAttribute,
+    createMicrotaskScheduler,
+    warnStoreMissing
 } from './satellite-base';
+import { escapeHtml } from './dom-utils';
 import {
     buildStatusSurfaceArgs,
     StatusSurface
@@ -62,12 +66,6 @@ type IndicatorPosition = typeof POSITIONS[number];
 
 const DRAWER_MODES = ['auto', 'off'] as const;
 type DrawerMode = typeof DRAWER_MODES[number];
-
-function escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
 /**
  * Builds the default chip label. Used internally when the consumer hasn't
@@ -132,7 +130,7 @@ export class DropzoneIndicatorElement extends BaseElement {
      * would otherwise iterate every file to recompute totals. With this,
      * we recompute once per microtask (≈ once per paint frame).
      */
-    private refreshScheduled = false;
+    private scheduleRefresh = createMicrotaskScheduler(() => this.refresh());
 
     // ========================================================================
     // RENDER CALLBACKS — JS-only properties, no HTML attribute equivalent
@@ -240,10 +238,7 @@ export class DropzoneIndicatorElement extends BaseElement {
             const forId = this.getAttribute('for');
             this.storeEl = resolveStoreElement(forId);
             if (!this.storeEl) {
-                // eslint-disable-next-line no-console
-                console.warn(
-                    `<web-dropzone-indicator for="${forId ?? ''}"> — store not found.`
-                );
+                warnStoreMissing('web-dropzone-indicator', forId);
                 return;
             }
         }
@@ -306,17 +301,11 @@ export class DropzoneIndicatorElement extends BaseElement {
     // ========================================================================
 
     private resolvePosition(): IndicatorPosition {
-        const raw = this.getAttribute('position');
-        return (POSITIONS as readonly string[]).includes(raw ?? '')
-            ? (raw as IndicatorPosition)
-            : 'right';
+        return resolveEnumAttribute(this, 'position', POSITIONS, 'right');
     }
 
     private resolveDrawerMode(): DrawerMode {
-        const raw = this.getAttribute('drawer');
-        return (DRAWER_MODES as readonly string[]).includes(raw ?? '')
-            ? (raw as DrawerMode)
-            : 'auto';
+        return resolveEnumAttribute(this, 'drawer', DRAWER_MODES, 'auto');
     }
 
     private applyPosition(): void {
@@ -381,15 +370,6 @@ export class DropzoneIndicatorElement extends BaseElement {
             'change':               () => this.scheduleRefresh(),
             'file-progress':        () => this.scheduleRefresh(),
             'file-status-changed':  () => this.scheduleRefresh()
-        });
-    }
-
-    private scheduleRefresh(): void {
-        if (this.refreshScheduled) return;
-        this.refreshScheduled = true;
-        queueMicrotask(() => {
-            this.refreshScheduled = false;
-            this.refresh();
         });
     }
 

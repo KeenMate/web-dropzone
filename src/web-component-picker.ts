@@ -15,7 +15,14 @@
  */
 
 import styles from './css/main.css?inline';
-import { resolveStoreElement, whenStoreReady, subscribeStoreEvents } from './satellite-base';
+import {
+    resolveStoreElement,
+    whenStoreReady,
+    subscribeStoreEvents,
+    resolveEnumAttribute,
+    warnStoreMissing
+} from './satellite-base';
+import { escapeHtml } from './dom-utils';
 import type { WebDropzone } from './dropzone';
 import type { DropzoneElement } from './web-component';
 import type {
@@ -33,12 +40,6 @@ const DEFAULT_ICON = '📤';
 const DEFAULT_PROMPT = 'Drop files here or click to browse';
 const DEFAULT_DRAG_ACTIVE = 'Drop files here';
 const DEFAULT_SELECT_TEXT = 'Select files';
-
-function escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
 export class DropzonePickerElement extends BaseElement {
     private shadow: ShadowRoot;
@@ -134,11 +135,7 @@ export class DropzonePickerElement extends BaseElement {
             if (!this.storeEl) {
                 // Surface the configuration error loudly — silent picker is the
                 // worst failure mode (looks like the wiring works).
-                // eslint-disable-next-line no-console
-                console.warn(
-                    `<web-dropzone-picker for="${forId ?? ''}"> — store not found. ` +
-                    `Make sure a <web-dropzone id="${forId ?? ''}"> exists on the page.`
-                );
+                warnStoreMissing('web-dropzone-picker', forId);
                 return;
             }
         }
@@ -326,17 +323,11 @@ export class DropzonePickerElement extends BaseElement {
     // ========================================================================
 
     private resolveSelectorAppearance(): SelectorAppearance {
-        const raw = this.getAttribute('selector-appearance');
-        return (SELECTOR_APPEARANCES as readonly string[]).includes(raw ?? '')
-            ? (raw as SelectorAppearance)
-            : 'card';
+        return resolveEnumAttribute(this, 'selector-appearance', SELECTOR_APPEARANCES, 'card');
     }
 
     private resolveCardSize(): CardSize {
-        const raw = this.getAttribute('card-size');
-        return (CARD_SIZES as readonly string[]).includes(raw ?? '')
-            ? (raw as CardSize)
-            : 'compact';
+        return resolveEnumAttribute(this, 'card-size', CARD_SIZES, 'compact');
     }
 
     private resolveMultiple(storeDefault: boolean | undefined): boolean {

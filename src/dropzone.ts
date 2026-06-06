@@ -8,6 +8,7 @@
 import { computePosition, flip, shift, offset, size, autoUpdate } from '@floating-ui/dom';
 import type { Placement } from '@floating-ui/dom';
 import { initLogger, fileLogger, uiLogger, interactionLogger } from './logger';
+import { dispatchComposedEvent, escapeHtml } from './dom-utils';
 import type {
     DropzoneConfig,
     DedupeMode,
@@ -214,15 +215,6 @@ export function createImagePreview(file: File): Promise<string> {
         reader.onerror = () => reject(reader.error);
         reader.readAsDataURL(file);
     });
-}
-
-/**
- * Escape HTML to prevent XSS
- */
-function escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 /**
@@ -1893,11 +1885,7 @@ export class WebDropzone {
                     // via a CustomEvent on the row itself. Bubbles +
                     // composed so listeners on the store element (or
                     // anywhere above) can also observe.
-                    cachedRowEl.dispatchEvent(new CustomEvent('file-row-update', {
-                        detail: { file },
-                        bubbles: true,
-                        composed: true
-                    }));
+                    dispatchComposedEvent(cachedRowEl, 'file-row-update', { file });
                 } else if (hasCustomRenderer) {
                     const next = this.htmlToElement(this.renderFileItem(file, index, false));
                     if (next) {
@@ -3730,12 +3718,7 @@ export class WebDropzone {
     // ========================================================================
 
     private emitAddEvent(file: FileState): void {
-        const event = new CustomEvent('file-added', {
-            detail: { file, files: this.getFiles() },
-            bubbles: true,
-            composed: true
-        });
-        this.element.dispatchEvent(event);
+        dispatchComposedEvent(this.element, 'file-added', { file, files: this.getFiles() });
         this.markFilesChanged(file.id);
 
         if (this.config.addCallback) {
@@ -3744,12 +3727,7 @@ export class WebDropzone {
     }
 
     private emitRemoveEvent(file: FileState): void {
-        const event = new CustomEvent('file-removed', {
-            detail: { file, files: this.getFiles() },
-            bubbles: true,
-            composed: true
-        });
-        this.element.dispatchEvent(event);
+        dispatchComposedEvent(this.element, 'file-removed', { file, files: this.getFiles() });
         this.markFilesChanged(file.id);
 
         if (this.config.removeCallback) {
@@ -3772,22 +3750,14 @@ export class WebDropzone {
             this.filesChangedRafHandle = null;
             const changedIds = Array.from(this.dirtyFileIds);
             this.dirtyFileIds.clear();
-            const event = new CustomEvent('files-changed', {
-                detail: { changedIds, files: this.getFiles() },
-                bubbles: true,
-                composed: true
+            dispatchComposedEvent(this.element, 'files-changed', {
+                changedIds, files: this.getFiles()
             });
-            this.element.dispatchEvent(event);
         });
     }
 
     private emitChangeEvent(): void {
-        const event = new CustomEvent('change', {
-            detail: { files: this.getFiles() },
-            bubbles: true,
-            composed: true
-        });
-        this.element.dispatchEvent(event);
+        dispatchComposedEvent(this.element, 'change', { files: this.getFiles() });
 
         if (this.config.changeCallback) {
             this.config.changeCallback(this.getFiles());
@@ -3795,12 +3765,7 @@ export class WebDropzone {
     }
 
     private emitRejectEvent(rejectedFiles: RejectedFile[]): void {
-        const event = new CustomEvent('files-rejected', {
-            detail: { rejectedFiles },
-            bubbles: true,
-            composed: true
-        });
-        this.element.dispatchEvent(event);
+        dispatchComposedEvent(this.element, 'files-rejected', { rejectedFiles });
 
         if (this.config.rejectCallback) {
             this.config.rejectCallback(rejectedFiles);
@@ -3808,12 +3773,7 @@ export class WebDropzone {
     }
 
     private emitRetryEvent(file: FileState): void {
-        const event = new CustomEvent('file-retry', {
-            detail: { file, files: this.getFiles() },
-            bubbles: true,
-            composed: true
-        });
-        this.element.dispatchEvent(event);
+        dispatchComposedEvent(this.element, 'file-retry', { file, files: this.getFiles() });
 
         if (this.config.retryCallback) {
             this.config.retryCallback(file);
@@ -3821,12 +3781,7 @@ export class WebDropzone {
     }
 
     private emitUploadedEvent(file: FileState): void {
-        const event = new CustomEvent('file-uploaded', {
-            detail: { file, files: this.getFiles() },
-            bubbles: true,
-            composed: true
-        });
-        this.element.dispatchEvent(event);
+        dispatchComposedEvent(this.element, 'file-uploaded', { file, files: this.getFiles() });
 
         if (this.config.uploadedCallback) {
             this.config.uploadedCallback(file);
@@ -3834,12 +3789,7 @@ export class WebDropzone {
     }
 
     private emitDeleteEvent(file: FileState): void {
-        const event = new CustomEvent('file-deleted', {
-            detail: { file, files: this.getFiles() },
-            bubbles: true,
-            composed: true
-        });
-        this.element.dispatchEvent(event);
+        dispatchComposedEvent(this.element, 'file-deleted', { file, files: this.getFiles() });
 
         if (this.config.deleteCallback) {
             this.config.deleteCallback(file);
@@ -3854,12 +3804,9 @@ export class WebDropzone {
      * pick it up. See ARCHITECTURE.md.
      */
     private emitFileProgress(file: FileState): void {
-        const event = new CustomEvent('file-progress', {
-            detail: { id: file.id, progress: file.progress, status: file.status, file },
-            bubbles: true,
-            composed: true
+        dispatchComposedEvent(this.element, 'file-progress', {
+            id: file.id, progress: file.progress, status: file.status, file
         });
-        this.element.dispatchEvent(event);
         this.markFilesChanged(file.id);
     }
 
@@ -3873,12 +3820,9 @@ export class WebDropzone {
         prevStatus: FileState['status'],
         nextStatus: FileState['status']
     ): void {
-        const event = new CustomEvent('file-status-changed', {
-            detail: { id: file.id, prevStatus, nextStatus, file },
-            bubbles: true,
-            composed: true
+        dispatchComposedEvent(this.element, 'file-status-changed', {
+            id: file.id, prevStatus, nextStatus, file
         });
-        this.element.dispatchEvent(event);
         this.markFilesChanged(file.id);
     }
 
@@ -4031,11 +3975,9 @@ export class WebDropzone {
                 transition: 'filter 140ms ease, border-color 140ms ease, box-shadow 140ms ease',
             });
             this.dragOverlay.classList.add('dz__overlay--hover');
-            this.element.dispatchEvent(new CustomEvent('overlay-enter', {
-                detail: { files: this.getFiles(), overlayElement: this.dragOverlay },
-                bubbles: true,
-                composed: true,
-            }));
+            dispatchComposedEvent(this.element, 'overlay-enter', {
+                files: this.getFiles(), overlayElement: this.dragOverlay
+            });
         };
         const revertOverlayHover = (): void => {
             if (!this.dragOverlay || !isOverlayHovered) return;
@@ -4046,11 +3988,9 @@ export class WebDropzone {
                 boxShadow: '',
             });
             this.dragOverlay.classList.remove('dz__overlay--hover');
-            this.element.dispatchEvent(new CustomEvent('overlay-leave', {
-                detail: { files: this.getFiles(), overlayElement: this.dragOverlay },
-                bubbles: true,
-                composed: true,
-            }));
+            dispatchComposedEvent(this.element, 'overlay-leave', {
+                files: this.getFiles(), overlayElement: this.dragOverlay
+            });
         };
 
         // Handle drag events on overlay

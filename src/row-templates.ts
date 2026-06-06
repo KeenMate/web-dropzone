@@ -18,6 +18,7 @@
  */
 
 import { formatFileSize, getFileTypeCategory, getFileIcon, isImageFile } from './dropzone';
+import { escapeHtml } from './dom-utils';
 import {
     STATUS_ICONS,
     STATUS_LABELS,
@@ -26,6 +27,8 @@ import {
     actionForStatus
 } from './icons';
 import type { FileState } from './types';
+
+export { escapeHtml };
 
 /**
  * Per-row knobs that vary between the convenience form and the satellite.
@@ -55,12 +58,6 @@ export interface RowTemplateOptions {
      * grid (image grid wants thumbnails by default).
      */
     useThumbnail?: boolean;
-}
-
-export function escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 /**

@@ -8,6 +8,7 @@
 
 import { WebDropzone } from './dropzone';
 import { initLogger } from './logger';
+import { dispatchComposedEvent } from './dom-utils';
 import type {
     DropzoneConfig,
     DisplayMode,
@@ -536,10 +537,7 @@ export class DropzoneElement extends BaseElement {
         // connected before the store called this listen for `store-ready`
         // and complete their wiring then. Bubbles + composed so listeners
         // in other shadow roots pick it up.
-        this.dispatchEvent(new CustomEvent('store-ready', {
-            bubbles: true,
-            composed: true
-        }));
+        dispatchComposedEvent(this, 'store-ready');
 
         initLogger.debug('Dropzone initialized', { config });
     }

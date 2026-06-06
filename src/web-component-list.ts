@@ -23,8 +23,12 @@ import styles from './css/main.css?inline';
 import {
     resolveStoreElement,
     whenStoreReady,
-    subscribeStoreEvents
+    subscribeStoreEvents,
+    resolveEnumAttribute,
+    createMicrotaskScheduler,
+    warnStoreMissing
 } from './satellite-base';
+import { escapeHtml, dispatchComposedEvent } from './dom-utils';
 import { isImageFile, createImagePreview, formatFileSize } from './dropzone';
 import {
     STATUS_ICONS,
@@ -58,12 +62,6 @@ const SUPPORTED_APPEARANCES: ReadonlyArray<ListAppearance> = [
 
 const DEFAULT_SUMMARY_TEMPLATE = '{count} file(s), {size}';
 
-function escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 export class DropzoneListElement extends BaseElement {
     private shadow: ShadowRoot;
     private container: HTMLElement;
@@ -79,7 +77,7 @@ export class DropzoneListElement extends BaseElement {
      * without coalescing we'd rebuild the list N+1 times (and destroy the
      * row a user might be mid-click on). With it: one rebuild per burst.
      */
-    private renderScheduled = false;
+    private scheduleRenderAll = createMicrotaskScheduler(() => this.renderAll());
     /**
      * Memoization snapshots for the rolling appearance's three callback
      * slots (body / file-info / progress). Lets cached WAAPI spinners
@@ -113,11 +111,7 @@ export class DropzoneListElement extends BaseElement {
             const forId = this.getAttribute('for');
             this.storeEl = resolveStoreElement(forId);
             if (!this.storeEl) {
-                // eslint-disable-next-line no-console
-                console.warn(
-                    `<web-dropzone-list for="${forId ?? ''}"> — store not found. ` +
-                    `Make sure a <web-dropzone id="${forId ?? ''}"> exists on the page.`
-                );
+                warnStoreMissing('web-dropzone-list', forId);
                 return;
             }
         }
@@ -201,19 +195,7 @@ export class DropzoneListElement extends BaseElement {
     // ========================================================================
 
     private resolveAppearance(): ListAppearance {
-        const raw = this.getAttribute('list-appearance');
-        return (SUPPORTED_APPEARANCES as readonly string[]).includes(raw ?? '')
-            ? (raw as ListAppearance)
-            : 'list';
-    }
-
-    private scheduleRenderAll(): void {
-        if (this.renderScheduled) return;
-        this.renderScheduled = true;
-        queueMicrotask(() => {
-            this.renderScheduled = false;
-            this.renderAll();
-        });
+        return resolveEnumAttribute(this, 'list-appearance', SUPPORTED_APPEARANCES, 'list');
     }
 
     private renderAll(): void {
@@ -311,10 +293,7 @@ export class DropzoneListElement extends BaseElement {
 
         const line = this.container.querySelector('.dz__summary__line');
         if (!line) return;
-        const fire = () => this.dispatchEvent(new CustomEvent('dz-summary-click', {
-            bubbles: true,
-            composed: true
-        }));
+        const fire = () => dispatchComposedEvent(this, 'dz-summary-click');
         line.addEventListener('click', fire);
         line.addEventListener('keydown', (e) => {
             const ke = e as KeyboardEvent;
@@ -518,10 +497,7 @@ export class DropzoneListElement extends BaseElement {
             queueBtn.innerHTML = '<span class="dz__rolling__queue-count"></span>';
             queueBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.dispatchEvent(new CustomEvent('dz-queue-open', {
-                    bubbles: true,
-                    composed: true
-                }));
+                dispatchComposedEvent(this, 'dz-queue-open');
             });
             wrapper.appendChild(queueBtn);
         }
