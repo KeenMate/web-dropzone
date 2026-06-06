@@ -154,6 +154,10 @@
 
         <div class="card">
             <h2>Try it</h2>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="try" checked>
+                <span>Active demo</span>
+            </label>
             <p>Drag any file from your desktop onto the message body below. It splits in half — drop on the <strong>left</strong> to attach as a file, drop on the <strong>right</strong> to share as a OneDrive-style link.</p>
 
             <div class="compose">
@@ -247,6 +251,16 @@
         </web-dropzone>
 
         <script type="module">
+            import { simulateUpload } from '/examples-shared.js';
+
+            // Wire every dropzone on the page to the shared simulator so files
+            // actually progress instead of sitting at pending after drop.
+            customElements.whenDefined('web-dropzone').then(() => {
+                for (const dz of document.querySelectorAll('web-dropzone')) {
+                    dz.uploadFileCallback = simulateUpload({ bucket: 'split-overlay', durationMs: 3000, failRate: 0.2 });
+                }
+            });
+
             // Each overlay broadcasts overlay-enter / overlay-leave on its
             // host as the cursor crosses into / out of it during a drag.
             // detail = { files, overlayElement }. We mutate the overlay's
@@ -280,10 +294,49 @@
                 () => 'Share as OneDrive link · no size limit',
                 'Share as OneDrive link',
             );
+
+            // ============================================================
+            // Active-demo toggle — Try-it and Stress-test both use
+            // overlay-target, which means each one's document-level
+            // dragenter listener tries to render its overlay regardless of
+            // which card the user is aiming at. Without the toggle, dragging
+            // anywhere lights up both demos' overlays. Setting `disabled`
+            // on the inactive demo's stores stops them from registering the
+            // document listener.
+            //
+            // Within a card, all its dropzones stay enabled — the multi-zone
+            // overlap is part of each demo (left vs right, A vs B).
+            // ============================================================
+            const splitDemoStores = {
+                try:    ['split-attach',   'split-onedrive'],
+                stress: ['split-attach-2', 'split-onedrive-2', 'split-attach-3', 'split-onedrive-3'],
+            };
+            const allSplitIds = Object.values(splitDemoStores).flat();
+            function applySplitActiveDemo(value) {
+                const enabled = new Set(splitDemoStores[value] ?? []);
+                for (const id of allSplitIds) {
+                    const el = document.getElementById(id);
+                    if (!el) continue;
+                    if (enabled.has(id)) el.removeAttribute('disabled');
+                    else el.setAttribute('disabled', '');
+                }
+            }
+            document.querySelectorAll('input[name="active-demo"]').forEach(input => {
+                input.addEventListener('change', () => {
+                    if (input.checked) applySplitActiveDemo(input.value);
+                });
+            });
+            applySplitActiveDemo(
+                document.querySelector('input[name="active-demo"]:checked')?.value ?? 'try'
+            );
         </script>
 
         <div class="card">
             <h2>Stress test: two editors on one page</h2>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="stress">
+                <span>Active demo</span>
+            </label>
             <p>Same pattern repeated. Each draft has its own pair of dropzones with distinct overlay colors so you can see which is which. Things to verify by dragging:</p>
             <ul style="margin: 0 0 1rem 1.25rem">
                 <li>Dragging onto the page lights up <strong>all four halves</strong> at once (the two pairs are independent stores; the document-level dragenter fires each of their createOverlay paths).</li>

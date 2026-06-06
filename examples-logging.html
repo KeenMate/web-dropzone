@@ -270,6 +270,17 @@ disableLogging()</code></pre>
         window.clearLog = () => { out.innerHTML = '' }
     </script>
 
+    <script type="module">
+        // Wire the demo dropzone to the shared simulator so files actually
+        // progress — this also produces richer UPLOAD-related log lines for
+        // the playground to capture.
+        import { simulateUpload } from '/examples-shared.js';
+        customElements.whenDefined('web-dropzone').then(() => {
+            const dz = document.getElementById('log-dz');
+            if (dz) dz.uploadFileCallback = simulateUpload({ bucket: 'logging', durationMs: 3000, failRate: 0.2 });
+        });
+    </script>
+
     <script type="module" src="/src/index.ts"></script>
 </body>
 </html>

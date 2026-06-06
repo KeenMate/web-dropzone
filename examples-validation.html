@@ -190,6 +190,15 @@ el.validateCallback = (file, existingFiles) => {
     </div>
 
     <script type="module">
+        import { simulateUpload } from '/examples-shared.js';
+
+        // Wire every dropzone on the page to the shared simulator so accepted
+        // files actually progress (validation demo otherwise leaves them at
+        // pending). failRate exercises the error / retry path too.
+        for (const dz of document.querySelectorAll('web-dropzone')) {
+            dz.uploadFileCallback = simulateUpload({ bucket: 'validation', durationMs: 3000, failRate: 0.2 });
+        }
+
         // Wire rejection logging onto every dropzone that has a [data-log-for] sibling.
         document.querySelectorAll('.rejected-log[data-log-for]').forEach(log => {
             const id = log.dataset.logFor

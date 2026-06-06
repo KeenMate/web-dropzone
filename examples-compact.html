@@ -200,5 +200,16 @@
     </div>
 
     <script type="module" src="/src/index.ts"></script>
+    <script type="module">
+        // Wire every dropzone on the page to the shared simulator so files
+        // actually progress instead of sitting at pending. failRate exercises
+        // the error / retry path so the demo isn't always a happy path.
+        import { simulateUpload } from '/examples-shared.js';
+        customElements.whenDefined('web-dropzone').then(() => {
+            for (const dz of document.querySelectorAll('web-dropzone')) {
+                dz.uploadFileCallback = simulateUpload({ bucket: 'compact', durationMs: 3000, failRate: 0.2 });
+            }
+        });
+    </script>
 </body>
 </html>

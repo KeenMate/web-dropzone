@@ -125,6 +125,48 @@ h1 {
     margin-bottom: 1.5rem;
 }
 
+/* --- Active-demo toggle -----------------------------------------------------
+ * Pages with multiple <web-dropzone> instances on screen at once (architecture,
+ * split-overlay, drag-overlay) put one of these radio chips inside each demo
+ * card. The page's script toggles `disabled` on the inactive demos' stores so
+ * a drag onto the page only goes to the focused demo. The unchecked card also
+ * dims to make the focus visible at a glance.
+ *
+ * Markup pattern (inside each demo card):
+ *   <label class="demo-toggle">
+ *     <input type="radio" name="active-demo" value="...">
+ *     <span>Active demo</span>
+ *   </label>
+ * -------------------------------------------------------------------------- */
+.demo-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.7rem;
+    margin-bottom: 1rem;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #4b5563;
+    cursor: pointer;
+    user-select: none;
+}
+.demo-toggle input { margin: 0; cursor: pointer; }
+.card:has(.demo-toggle input:checked) .demo-toggle,
+.example-section:has(.demo-toggle input:checked) .demo-toggle {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+/* Only dim cards that DO have a toggle but it's unchecked — sections without
+ * any toggle (e.g. intro / topology blocks) stay at full opacity. */
+.card:has(.demo-toggle):not(:has(.demo-toggle input:checked)),
+.example-section:has(.demo-toggle):not(:has(.demo-toggle input:checked)) {
+    opacity: 0.6;
+}
+
 /* Output display */
 .output {
     margin-top: 1rem;

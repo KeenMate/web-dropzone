@@ -73,30 +73,6 @@
         }
         .reject-toast[hidden] { display: none; }
         .reject-toast strong { color: #7f1d1d; }
-        .demo-toggle {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.35rem 0.7rem;
-            margin-bottom: 1rem;
-            background: #f3f4f6;
-            border: 1px solid #d1d5db;
-            border-radius: 999px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: #4b5563;
-            cursor: pointer;
-            user-select: none;
-        }
-        .demo-toggle input { margin: 0; cursor: pointer; }
-        .card:has(.demo-toggle input:checked) .demo-toggle {
-            background: #dcfce7;
-            border-color: #86efac;
-            color: #166534;
-        }
-        .card:not(:has(.demo-toggle input:checked)) {
-            opacity: 0.6;
-        }
     </style>
 </head>
 <body>
@@ -240,6 +216,14 @@ el.overlayTarget = document.body
     </div>
 
     <script type="module">
+        import { simulateUpload } from '/examples-shared.js';
+
+        // Wire every dropzone on the page to the shared simulator so files
+        // actually progress instead of sitting at pending after drop.
+        for (const dz of document.querySelectorAll('web-dropzone')) {
+            dz.uploadFileCallback = simulateUpload({ bucket: 'overlay', durationMs: 3000, failRate: 0.2 });
+        }
+
         // Only one demo is "live" at a time — otherwise all three dropzones
         // race their document-level dragenter listeners and the first one to
         // create its overlay wins (visible bug: dragging over the full-page

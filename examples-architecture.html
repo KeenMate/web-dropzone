@@ -250,6 +250,10 @@
                 <h2>1 · Convenience form</h2>
                 <span class="scenario-mode">USE CASE A</span>
             </div>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="classic" checked>
+                <span>Active demo</span>
+            </label>
             <p>Nothing new — the existing <code>&lt;web-dropzone&gt;</code> with renderer attributes mounts its own internal picker + list. This is the one-element form that still works unchanged after stage 2 + 3 landed.</p>
             <div class="demo-area">
                 <web-dropzone
@@ -258,7 +262,11 @@
                     list-appearance="detailed"
                     multiple
                     max-file-count="5"
+                    auto-upload="false"
                 ></web-dropzone>
+                <button id="dz-classic-upload" type="button" style="margin-top:1rem; padding:0.6rem 1.1rem; background:#2563eb; color:white; border:0; border-radius:6px; font-weight:500; cursor:pointer;">
+                    Upload all
+                </button>
             </div>
             <div class="code-block">
 <pre>&lt;web-dropzone selector-appearance="card" list-appearance="detailed" multiple&gt;&lt;/web-dropzone&gt;</pre>
@@ -271,6 +279,10 @@
                 <h2>2 · Decoupled picker + list</h2>
                 <span class="scenario-mode">USE CASE C</span>
             </div>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="decoupled">
+                <span>Active demo</span>
+            </label>
             <p>The picker sits in a form; the file list lives somewhere else on the page. Both bind to the same headless store. Drop files on the left — the list on the right syncs via the store's bubbling events.</p>
             <div class="scenario-pillars">
                 <div class="pillar">
@@ -287,7 +299,7 @@
                 </div>
             </div>
 
-            <web-dropzone id="dz-decoupled" multiple max-file-count="10"></web-dropzone>
+            <web-dropzone id="dz-decoupled" multiple max-file-count="10" auto-upload="false"></web-dropzone>
 
             <div class="scenario-row">
                 <div>
@@ -304,6 +316,9 @@
                             card-size="compact"
                             label="Drop attachments here"
                         ></web-dropzone-picker>
+                        <button id="dz-decoupled-upload" type="button" style="margin-top:1rem; padding:0.6rem 1.1rem; background:#2563eb; color:white; border:0; border-radius:6px; font-weight:500; cursor:pointer;">
+                            Upload all
+                        </button>
                     </div>
                 </div>
                 <div>
@@ -337,12 +352,16 @@
                 <h2>3 · Multiple independent contexts</h2>
                 <span class="scenario-mode scenario-mode--a">MODE A</span>
             </div>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="independent">
+                <span>Active demo</span>
+            </label>
             <p>An avatar uploader and a documents uploader on the same page. Each is its own store: own queue, own list, own validation, own (potential) upload endpoint. Nothing flows between them.</p>
 
             <div class="scenario-row">
                 <div>
                     <div class="stage-label">Avatar — single image only</div>
-                    <web-dropzone id="dz-avatar" accept="image/*"></web-dropzone>
+                    <web-dropzone id="dz-avatar" accept="image/*" auto-upload="false"></web-dropzone>
                     <web-dropzone-picker
                         for="dz-avatar"
                         selector-appearance="card"
@@ -353,10 +372,13 @@
                     <div style="margin-top:1rem;">
                         <web-dropzone-list for="dz-avatar" list-appearance="grid"></web-dropzone-list>
                     </div>
+                    <button id="dz-avatar-upload" type="button" style="margin-top:0.75rem; padding:0.5rem 1rem; background:#2563eb; color:white; border:0; border-radius:6px; font-weight:500; cursor:pointer;">
+                        Upload avatar
+                    </button>
                 </div>
                 <div>
                     <div class="stage-label">Documents — up to 5 files</div>
-                    <web-dropzone id="dz-docs" multiple max-file-count="5"></web-dropzone>
+                    <web-dropzone id="dz-docs" multiple max-file-count="5" auto-upload="false"></web-dropzone>
                     <web-dropzone-picker
                         for="dz-docs"
                         selector-appearance="button"
@@ -365,6 +387,9 @@
                     <div style="margin-top:1rem;">
                         <web-dropzone-list for="dz-docs" list-appearance="list"></web-dropzone-list>
                     </div>
+                    <button id="dz-docs-upload" type="button" style="margin-top:0.75rem; padding:0.5rem 1rem; background:#2563eb; color:white; border:0; border-radius:6px; font-weight:500; cursor:pointer;">
+                        Upload documents
+                    </button>
                 </div>
             </div>
         </section>
@@ -375,6 +400,10 @@
                 <h2>4 · Shared queue, per-picker upload routing</h2>
                 <span class="scenario-mode scenario-mode--b">MODE B</span>
             </div>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="modeb">
+                <span>Active demo</span>
+            </label>
             <p>One store, one global list, one global indicator — but each picker stamps its own <code>uploadCallback</code> + <code>uploadMetadata</code> onto every file it contributes. The store's upload loop picks <code>file.uploadCallback ?? config.uploadFileCallback</code> per file, so two pickers feeding the same queue can still route to different endpoints / buckets / tenants.</p>
 
             <web-dropzone id="dz-modeb" multiple></web-dropzone>
@@ -439,6 +468,10 @@
                 <h2>5 · Floating status indicator</h2>
                 <span class="scenario-mode scenario-mode--e">USE CASE E</span>
             </div>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="indicator">
+                <span>Active demo</span>
+            </label>
             <p>The flagship UX: just a button in the form (button-appearance picker), plus a floating chip pinned to the viewport edge that summarizes the queue and opens a slide-out drawer with the full list. Drop files via the button to see the chip update in real time.</p>
 
             <web-dropzone id="dz-indicator" multiple></web-dropzone>
@@ -468,6 +501,10 @@
                 <h2>6 · Indicator flexibility: inline, drawer-off, renderCallback</h2>
                 <span class="scenario-mode scenario-mode--e">USE CASE E+</span>
             </div>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="flex">
+                <span>Active demo</span>
+            </label>
             <p>The same <code>&lt;web-dropzone-indicator&gt;</code> covers a spectrum of UX when you mix <code>position="inline"</code>, <code>drawer="off"</code>, and a JS <code>renderCallback</code>. All four below bind to one store so a single drop fans out into every variant.</p>
 
             <web-dropzone id="dz-flex" multiple></web-dropzone>
@@ -559,6 +596,10 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
                 <h2>7 · Image grid — picker + grid list satellite</h2>
                 <span class="scenario-mode scenario-mode--a">USE CASE B</span>
             </div>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="grid">
+                <span>Active demo</span>
+            </label>
             <p>The list satellite renders the same polished appearances as the convenience form. Here the picker accepts images and the grid list satellite generates thumbnails on the fly — same DOM, same CSS, same hover-action overlay as <code>list-appearance="grid"</code> on a classic <code>&lt;web-dropzone&gt;</code>.</p>
 
             <web-dropzone id="dz-grid" multiple accept="image/*" max-file-count="12"></web-dropzone>
@@ -612,6 +653,10 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
         <section class="card">
             <span class="scenario-mode">USE CASE F</span>
             <h2>Bring your own renderer — <code>mode="headless"</code> + <code>files-changed</code></h2>
+            <label class="demo-toggle">
+                <input type="radio" name="active-demo" value="byo">
+                <span>Active demo</span>
+            </label>
             <p>The most decoupled story: skip satellites entirely and react to the coalesced <code>files-changed</code> CustomEvent. The store fires it once per animation frame with the current snapshot — your renderer (vanilla DOM, Lit, Svelte, anything) diffs and updates whatever UI it owns. Granular events (<code>file-progress</code> / <code>file-status-changed</code>) still fire if you want per-tick fidelity instead.</p>
 
             <web-dropzone id="dz-byo" multiple max-file-count="8"></web-dropzone>
@@ -655,49 +700,69 @@ store.addEventListener('files-changed', (e) =&gt; {
         // floating indicator's control buttons so the visual language is
         // consistent across surfaces.
         import { createDropzoneSpinner, ACTION_ICONS, ACTION_LABELS } from '/src/index.ts';
+        import { simulateUpload, wireQueueControlButton } from '/examples-shared.js';
+
+        // ============================================================
+        // Active-demo toggle — only one scenario's stores accept drops at a
+        // time. Without this, dragging anywhere on the page risks landing on
+        // an unintended scenario (the rendered selectors all live in the
+        // same flow), and side-by-side scenarios visually compete for focus.
+        // Setting `disabled` on a <web-dropzone> blocks its picker, so even
+        // the click-to-browse path goes only to the active demo.
+        //
+        // Scenario 3 owns two stores (avatar + docs) because the demo IS
+        // about two independent contexts side-by-side, so they share one
+        // "independent" group and toggle together.
+        // ============================================================
+        const demoStores = {
+            classic:     ['dz-classic'],
+            decoupled:   ['dz-decoupled'],
+            independent: ['dz-avatar', 'dz-docs'],
+            modeb:       ['dz-modeb'],
+            indicator:   ['dz-indicator'],
+            flex:        ['dz-flex'],
+            grid:        ['dz-grid'],
+            byo:         ['dz-byo'],
+        };
+        // Floating satellites that escape their section via position: fixed
+        // (the chip is rendered inside the indicator's shadow root, so the
+        // section's opacity rule can't reach it). They must be hidden by JS
+        // when their demo is inactive, otherwise scenario 5's "Uploads" pill
+        // and scenario 7's grid chip stay glued to the viewport edge while
+        // you're focused on a different scenario.
+        const floatingSatelliteSelectors = {
+            indicator: 'web-dropzone-indicator[for="dz-indicator"][position="right"]',
+            grid:      '#ind-grid',
+        };
+        const allStoreIds = Object.values(demoStores).flat();
+        function applyActiveDemo(value) {
+            const enabled = new Set(demoStores[value] ?? []);
+            for (const id of allStoreIds) {
+                const el = document.getElementById(id);
+                if (!el) continue;
+                if (enabled.has(id)) el.removeAttribute('disabled');
+                else el.setAttribute('disabled', '');
+            }
+            for (const [key, sel] of Object.entries(floatingSatelliteSelectors)) {
+                const el = document.querySelector(sel);
+                if (!el) continue;
+                el.style.display = key === value ? '' : 'none';
+            }
+        }
+        document.querySelectorAll('input[name="active-demo"]').forEach(input => {
+            input.addEventListener('change', () => {
+                if (input.checked) applyActiveDemo(input.value);
+            });
+        });
+        applyActiveDemo(
+            document.querySelector('input[name="active-demo"]:checked')?.value ?? 'classic'
+        );
 
         // ============================================================
         // Demo handlers — simulated uploads for all Mode B scenarios.
-        // The handlers are mode-aware: Picker A's handler labels its
-        // file-uploaded events "public", Picker B's labels them "private",
-        // so the event log can show the routing actually happened.
+        // simulateUpload comes from /examples-shared.js and accepts a
+        // failRate so the demos exercise the error / retry path.
         // ============================================================
-
-        function simulateUpload({ bucket, durationMs = 3500 } = {}) {
-            return (file, onProgress, signal, context) => new Promise((resolve, reject) => {
-                // The store hands us `context.startPercent` on every (re)entry
-                // — non-zero whenever we're resuming after pause / retry. The
-                // simulator scales the remaining duration proportionally so a
-                // resume-from-50% finishes in ~half the original duration,
-                // and progress continues from 50% instead of restarting at 0.
-                const startPct = context?.startPercent ?? 0;
-                if (startPct >= 100) {
-                    resolve({ metadata: { bucket, uploadedAt: new Date().toISOString() } });
-                    return;
-                }
-                const remainingPct = 100 - startPct;
-                const remainingMs = durationMs * (remainingPct / 100);
-                const start = performance.now();
-                let aborted = false;
-                signal?.addEventListener('abort', () => {
-                    aborted = true;
-                    reject(new DOMException('Aborted', 'AbortError'));
-                });
-                const tick = () => {
-                    if (aborted) return;
-                    const elapsed = performance.now() - start;
-                    const pctOfRemaining = Math.min(1, elapsed / remainingMs);
-                    const pct = Math.min(100, startPct + remainingPct * pctOfRemaining);
-                    onProgress(pct);
-                    if (pct >= 100) {
-                        resolve({ metadata: { bucket, uploadedAt: new Date().toISOString() } });
-                        return;
-                    }
-                    requestAnimationFrame(tick);
-                };
-                requestAnimationFrame(tick);
-            });
-        }
 
         // Mode B wiring — each picker gets its own uploadCallback. Files
         // contributed by picker-public route to the public bucket; files
@@ -705,24 +770,53 @@ store.addEventListener('files-changed', (e) =&gt; {
         // out to every satellite regardless of which picker added the file.
         const pickerPublic  = document.getElementById('picker-public');
         const pickerPrivate = document.getElementById('picker-private');
-        if (pickerPublic)  pickerPublic.uploadCallback  = simulateUpload({ bucket: 'public',  durationMs: 3500 });
-        if (pickerPrivate) pickerPrivate.uploadCallback = simulateUpload({ bucket: 'private', durationMs: 4500 });
+        if (pickerPublic)  pickerPublic.uploadCallback  = simulateUpload({ bucket: 'public',  durationMs: 3500, failRate: 0.2 });
+        if (pickerPrivate) pickerPrivate.uploadCallback = simulateUpload({ bucket: 'private', durationMs: 4500, failRate: 0.2 });
         if (pickerPublic)  pickerPublic.uploadMetadata  = { bucket: 'public'  };
         if (pickerPrivate) pickerPrivate.uploadMetadata = { bucket: 'private' };
 
+        // Scenarios 1 / 2 / 3 — staged upload via explicit button.
+        // `auto-upload="false"` keeps every added file at pending until the
+        // user clicks. `wireUploadButton` calls `store.uploadAll()` and
+        // syncs the button's disabled state from files-changed events.
+        const dzClassic = document.getElementById('dz-classic');
+        if (dzClassic) {
+            dzClassic.uploadFileCallback = simulateUpload({ bucket: 'classic', durationMs: 3500, failRate: 0.2 });
+            wireQueueControlButton(dzClassic, document.getElementById('dz-classic-upload'));
+        }
+        const dzDecoupled = document.getElementById('dz-decoupled');
+        if (dzDecoupled) {
+            dzDecoupled.uploadFileCallback = simulateUpload({ bucket: 'decoupled', durationMs: 3500, failRate: 0.2 });
+            wireQueueControlButton(dzDecoupled, document.getElementById('dz-decoupled-upload'));
+        }
+        const dzAvatar = document.getElementById('dz-avatar');
+        if (dzAvatar) {
+            dzAvatar.uploadFileCallback = simulateUpload({ bucket: 'avatar', durationMs: 2500, failRate: 0.2 });
+            wireQueueControlButton(dzAvatar, document.getElementById('dz-avatar-upload'), {
+                upload: 'Upload avatar', pause: 'Pause upload', resume: 'Resume upload', retry: 'Retry upload',
+            });
+        }
+        const dzDocs = document.getElementById('dz-docs');
+        if (dzDocs) {
+            dzDocs.uploadFileCallback = simulateUpload({ bucket: 'docs', durationMs: 3500, failRate: 0.2 });
+            wireQueueControlButton(dzDocs, document.getElementById('dz-docs-upload'), {
+                upload: 'Upload documents', pause: 'Pause documents', resume: 'Resume documents', retry: 'Retry documents',
+            });
+        }
+
         // Indicator scenario — single shared handler.
         const dzIndicator = document.getElementById('dz-indicator');
-        if (dzIndicator) dzIndicator.uploadFileCallback = simulateUpload({ bucket: 'shared', durationMs: 5000 });
+        if (dzIndicator) dzIndicator.uploadFileCallback = simulateUpload({ bucket: 'shared', durationMs: 5000, failRate: 0.2 });
 
         // Indicator flexibility scenarios (#6) — shared store, three
         // structural callback shapes + the default for reference.
         const dzFlex = document.getElementById('dz-flex');
-        if (dzFlex) dzFlex.uploadFileCallback = simulateUpload({ bucket: 'flex', durationMs: 6000 });
+        if (dzFlex) dzFlex.uploadFileCallback = simulateUpload({ bucket: 'flex', durationMs: 6000, failRate: 0.2 });
 
         // Grid satellite scenario (#7) — slow upload to keep the per-tile
         // progress visible while the thumbnail loads in.
         const dzGrid = document.getElementById('dz-grid');
-        if (dzGrid) dzGrid.uploadFileCallback = simulateUpload({ bucket: 'gallery', durationMs: 5000 });
+        if (dzGrid) dzGrid.uploadFileCallback = simulateUpload({ bucket: 'gallery', durationMs: 5000, failRate: 0.2 });
 
         // Top-right floating chip for scenario 7. The body returns the SAME
         // cached HTMLElement on every tick — identity-checked by the
@@ -1184,7 +1278,7 @@ store.addEventListener('files-changed', (e) =&gt; {
         // script. One listener, one diff per rAF. No satellites involved.
         const dzByo = document.getElementById('dz-byo');
         if (dzByo) {
-            dzByo.uploadFileCallback = simulateUpload({ bucket: 'byo', durationMs: 4000 });
+            dzByo.uploadFileCallback = simulateUpload({ bucket: 'byo', durationMs: 4000, failRate: 0.2 });
             const list = document.getElementById('byo-list');
             const colorForStatus = (s) => ({
                 pending: '#6b7280', uploading: '#2563eb',

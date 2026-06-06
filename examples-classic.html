@@ -382,6 +382,8 @@ const files = el.files       // current FileState[]</code></pre>
 
     <script src="examples-shared-toast.js"></script>
     <script type="module">
+        import { simulateUpload } from '/examples-shared.js';
+
         // Toast rejections from every dropzone on the page so the user can
         // see what falls out of validation. Groups by rejection code so a
         // 5-over-cap drop shows as one toast, not five.
@@ -393,6 +395,10 @@ const files = el.files       // current FileState[]</code></pre>
             custom:    'Rejected'
         };
         for (const dz of document.querySelectorAll('web-dropzone')) {
+            // auto-upload is true by default — files start the moment they're
+            // added. Failure rate exercises the error / retry path so the
+            // demo isn't always a happy path.
+            dz.uploadFileCallback = simulateUpload({ bucket: 'demo', durationMs: 3000, failRate: 0.2 });
             dz.addEventListener('files-rejected', (e) => {
                 const groups = new Map();
                 for (const r of e.detail.rejectedFiles) {
