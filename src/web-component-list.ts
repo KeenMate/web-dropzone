@@ -21,12 +21,10 @@
 
 import styles from './css/main.css?inline';
 import {
-    resolveStoreElement,
-    whenStoreReady,
+    SatelliteElement,
     subscribeStoreEvents,
     resolveEnumAttribute,
-    createMicrotaskScheduler,
-    warnStoreMissing
+    createMicrotaskScheduler
 } from './satellite-base';
 import { escapeHtml, dispatchComposedEvent } from './dom-utils';
 import { isImageFile, createImagePreview, formatFileSize } from './dropzone';
@@ -49,8 +47,6 @@ import type { WebDropzone } from './dropzone';
 import type { DropzoneElement } from './web-component';
 import type { FileState, ListAppearance, RollingRotation } from './types';
 
-const BaseElement = (typeof HTMLElement !== 'undefined' ? HTMLElement : class {}) as typeof HTMLElement;
-
 // Appearances this satellite implements. `none` deliberately omitted —
 // it means "no list visible at all", which is best handled by simply
 // not mounting the satellite. The popover wrapper (Floating UI, resize,
@@ -62,15 +58,10 @@ const SUPPORTED_APPEARANCES: ReadonlyArray<ListAppearance> = [
 
 const DEFAULT_SUMMARY_TEMPLATE = '{count} file(s), {size}';
 
-export class DropzoneListElement extends BaseElement {
+export class DropzoneListElement extends SatelliteElement {
+    protected readonly satelliteTagName = 'web-dropzone-list';
     private shadow: ShadowRoot;
     private container: HTMLElement;
-    private store: WebDropzone | null = null;
-    private storeEl: DropzoneElement | null = null;
-    /** See `bindToStore()` — set when mounted inside another shadow root. */
-    private programmaticStoreEl: DropzoneElement | null = null;
-    private cleanupStoreWait: (() => void) | null = null;
-    private cleanupSubscriptions: (() => void) | null = null;
     /**
      * Coalesces structural re-render requests within the same microtask.
      * Adding N files at once dispatches N × file-added plus one change —
@@ -104,67 +95,12 @@ export class DropzoneListElement extends BaseElement {
         if (this.store) this.renderAll();
     }
 
-    connectedCallback(): void {
-        if (this.programmaticStoreEl) {
-            this.storeEl = this.programmaticStoreEl;
-        } else {
-            const forId = this.getAttribute('for');
-            this.storeEl = resolveStoreElement(forId);
-            if (!this.storeEl) {
-                warnStoreMissing('web-dropzone-list', forId);
-                return;
-            }
-        }
-        this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
-            this.store = store;
-            this.attachStoreSubscriptions();
-            this.renderAll();
-        });
-    }
-
-    disconnectedCallback(): void {
-        this.teardownStoreBinding();
-    }
-
-    /**
-     * Programmatically bind this list to a `<web-dropzone>` store element,
-     * bypassing the `for=` attribute. See picker's `bindToStore` for the
-     * full rationale; the same wiring applies here.
-     */
-    bindToStore(storeEl: DropzoneElement): void {
-        if (this.programmaticStoreEl === storeEl && this.store) return;
-        this.programmaticStoreEl = storeEl;
-        if (this.isConnected) {
-            this.teardownStoreBinding();
-            this.storeEl = storeEl;
-            this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
-                this.store = store;
-                this.attachStoreSubscriptions();
-                this.renderAll();
-            });
-        }
-    }
-
-    private teardownStoreBinding(): void {
-        if (this.cleanupStoreWait) {
-            this.cleanupStoreWait();
-            this.cleanupStoreWait = null;
-        }
-        if (this.cleanupSubscriptions) {
-            this.cleanupSubscriptions();
-            this.cleanupSubscriptions = null;
-        }
-        this.store = null;
-        this.storeEl = null;
-    }
-
     // ========================================================================
     // STORE SUBSCRIPTIONS
     // ========================================================================
 
-    private attachStoreSubscriptions(): void {
-        if (!this.storeEl) return;
-        this.cleanupSubscriptions = subscribeStoreEvents(this.storeEl, {
+    protected attachStoreSubscriptions(storeEl: DropzoneElement): () => void {
+        return subscribeStoreEvents(storeEl, {
             // add / remove / change → structural; coalesce burst events
             // (one re-render per microtask) so a bulk drop doesn't churn
             // DOM rows while the user is mid-click on an existing row.
@@ -188,6 +124,10 @@ export class DropzoneListElement extends BaseElement {
                 }
             }
         });
+    }
+
+    protected onStoreReady(): void {
+        this.renderAll();
     }
 
     // ========================================================================

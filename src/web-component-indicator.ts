@@ -33,12 +33,10 @@
 import styles from './css/main.css?inline';
 import indicatorStyles from './css/_indicator.css?inline';
 import {
-    resolveStoreElement,
-    whenStoreReady,
+    SatelliteElement,
     subscribeStoreEvents,
     resolveEnumAttribute,
-    createMicrotaskScheduler,
-    warnStoreMissing
+    createMicrotaskScheduler
 } from './satellite-base';
 import { escapeHtml } from './dom-utils';
 import {
@@ -58,8 +56,6 @@ import { formatFileSize } from './dropzone';
 import type { WebDropzone } from './dropzone';
 import type { DropzoneElement } from './web-component';
 import type { FileState, FileStatus } from './types';
-
-const BaseElement = (typeof HTMLElement !== 'undefined' ? HTMLElement : class {}) as typeof HTMLElement;
 
 const POSITIONS = ['right', 'left', 'top', 'bottom', 'inline'] as const;
 type IndicatorPosition = typeof POSITIONS[number];
@@ -82,7 +78,8 @@ function defaultChipLabel(args: StatusSurfaceArgs, fallback: string): string {
     return `${a.complete} done`;
 }
 
-export class DropzoneIndicatorElement extends BaseElement {
+export class DropzoneIndicatorElement extends SatelliteElement {
+    protected readonly satelliteTagName = 'web-dropzone-indicator';
     private shadow: ShadowRoot;
     /**
      * Chip element. `<button>` when the drawer is enabled (it toggles the
@@ -116,13 +113,6 @@ export class DropzoneIndicatorElement extends BaseElement {
     private drawerEl: HTMLElement | null = null;
     private drawerCloseBtn: HTMLButtonElement | null = null;
     private drawerOpen = false;
-
-    private store: WebDropzone | null = null;
-    private storeEl: DropzoneElement | null = null;
-    /** See `bindToStore()` — set when mounted inside another shadow root. */
-    private programmaticStoreEl: DropzoneElement | null = null;
-    private cleanupStoreWait: (() => void) | null = null;
-    private cleanupSubscriptions: (() => void) | null = null;
 
     /**
      * Coalesces aggregate recomputation. A bulk drop with N files
@@ -229,71 +219,14 @@ export class DropzoneIndicatorElement extends BaseElement {
         if (this.store) this.scheduleRefresh();
     }
 
-    connectedCallback(): void {
+    protected setupBeforeBind(): void {
         this.applyPosition();
         this.applyDrawerMode();
-        if (this.programmaticStoreEl) {
-            this.storeEl = this.programmaticStoreEl;
-        } else {
-            const forId = this.getAttribute('for');
-            this.storeEl = resolveStoreElement(forId);
-            if (!this.storeEl) {
-                warnStoreMissing('web-dropzone-indicator', forId);
-                return;
-            }
-        }
-        this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
-            this.store = store;
-            this.attachSubscriptions();
-            this.bindEmbeddedList();
-            this.refresh();
-        });
     }
 
-    disconnectedCallback(): void {
-        this.teardownStoreBinding();
-    }
-
-    /**
-     * Programmatically bind this indicator to a `<web-dropzone>` store
-     * element, bypassing the `for=` attribute. See picker's `bindToStore`
-     * for the full rationale.
-     */
-    bindToStore(storeEl: DropzoneElement): void {
-        if (this.programmaticStoreEl === storeEl && this.store) return;
-        this.programmaticStoreEl = storeEl;
-        if (this.isConnected) {
-            this.teardownStoreBinding();
-            this.storeEl = storeEl;
-            this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
-                this.store = store;
-                this.attachSubscriptions();
-                this.bindEmbeddedList();
-                this.refresh();
-            });
-        }
-    }
-
-    private teardownStoreBinding(): void {
-        if (this.cleanupStoreWait) {
-            this.cleanupStoreWait();
-            this.cleanupStoreWait = null;
-        }
-        if (this.cleanupSubscriptions) {
-            this.cleanupSubscriptions();
-            this.cleanupSubscriptions = null;
-        }
-        this.store = null;
-        this.storeEl = null;
-    }
-
-    /**
-     * Resolved store for callbacks that need to mutate (e.g. an indicator
-     * with built-in pause / resume / retry / cancel control buttons in the
-     * body callback). Returns `null` until the store has connected.
-     */
-    getStore(): WebDropzone | null {
-        return this.store;
+    protected onStoreReady(): void {
+        this.bindEmbeddedList();
+        this.refresh();
     }
 
     // ========================================================================
@@ -362,9 +295,8 @@ export class DropzoneIndicatorElement extends BaseElement {
     // SUBSCRIPTIONS
     // ========================================================================
 
-    private attachSubscriptions(): void {
-        if (!this.storeEl) return;
-        this.cleanupSubscriptions = subscribeStoreEvents(this.storeEl, {
+    protected attachStoreSubscriptions(storeEl: DropzoneElement): () => void {
+        return subscribeStoreEvents(storeEl, {
             'file-added':           () => this.scheduleRefresh(),
             'file-removed':         () => this.scheduleRefresh(),
             'change':               () => this.scheduleRefresh(),

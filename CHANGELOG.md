@@ -240,6 +240,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Satellite lifecycle unified via a `SatelliteElement` base class** — `<web-dropzone-picker>`, `<web-dropzone-list>`, `<web-dropzone-indicator>`, and `<web-dropzone-progress>` all extend a new abstract base in `satellite-base.ts` that owns the connection lifecycle: `connectedCallback` → resolve `for=` → `whenStoreReady` → `attachStoreSubscriptions` → `onStoreReady`, plus `disconnectedCallback`, `bindToStore`, and `teardownStoreBinding`. The race-resolution logic — which has been incrementally hardened (store-not-yet-upgraded, store-not-yet-connected, programmatic mount inside another shadow root) — now lives in exactly one place and can be tested once. Subclasses provide only what's genuinely satellite-specific:
+  - `protected readonly satelliteTagName: string` — drives the "store not found" diagnostic.
+  - `protected attachStoreSubscriptions(storeEl, store): () => void` — registers event listeners and returns the cleanup. Base manages the teardown.
+  - `protected onStoreReady(storeEl, store): void` — first render + any one-time bind work (e.g. mounting the indicator's embedded list).
+  - `protected setupBeforeBind(): void` — optional pre-bind DOM mutation, used by the indicator to push `data-position` / `data-drawer` before the store resolves.
+  - `getStore(): WebDropzone | null` — promoted to the base class so all satellites expose it consistently. The indicator's bespoke copy is gone.
+  - Picker still overrides `disconnectedCallback` (calls `super()`) to tear down its document-level drag listeners. Indicator no longer overrides — `setupBeforeBind` covers what `connectedCallback` used to do before resolution.
+  - Internal naming aligned: the indicator's `attachSubscriptions` renamed to `attachStoreSubscriptions` to match the other three. The `programmaticStoreEl` field, the two cleanup-callback fields, and the four lifecycle methods all moved into the base, so each satellite shed ~50 lines of boilerplate. Public API surface unchanged — every method that was on each satellite still is (and any consumer that called `bindToStore` / `getStore` keeps working unchanged).
+
 - **Five small TS helpers extracted to dedicated modules** — consolidation pass with no public API changes; all five removals were verified-identical duplicates.
   - **`escapeHtml`** consolidated into a new `src/dom-utils.ts` (and re-exported from `row-templates.ts` for any consumer that already pointed there). Was duplicated identically in `dropzone.ts`, `row-templates.ts`, `web-component-picker.ts`, `web-component-list.ts`, `web-component-indicator.ts`, `web-component-progress.ts` — six copies of the same `document.createElement('div').textContent → innerHTML` trick.
   - **`dispatchComposedEvent(target, type, detail?)`** in `dom-utils.ts` — every `new CustomEvent(type, { detail, bubbles: true, composed: true }); el.dispatchEvent(event)` pair (15+ in `dropzone.ts`, 2 in `web-component-list.ts`, 1 in `web-component.ts`) now routes through the helper. Both the `bubbles: true, composed: true` flags and the dispatch are encoded in one call.

@@ -140,3 +140,135 @@ export function warnStoreMissing(elementName: string, forId: string | null): voi
         `Make sure a <web-dropzone id="${forId ?? ''}"> exists on the page.`
     );
 }
+
+/**
+ * SSR-safe HTMLElement base — the satellite class extends this so the
+ * module can still be imported in a Node test runner without crashing
+ * on `class extends undefined`. Matches the pattern every satellite file
+ * uses locally; centralizing means subclasses don't need their own copy.
+ */
+const SatelliteBaseElement = (typeof HTMLElement !== 'undefined' ? HTMLElement : class {}) as typeof HTMLElement;
+
+/**
+ * Base class for `<web-dropzone-picker>`, `<web-dropzone-list>`,
+ * `<web-dropzone-indicator>`, `<web-dropzone-progress>`. Owns the
+ * connection lifecycle (`connectedCallback` / `disconnectedCallback` /
+ * `bindToStore` / `teardownStoreBinding`) so the race-resolution logic
+ * lives in one place and can be tested once — subclasses provide just
+ * their event subscription + first-render hooks.
+ *
+ * Two abstract members:
+ *  - `attachStoreSubscriptions(storeEl, store)` — wire up event listeners,
+ *    return the cleanup function. Called exactly once per resolved store.
+ *  - `onStoreReady(storeEl, store)` — fire the first render + any one-time
+ *    bind work (e.g. mounting an embedded satellite).
+ *
+ * Two optional hooks:
+ *  - `setupBeforeBind()` — runs at the top of `connectedCallback`, before
+ *    the `for=` resolution. Use for DOM mutations that must apply
+ *    regardless of whether the store resolves (the indicator pushes its
+ *    `data-position` / `data-drawer` attributes here so the chip renders
+ *    even when bound asynchronously).
+ *  - `satelliteTagName` — used in the "store not found" warning so the
+ *    diagnostic names the specific element type.
+ */
+export abstract class SatelliteElement extends SatelliteBaseElement {
+    protected store: WebDropzone | null = null;
+    protected storeEl: DropzoneElement | null = null;
+    /**
+     * Set by `bindToStore()` for satellites mounted inside another shadow
+     * root (the convenience-form `<web-dropzone display-mode=…>` mounts its
+     * own picker / list / indicator internally, where `document.getElementById`
+     * lookups can't reach across the shadow boundary). When set, the
+     * `connectedCallback` consults this directly instead of resolving the
+     * `for=` attribute.
+     */
+    protected programmaticStoreEl: DropzoneElement | null = null;
+    private cleanupStoreWait: (() => void) | null = null;
+    private cleanupSubscriptions: (() => void) | null = null;
+
+    protected abstract readonly satelliteTagName: string;
+
+    protected abstract attachStoreSubscriptions(
+        storeEl: DropzoneElement,
+        store: WebDropzone
+    ): () => void;
+
+    protected abstract onStoreReady(
+        storeEl: DropzoneElement,
+        store: WebDropzone
+    ): void;
+
+    /** Optional pre-bind DOM setup. Default no-op. */
+    protected setupBeforeBind(): void { /* override in subclasses if needed */ }
+
+    connectedCallback(): void {
+        this.setupBeforeBind();
+        if (this.programmaticStoreEl) {
+            this.storeEl = this.programmaticStoreEl;
+        } else {
+            const forId = this.getAttribute('for');
+            this.storeEl = resolveStoreElement(forId);
+            if (!this.storeEl) {
+                warnStoreMissing(this.satelliteTagName, forId);
+                return;
+            }
+        }
+        this.waitForStore();
+    }
+
+    disconnectedCallback(): void {
+        this.teardownStoreBinding();
+    }
+
+    /**
+     * Programmatically bind to a `<web-dropzone>` element, bypassing the
+     * `for=` attribute. Use when mounting the satellite inside another
+     * shadow root (where `document.getElementById` can't reach the store).
+     *
+     * Safe to call before `connectedCallback` — the binding is consulted
+     * when the element connects. Calling after connection tears down the
+     * current wiring and re-binds.
+     */
+    bindToStore(storeEl: DropzoneElement): void {
+        if (this.programmaticStoreEl === storeEl && this.store) return;
+        this.programmaticStoreEl = storeEl;
+        if (this.isConnected) {
+            this.teardownStoreBinding();
+            this.storeEl = storeEl;
+            this.waitForStore();
+        }
+    }
+
+    protected teardownStoreBinding(): void {
+        if (this.cleanupStoreWait) {
+            this.cleanupStoreWait();
+            this.cleanupStoreWait = null;
+        }
+        if (this.cleanupSubscriptions) {
+            this.cleanupSubscriptions();
+            this.cleanupSubscriptions = null;
+        }
+        this.store = null;
+        this.storeEl = null;
+    }
+
+    /**
+     * Resolved store, or `null` until the store has connected. Public so
+     * consumer code (e.g. a callback set on the host) can reach the bound
+     * store without going through the original element reference.
+     */
+    getStore(): WebDropzone | null {
+        return this.store;
+    }
+
+    private waitForStore(): void {
+        if (!this.storeEl) return;
+        const storeEl = this.storeEl;
+        this.cleanupStoreWait = whenStoreReady(storeEl, (store) => {
+            this.store = store;
+            this.cleanupSubscriptions = this.attachStoreSubscriptions(storeEl, store);
+            this.onStoreReady(storeEl, store);
+        });
+    }
+}

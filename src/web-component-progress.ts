@@ -24,30 +24,21 @@
 
 import styles from './css/main.css?inline';
 import {
-    resolveStoreElement,
-    whenStoreReady,
+    SatelliteElement,
     subscribeStoreEvents,
-    createMicrotaskScheduler,
-    warnStoreMissing
+    createMicrotaskScheduler
 } from './satellite-base';
 import { escapeHtml } from './dom-utils';
 import { formatFileSize } from './dropzone';
 import type { WebDropzone } from './dropzone';
 import type { DropzoneElement } from './web-component';
 
-const BaseElement = (typeof HTMLElement !== 'undefined' ? HTMLElement : class {}) as typeof HTMLElement;
-
 type OverallProgress = ReturnType<WebDropzone['getOverallProgress']>;
 
-export class DropzoneProgressElement extends BaseElement {
+export class DropzoneProgressElement extends SatelliteElement {
+    protected readonly satelliteTagName = 'web-dropzone-progress';
     private shadow: ShadowRoot;
     private container: HTMLElement;
-    private store: WebDropzone | null = null;
-    private storeEl: DropzoneElement | null = null;
-    /** See `bindToStore()` — set when mounted inside another shadow root. */
-    private programmaticStoreEl: DropzoneElement | null = null;
-    private cleanupStoreWait: (() => void) | null = null;
-    private cleanupSubscriptions: (() => void) | null = null;
     /**
      * Coalesce per-tick refreshes. The store fires file-progress at 50ms
      * intervals across every active upload; a 20-file burst would
@@ -79,71 +70,20 @@ export class DropzoneProgressElement extends BaseElement {
         if (this.store) this.refresh();
     }
 
-    connectedCallback(): void {
-        if (this.programmaticStoreEl) {
-            this.storeEl = this.programmaticStoreEl;
-        } else {
-            const forId = this.getAttribute('for');
-            this.storeEl = resolveStoreElement(forId);
-            if (!this.storeEl) {
-                warnStoreMissing('web-dropzone-progress', forId);
-                return;
-            }
-        }
-        this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
-            this.store = store;
-            this.attachStoreSubscriptions();
-            this.refresh();
-        });
-    }
-
-    disconnectedCallback(): void {
-        this.teardownStoreBinding();
-    }
-
-    /**
-     * Programmatically bind this progress strip to a `<web-dropzone>` store
-     * element, bypassing the `for=` attribute. See picker's `bindToStore`
-     * for the full rationale.
-     */
-    bindToStore(storeEl: DropzoneElement): void {
-        if (this.programmaticStoreEl === storeEl && this.store) return;
-        this.programmaticStoreEl = storeEl;
-        if (this.isConnected) {
-            this.teardownStoreBinding();
-            this.storeEl = storeEl;
-            this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
-                this.store = store;
-                this.attachStoreSubscriptions();
-                this.refresh();
-            });
-        }
-    }
-
-    private teardownStoreBinding(): void {
-        if (this.cleanupStoreWait) {
-            this.cleanupStoreWait();
-            this.cleanupStoreWait = null;
-        }
-        if (this.cleanupSubscriptions) {
-            this.cleanupSubscriptions();
-            this.cleanupSubscriptions = null;
-        }
-        this.store = null;
-        this.storeEl = null;
-    }
-
-    private attachStoreSubscriptions(): void {
-        if (!this.storeEl) return;
-        this.cleanupSubscriptions = subscribeStoreEvents(this.storeEl, {
-            // Every event that can move the aggregate triggers a refresh.
-            // The microtask coalescer below drops bursts to one refresh.
+    protected attachStoreSubscriptions(storeEl: DropzoneElement): () => void {
+        // Every event that can move the aggregate triggers a refresh.
+        // The microtask coalescer below drops bursts to one refresh.
+        return subscribeStoreEvents(storeEl, {
             'file-added':          () => this.scheduleRefresh(),
             'file-removed':        () => this.scheduleRefresh(),
             'change':              () => this.scheduleRefresh(),
             'file-progress':       () => this.scheduleRefresh(),
             'file-status-changed': () => this.scheduleRefresh()
         });
+    }
+
+    protected onStoreReady(): void {
+        this.refresh();
     }
 
     // ========================================================================

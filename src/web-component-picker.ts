@@ -16,11 +16,9 @@
 
 import styles from './css/main.css?inline';
 import {
-    resolveStoreElement,
-    whenStoreReady,
+    SatelliteElement,
     subscribeStoreEvents,
-    resolveEnumAttribute,
-    warnStoreMissing
+    resolveEnumAttribute
 } from './satellite-base';
 import { escapeHtml } from './dom-utils';
 import type { WebDropzone } from './dropzone';
@@ -31,8 +29,6 @@ import type {
     FileUploadHandler
 } from './types';
 
-const BaseElement = (typeof HTMLElement !== 'undefined' ? HTMLElement : class {}) as typeof HTMLElement;
-
 const SELECTOR_APPEARANCES = ['card', 'button', 'minimal'] as const;
 const CARD_SIZES = ['minimal', 'compact', 'big'] as const;
 
@@ -41,23 +37,11 @@ const DEFAULT_PROMPT = 'Drop files here or click to browse';
 const DEFAULT_DRAG_ACTIVE = 'Drop files here';
 const DEFAULT_SELECT_TEXT = 'Select files';
 
-export class DropzonePickerElement extends BaseElement {
+export class DropzonePickerElement extends SatelliteElement {
+    protected readonly satelliteTagName = 'web-dropzone-picker';
     private shadow: ShadowRoot;
     private container: HTMLElement;
     private inputEl: HTMLInputElement | null = null;
-    private cleanupStoreWait: (() => void) | null = null;
-    private cleanupSubscriptions: (() => void) | null = null;
-    private store: WebDropzone | null = null;
-    private storeEl: DropzoneElement | null = null;
-    /**
-     * Set by `bindToStore()` for satellites mounted inside another shadow
-     * root (the convenience-form `<web-dropzone display-mode=…>` mounts its
-     * own picker / list / indicator internally, where `document.getElementById`
-     * lookups can't reach across the shadow boundary). When set, the
-     * `connectedCallback` consults this directly instead of resolving the
-     * `for=` attribute.
-     */
-    private programmaticStoreEl: DropzoneElement | null = null;
     private dragActive = false;
     private dragCounter = 0;
 
@@ -126,27 +110,6 @@ export class DropzonePickerElement extends BaseElement {
         if (this.store) this.render();
     }
 
-    connectedCallback(): void {
-        if (this.programmaticStoreEl) {
-            this.storeEl = this.programmaticStoreEl;
-        } else {
-            const forId = this.getAttribute('for');
-            this.storeEl = resolveStoreElement(forId);
-            if (!this.storeEl) {
-                // Surface the configuration error loudly — silent picker is the
-                // worst failure mode (looks like the wiring works).
-                warnStoreMissing('web-dropzone-picker', forId);
-                return;
-            }
-        }
-        this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
-            this.store = store;
-            this.attachStoreSubscriptions();
-            this.render();
-            this.wireDragOverlayTarget();
-        });
-    }
-
     /**
      * Subscribe to store events that affect the picker's surface — file
      * count changes drive the count badge on the button / minimal variants,
@@ -154,55 +117,21 @@ export class DropzonePickerElement extends BaseElement {
      * Card variant doesn't show a badge but still re-renders cheaply
      * (small DOM, debouncing isn't worth the complexity here).
      */
-    private attachStoreSubscriptions(): void {
-        if (!this.storeEl) return;
-        this.cleanupSubscriptions = subscribeStoreEvents(this.storeEl, {
+    protected attachStoreSubscriptions(storeEl: DropzoneElement): () => void {
+        return subscribeStoreEvents(storeEl, {
             'file-added':   () => this.render(),
             'file-removed': () => this.render(),
             'change':       () => this.render()
         });
     }
 
-    /**
-     * Programmatically bind this picker to a `<web-dropzone>` store element,
-     * bypassing the `for=` attribute lookup. Use when mounting the satellite
-     * inside another shadow root (where `document.getElementById` can't
-     * reach the store).
-     *
-     * Safe to call before `connectedCallback` — the binding is consulted
-     * when the element connects. Calling after connection tears down the
-     * current wiring and re-binds to the new store.
-     */
-    bindToStore(storeEl: DropzoneElement): void {
-        if (this.programmaticStoreEl === storeEl && this.store) return;
-        this.programmaticStoreEl = storeEl;
-        if (this.isConnected) {
-            this.teardownStoreBinding();
-            this.storeEl = storeEl;
-            this.cleanupStoreWait = whenStoreReady(this.storeEl, (store) => {
-                this.store = store;
-                this.attachStoreSubscriptions();
-                this.render();
-                this.wireDragOverlayTarget();
-            });
-        }
-    }
-
-    private teardownStoreBinding(): void {
-        if (this.cleanupStoreWait) {
-            this.cleanupStoreWait();
-            this.cleanupStoreWait = null;
-        }
-        if (this.cleanupSubscriptions) {
-            this.cleanupSubscriptions();
-            this.cleanupSubscriptions = null;
-        }
-        this.store = null;
-        this.storeEl = null;
+    protected onStoreReady(): void {
+        this.render();
+        this.wireDragOverlayTarget();
     }
 
     disconnectedCallback(): void {
-        this.teardownStoreBinding();
+        super.disconnectedCallback();
         document.removeEventListener('dragenter', this.handleDocDragEnter);
         document.removeEventListener('dragleave', this.handleDocDragLeave);
         document.removeEventListener('drop', this.handleDocDrop);
