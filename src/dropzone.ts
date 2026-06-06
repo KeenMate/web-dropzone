@@ -9,6 +9,11 @@ import { computePosition, flip, shift, offset, size, autoUpdate } from '@floatin
 import type { Placement } from '@floating-ui/dom';
 import { initLogger, fileLogger, uiLogger, interactionLogger } from './logger';
 import { dispatchComposedEvent, escapeHtml } from './dom-utils';
+import {
+    validateFile as validateFilePure,
+    dedupeKeyFor,
+    createFileState
+} from './file-pipeline';
 import type {
     DropzoneConfig,
     DedupeMode,
@@ -1052,7 +1057,7 @@ export class WebDropzone {
         // (e.g. user picks the same file twice in a single dialog).
         const mode = this.config.dedupeMode ?? DEFAULT_CONFIG.dedupeMode;
         const seenKeys = new Set<string>(
-            mode === 'none' ? [] : this.files.map(f => this.dedupeKeyFor(f.file, mode))
+            mode === 'none' ? [] : this.files.map(f => dedupeKeyFor(f.file, mode))
         );
 
         // Stateful caps. The running total seeds from the bytes already in
@@ -1079,14 +1084,14 @@ export class WebDropzone {
                 continue;
             }
 
-            const validation = this.validateFile(file);
+            const validation = validateFilePure(file, this.config, this.files);
             if (!validation.valid) {
                 rejectedFiles.push({ file, validation });
                 continue;
             }
 
             if (mode !== 'none') {
-                const key = this.dedupeKeyFor(file, mode);
+                const key = dedupeKeyFor(file, mode);
                 if (seenKeys.has(key)) {
                     rejectedFiles.push({
                         file,
@@ -1117,7 +1122,7 @@ export class WebDropzone {
 
             runningCount++;
             runningTotal += file.size;
-            acceptedFiles.push(this.createFileState(file, opts));
+            acceptedFiles.push(createFileState(file, generateFileId(), opts));
         }
 
         // Add accepted files
@@ -1177,25 +1182,6 @@ export class WebDropzone {
         }
     }
 
-    private createFileState(file: File, opts?: AddFilesOptions): FileState {
-        const state: FileState = {
-            id: generateFileId(),
-            file,
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            status: 'pending',
-            progress: 0
-        };
-        // Mode B routing (see ARCHITECTURE.md). Stamped at add-time and
-        // preserved through pause / resume / retry — runUpload reads them
-        // on every attempt, so a Mode B file uses the same handler/metadata
-        // it was contributed with even after a re-queue.
-        if (opts?.uploadCallback) state.uploadCallback = opts.uploadCallback;
-        if (opts?.uploadMetadata) state.uploadMetadata = opts.uploadMetadata;
-        return state;
-    }
-
     private async generatePreview(fileState: FileState): Promise<void> {
         try {
             const previewUrl = await createImagePreview(fileState.file);
@@ -1209,99 +1195,6 @@ export class WebDropzone {
         } catch (error) {
             fileLogger.warn('Failed to generate preview', { id: fileState.id, error });
         }
-    }
-
-    // ========================================================================
-    // VALIDATION
-    // ========================================================================
-
-    /**
-     * Build the dedupe key for a file under the active mode. Called once per
-     * existing file (to seed the set) and once per incoming file in
-     * processFiles. Mode 'none' is short-circuited at the call site.
-     */
-    private dedupeKeyFor(file: File, mode: DedupeMode): string {
-        if (mode === 'name-size') return `${file.name}|${file.size}`;
-        return file.name;
-    }
-
-    /**
-     * Per-file validation. Stateless checks only — count and total-size limits
-     * are stateful and live in processFiles() where the running totals are
-     * maintained against the existing selection + the current incoming batch.
-     */
-    private validateFile(file: File): ValidationResult {
-        // Per-file maximum
-        if (this.config.maxFileSize && this.config.maxFileSize > 0) {
-            if (file.size > this.config.maxFileSize) {
-                return {
-                    valid: false,
-                    error: `File is too large. Maximum size is ${formatFileSize(this.config.maxFileSize)}`,
-                    code: 'size'
-                };
-            }
-        }
-
-        // Per-file minimum (reject empty / corrupt zero-byte uploads)
-        if (this.config.minFileSize && this.config.minFileSize > 0) {
-            if (file.size < this.config.minFileSize) {
-                return {
-                    valid: false,
-                    error: `File is too small. Minimum size is ${formatFileSize(this.config.minFileSize)}`,
-                    code: 'size'
-                };
-            }
-        }
-
-        // Check file type
-        if (this.config.accept) {
-            if (!this.isFileTypeAccepted(file)) {
-                return {
-                    valid: false,
-                    error: `File type not accepted`,
-                    code: 'type'
-                };
-            }
-        }
-
-        // Custom validation
-        if (this.config.validateCallback) {
-            const customResult = this.config.validateCallback(file, this.files);
-            if (!customResult.valid) {
-                return { ...customResult, code: customResult.code || 'custom' };
-            }
-        }
-
-        return { valid: true };
-    }
-
-    private isFileTypeAccepted(file: File): boolean {
-        const acceptTypes = this.config.accept!.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-        if (acceptTypes.length === 0) return true;
-
-        const fileType = file.type.toLowerCase();
-        const fileName = file.name.toLowerCase();
-
-        return acceptTypes.some(accept => {
-            // Universal wildcard — accept anything. Without this branch, '*/*'
-            // would fall into the '/*' MIME-wildcard rule below and compare
-            // against the bogus prefix '*/', rejecting every real file.
-            if (accept === '*' || accept === '*/*') return true;
-
-            // Extension match (e.g., .pdf)
-            if (accept.startsWith('.')) {
-                return fileName.endsWith(accept);
-            }
-
-            // MIME type wildcard (e.g., image/*)
-            if (accept.endsWith('/*')) {
-                const category = accept.replace('/*', '/');
-                return fileType.startsWith(category);
-            }
-
-            // Exact MIME type match
-            return fileType === accept;
-        });
     }
 
     // ========================================================================

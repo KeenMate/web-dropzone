@@ -240,6 +240,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Add-files pipeline split into pure helpers** — `validateFile`, `dedupeKeyFor`, `isFileTypeAccepted`, and `createFileState` moved out of `WebDropzone` into a new `src/file-pipeline.ts` module as standalone functions. Everything in the module is stateless: no `this`, no DOM, no event dispatch. `processFiles` still orchestrates the stateful bits (running totals, dedupe set seed, emit events, re-render) but each per-file decision is now a one-shot function call you can test by handing in a config + a file and asserting the result.
+  - `validateFile(file, config, existingFiles): ValidationResult` — the old in-class version pulled `this.config` and `this.files` implicitly; now both arrive as arguments. `ValidationConfig` is declared structurally so callers can pass the full `DropzoneConfig` or a minimal stub.
+  - `dedupeKeyFor(file, mode): string` — was a `private` method that didn't read `this`. Lifted unchanged.
+  - `isFileTypeAccepted(file, accept): boolean` — was `private` and read `this.config.accept!`. Takes the accept string as an argument.
+  - `createFileState(file, id, opts): FileState` — `id` injected so tests can pin a deterministic value. The store still uses its own `generateFileId()` at the call site (`createFileState(file, generateFileId(), opts)`); behaviour identical.
+  - No public API changes — `WebDropzone.addFiles` / `processFiles` keep their existing shape. The helpers are exported for direct use, but no consumer is expected to import them; the value is unit-testability for the trickiest paths in the core.
+
 - **Satellite lifecycle unified via a `SatelliteElement` base class** — `<web-dropzone-picker>`, `<web-dropzone-list>`, `<web-dropzone-indicator>`, and `<web-dropzone-progress>` all extend a new abstract base in `satellite-base.ts` that owns the connection lifecycle: `connectedCallback` → resolve `for=` → `whenStoreReady` → `attachStoreSubscriptions` → `onStoreReady`, plus `disconnectedCallback`, `bindToStore`, and `teardownStoreBinding`. The race-resolution logic — which has been incrementally hardened (store-not-yet-upgraded, store-not-yet-connected, programmatic mount inside another shadow root) — now lives in exactly one place and can be tested once. Subclasses provide only what's genuinely satellite-specific:
   - `protected readonly satelliteTagName: string` — drives the "store not found" diagnostic.
   - `protected attachStoreSubscriptions(storeEl, store): () => void` — registers event listeners and returns the cleanup. Base manages the teardown.
