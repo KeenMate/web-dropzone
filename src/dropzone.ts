@@ -14,6 +14,12 @@ import {
     dedupeKeyFor,
     createFileState
 } from './file-pipeline';
+import {
+    patchProgressFill,
+    patchProgressText,
+    patchStatusIcon,
+    patchActionButton as patchRowActionButton
+} from './row-patching';
 import type {
     DropzoneConfig,
     DedupeMode,
@@ -49,13 +55,7 @@ const FILE_ICONS: Record<FileTypeCategory, string> = {
 
 // Status / action icons live in `./icons` so the satellite renderers and any
 // user-provided callbacks can share the same Lucide SVG family.
-import {
-    STATUS_ICONS,
-    STATUS_LABELS,
-    ACTION_ICONS,
-    ACTION_LABELS,
-    actionForStatus
-} from './icons';
+import { STATUS_ICONS, STATUS_LABELS, actionForStatus } from './icons';
 // Row templates (list / detailed / grid / badges) are shared with the
 // `<web-dropzone-list>` satellite via `./row-templates` — single source of
 // truth so the polished styling in `_file-item.css` applies identically
@@ -1861,25 +1861,12 @@ export class WebDropzone {
         // list's delay window. reorderPopoverRows is invoked from the
         // timer's apply() callback.
         row.dataset.status = file.status;
-
         row.classList.toggle('dz__popover__row--uploading', file.status === 'uploading');
 
-        const fill = row.querySelector('.dz__popover__progress-fill') as HTMLElement | null;
-        if (fill) fill.style.width = `${file.progress}%`;
-
-        const progressText = row.querySelector('.dz__popover__progress-text');
-        if (progressText) progressText.textContent = `${file.progress.toFixed(1)}%`;
-
-        const statusEl = row.querySelector('.dz__popover__status') as HTMLElement | null;
-        if (statusEl && statusEl.dataset.status !== file.status) {
-            statusEl.dataset.status = file.status;
-            statusEl.className = `dz__popover__status dz__popover__status--${file.status}`;
-            statusEl.title = STATUS_LABELS[file.status];
-            statusEl.setAttribute('aria-label', `Status: ${STATUS_LABELS[file.status]}`);
-            statusEl.innerHTML = STATUS_ICONS[file.status];
-        }
-
-        this.patchActionButton(
+        patchProgressFill(row, 'dz__popover__progress-fill', file.progress);
+        patchProgressText(row, 'dz__popover__progress-text', file.progress);
+        patchStatusIcon(row, 'dz__popover__status', file.status);
+        patchRowActionButton(
             row.querySelector('.dz__popover__row-action'),
             file,
             'dz__popover__row-action'
@@ -1930,17 +1917,8 @@ export class WebDropzone {
             row.className = file.status !== 'pending'
                 ? `dz__badge dz__badge--${file.status}`
                 : 'dz__badge';
-
-            const statusEl = row.querySelector('.dz__badge-status') as HTMLElement | null;
-            if (statusEl && statusEl.dataset.status !== file.status) {
-                statusEl.dataset.status = file.status;
-                statusEl.className = `dz__badge-status dz__badge-status--${file.status}`;
-                statusEl.title = STATUS_LABELS[file.status];
-                statusEl.setAttribute('aria-label', `Status: ${STATUS_LABELS[file.status]}`);
-                statusEl.innerHTML = STATUS_ICONS[file.status];
-            }
-
-            this.patchActionButton(
+            patchStatusIcon(row, 'dz__badge-status', file.status);
+            patchRowActionButton(
                 row.querySelector('.dz__badge-action'),
                 file,
                 'dz__badge-action'
@@ -1952,22 +1930,10 @@ export class WebDropzone {
         // the same patch path: progress fill width, percent text, status
         // pill, action button.
         if (appearance === 'list' || appearance === 'detailed' || appearance === 'rolling') {
-            const fill = row.querySelector('.dz__file-item__progress-fill') as HTMLElement | null;
-            if (fill) fill.style.width = `${file.progress}%`;
-
-            const pct = row.querySelector('.dz__file-item__progress-text');
-            if (pct) pct.textContent = `${file.progress.toFixed(1)}%`;
-
-            const statusEl = row.querySelector('.dz__file-item__status') as HTMLElement | null;
-            if (statusEl && statusEl.dataset.status !== file.status) {
-                statusEl.dataset.status = file.status;
-                statusEl.className = `dz__file-item__status dz__file-item__status--${file.status}`;
-                statusEl.title = STATUS_LABELS[file.status];
-                statusEl.setAttribute('aria-label', `Status: ${STATUS_LABELS[file.status]}`);
-                statusEl.innerHTML = STATUS_ICONS[file.status];
-            }
-
-            this.patchActionButton(
+            patchProgressFill(row, 'dz__file-item__progress-fill', file.progress);
+            patchProgressText(row, 'dz__file-item__progress-text', file.progress);
+            patchStatusIcon(row, 'dz__file-item__status', file.status);
+            patchRowActionButton(
                 row.querySelector('.dz__file-item__action'),
                 file,
                 'dz__file-item__action'
@@ -1976,19 +1942,9 @@ export class WebDropzone {
 
         if (appearance === 'grid') {
             // Grid tiles get a bottom-edge progress bar and a corner status pill.
-            const fill = row.querySelector('.dz__preview-item__progress-fill') as HTMLElement | null;
-            if (fill) fill.style.width = `${file.progress}%`;
-
-            const statusEl = row.querySelector('.dz__preview-item__status') as HTMLElement | null;
-            if (statusEl && statusEl.dataset.status !== file.status) {
-                statusEl.dataset.status = file.status;
-                statusEl.className = `dz__preview-item__status dz__preview-item__status--${file.status}`;
-                statusEl.title = STATUS_LABELS[file.status];
-                statusEl.setAttribute('aria-label', `Status: ${STATUS_LABELS[file.status]}`);
-                statusEl.innerHTML = STATUS_ICONS[file.status];
-            }
-
-            this.patchActionButton(
+            patchProgressFill(row, 'dz__preview-item__progress-fill', file.progress);
+            patchStatusIcon(row, 'dz__preview-item__status', file.status);
+            patchRowActionButton(
                 row.querySelector('.dz__preview-item__action'),
                 file,
                 'dz__preview-item__action'
@@ -2471,34 +2427,6 @@ export class WebDropzone {
     private isFileUserRemovable(file: FileState): boolean {
         if (file.status !== 'complete') return true;
         return this.config.isUploadedFileDeletable !== false;
-    }
-
-    /** In-place patch the action button as file.status transitions
-     *  (pending→uploading→paused→…→complete). Gated on `data-row-action`
-     *  so clicks on the live button aren't disrupted between transitions. */
-    private patchActionButton(btn: HTMLElement | null, file: FileState, baseClass: string): void {
-        if (!btn) return;
-        const action = actionForStatus(file.status);
-        const current = btn.dataset.rowAction || '';
-        const target = action ?? '';
-        if (current === target) return;
-
-        btn.dataset.rowAction = target;
-        const hidden = !action;
-        btn.className = hidden ? `${baseClass} ${baseClass}--hidden` : baseClass;
-        btn.innerHTML = action ? ACTION_ICONS[action] : '';
-
-        if (action) {
-            btn.setAttribute('aria-label', `${ACTION_LABELS[action]} ${file.name}`);
-            btn.title = ACTION_LABELS[action];
-            btn.removeAttribute('tabindex');
-            btn.removeAttribute('aria-hidden');
-        } else {
-            btn.setAttribute('aria-label', '');
-            btn.title = '';
-            btn.tabIndex = -1;
-            btn.setAttribute('aria-hidden', 'true');
-        }
     }
 
     /** Two-step action click — uploading→pauseFile, paused→resumeFile,

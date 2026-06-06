@@ -28,13 +28,13 @@ import {
 } from './satellite-base';
 import { escapeHtml, dispatchComposedEvent } from './dom-utils';
 import { isImageFile, createImagePreview, formatFileSize } from './dropzone';
+import { STATUS_ICONS, STATUS_LABELS } from './icons';
 import {
-    STATUS_ICONS,
-    STATUS_LABELS,
-    ACTION_ICONS,
-    ACTION_LABELS,
-    actionForStatus
-} from './icons';
+    patchProgressFill,
+    patchProgressText,
+    patchStatusIcon,
+    patchActionButton
+} from './row-patching';
 import {
     renderListItem,
     renderDetailedItem,
@@ -498,86 +498,35 @@ export class DropzoneListElement extends SatelliteElement {
 
         const appearance = this.resolveAppearance();
         if (appearance === 'badges') {
-            // Badges have no progress bar — just status icon + dataset.
             if (row.dataset.status !== file.status) {
                 row.dataset.status = file.status;
                 row.className = `dz__badge dz__badge--${file.status}`;
             }
-            const statusEl = row.querySelector<HTMLElement>('.dz__badge-status');
-            if (statusEl && statusEl.dataset.status !== file.status) {
-                statusEl.dataset.status = file.status;
-                statusEl.className = `dz__badge-status dz__badge-status--${file.status}`;
-                statusEl.setAttribute('title', STATUS_LABELS[file.status]);
-                statusEl.innerHTML = STATUS_ICONS[file.status];
-            }
+            patchStatusIcon(row, 'dz__badge-status', file.status);
+            patchActionButton(
+                row.querySelector<HTMLElement>('[data-action="row-action"]'),
+                file,
+                'dz__badge-action'
+            );
             return;
         }
 
-        // list / detailed / grid all have progress fill + status icon. The
-        // primary action button transitions across states (uploading→pause,
-        // paused→resume, error→retry, …) so we may need to swap its glyph
-        // or add/remove it entirely.
+        // list / detailed / grid all have progress fill + status icon, plus
+        // the action button transitions across states (uploading→pause,
+        // paused→resume, error→retry, …). Slot is reserved so the button
+        // is always in the DOM; we just toggle classes + glyphs.
         row.dataset.status = file.status;
-        if (appearance === 'grid') {
-            const fill = row.querySelector<HTMLElement>('.dz__preview-item__progress-fill');
-            if (fill) fill.style.width = `${file.progress}%`;
-            const statusEl = row.querySelector<HTMLElement>('.dz__preview-item__status');
-            if (statusEl && statusEl.dataset.status !== file.status) {
-                statusEl.dataset.status = file.status;
-                statusEl.className = `dz__preview-item__status dz__preview-item__status--${file.status}`;
-                statusEl.setAttribute('title', STATUS_LABELS[file.status]);
-                statusEl.innerHTML = STATUS_ICONS[file.status];
-            }
-        } else {
-            const fill = row.querySelector<HTMLElement>('.dz__file-item__progress-fill');
-            if (fill) fill.style.width = `${file.progress}%`;
-            const pct = row.querySelector<HTMLElement>('.dz__file-item__progress-text');
-            if (pct) pct.textContent = `${file.progress.toFixed(1)}%`;
-            const statusEl = row.querySelector<HTMLElement>('.dz__file-item__status');
-            if (statusEl && statusEl.dataset.status !== file.status) {
-                statusEl.dataset.status = file.status;
-                statusEl.className = `dz__file-item__status dz__file-item__status--${file.status}`;
-                statusEl.setAttribute('title', STATUS_LABELS[file.status]);
-                statusEl.innerHTML = STATUS_ICONS[file.status];
-            }
+        const prefix = appearance === 'grid' ? 'dz__preview-item' : 'dz__file-item';
+        patchProgressFill(row, `${prefix}__progress-fill`, file.progress);
+        if (appearance !== 'grid') {
+            patchProgressText(row, `${prefix}__progress-text`, file.progress);
         }
-        this.patchActionButton(row, file);
-    }
-
-    private patchActionButton(row: HTMLElement, file: FileState): void {
-        // The action button is ALWAYS in the DOM (slot is reserved). We just
-        // toggle the `--hidden` modifier + swap the glyph as state changes,
-        // so column widths stay stable across uploading → paused → complete.
-        const btn = row.querySelector<HTMLElement>('[data-action="row-action"]');
-        if (!btn) return;
-
-        const next = actionForStatus(file.status);
-        const current = btn.dataset.rowAction || '';
-        const target = next ?? '';
-        if (current === target) return;
-
-        const baseClass = row.classList.contains('dz__preview-item')
-            ? 'dz__preview-item__action'
-            : row.classList.contains('dz__badge')
-                ? 'dz__badge-action'
-                : 'dz__file-item__action';
-
-        btn.dataset.rowAction = target;
-        const hidden = !next;
-        btn.className = hidden ? `${baseClass} ${baseClass}--hidden` : baseClass;
-        btn.innerHTML = next ? ACTION_ICONS[next] : '';
-
-        if (next) {
-            btn.setAttribute('aria-label', `${ACTION_LABELS[next]} ${file.name}`);
-            btn.title = ACTION_LABELS[next];
-            btn.removeAttribute('tabindex');
-            btn.removeAttribute('aria-hidden');
-        } else {
-            btn.setAttribute('aria-label', '');
-            btn.title = '';
-            btn.tabIndex = -1;
-            btn.setAttribute('aria-hidden', 'true');
-        }
+        patchStatusIcon(row, `${prefix}__status`, file.status);
+        patchActionButton(
+            row.querySelector<HTMLElement>('[data-action="row-action"]'),
+            file,
+            `${prefix}__action`
+        );
     }
 
     // ========================================================================
