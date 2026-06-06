@@ -64,6 +64,21 @@
   --dz-error-color: var(--base-danger-color, #ef4444);
   --dz-warning-color: var(--base-warning-color, #f59e0b);
 
+  /* Semantic-color tinted backgrounds — derived 10%-mix variants used by
+     status surfaces (e.g. the indicator chip's data-status palette). One
+     definition here so a single accent override cascades into every
+     semantic background without per-component fallbacks. */
+  --dz-accent-bg: color-mix(in srgb, var(--dz-accent-color) 10%, transparent);
+  --dz-error-bg: color-mix(in srgb, var(--dz-error-color) 10%, transparent);
+  --dz-warning-bg: color-mix(in srgb, var(--dz-warning-color) 10%, transparent);
+  --dz-success-bg: color-mix(in srgb, var(--dz-success-color) 10%, transparent);
+
+  /* Neutral surfaces — semantic aliases for components that think in
+     "surface" / "hover" terms rather than the dropzone's input-field
+     vocabulary. Both forward to existing canonical tokens. */
+  --dz-surface-color: var(--dz-background);
+  --dz-hover-bg: var(--dz-primary-bg);
+
   /* ==========================================================================
      DROPZONE
      ========================================================================== */
