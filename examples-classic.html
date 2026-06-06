@@ -436,7 +436,7 @@ const files = el.files       // current FileState[]</code></pre>
         apiEl.addEventListener('file-added',     e => append(`+ added    ${e.detail.file.name}`))
         apiEl.addEventListener('file-removed',   e => append(`- removed  ${e.detail.file.name}`))
         apiEl.addEventListener('files-rejected', e => append(`! rejected ${e.detail.rejectedFiles.length} file(s)`))
-        apiEl.addEventListener('change',         e => append(`~ change   now ${e.detail.files.length} file(s)`))
+        apiEl.addEventListener('change',         e => append(`~ change   now ${e.target.files.length} file(s)`))
 
         window.logFiles = () => {
             const files = apiEl.files

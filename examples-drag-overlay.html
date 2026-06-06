@@ -275,7 +275,7 @@ el.overlayTarget = document.body
 
         const out = document.getElementById('fullpage-output')
         fullpage.addEventListener('change', (e) => {
-            const files = e.detail.files
+            const files = e.target.files
             out.textContent = files.length
                 ? `${files.length} file(s): ${files.map(f => f.name).join(', ')}`
                 : '(none picked yet)'

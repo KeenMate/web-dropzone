@@ -596,7 +596,7 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
             })
             const erroredIds = new Set()
             dz.addEventListener('change', (e) => {
-                for (const f of e.detail.files) {
+                for (const f of e.target.files) {
                     if (f.status === 'error' && !erroredIds.has(f.id)) {
                         erroredIds.add(f.id)
                         appendLog('Fail', f, f.error ?? 'unknown error')

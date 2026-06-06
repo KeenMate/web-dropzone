@@ -739,11 +739,14 @@ export interface FilesRejectedEventDetail {
 }
 
 /**
- * Event detail structure for change event
+ * Event detail structure for change event. Mirrors the native DOM
+ * convention (`<input type="file">` fires `change` with no detail; the
+ * file list is on `e.target.files`). Read `e.target.files` for the
+ * current snapshot, or subscribe to `files-changed` for an rAF-coalesced
+ * `{ changedIds, files }` payload.
  */
 export interface ChangeEventDetail {
-    /** All current files */
-    files: FileState[];
+    // empty by design
 }
 
 /**

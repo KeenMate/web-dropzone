@@ -263,14 +263,15 @@
 
             // Each overlay broadcasts overlay-enter / overlay-leave on its
             // host as the cursor crosses into / out of it during a drag.
-            // detail = { files, overlayElement }. We mutate the overlay's
-            // text node to show contextual info — remaining-slot count on
-            // the left, a static reassurance on the right.
+            // detail = { overlayElement }; the host's current selection is on
+            // e.target.files. We mutate the overlay's text node to show
+            // contextual info — remaining-slot count on the left, a static
+            // reassurance on the right.
             function wireHoverHint(hostId, getEnterText, baseText) {
                 const host = document.getElementById(hostId);
                 host.addEventListener('overlay-enter', (e) => {
                     const textEl = e.detail.overlayElement.querySelector('.dz__overlay__text');
-                    if (textEl) textEl.textContent = getEnterText(e.detail.files);
+                    if (textEl) textEl.textContent = getEnterText(e.target.files);
                 });
                 host.addEventListener('overlay-leave', (e) => {
                     const textEl = e.detail.overlayElement.querySelector('.dz__overlay__text');

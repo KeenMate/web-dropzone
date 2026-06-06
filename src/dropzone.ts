@@ -3578,7 +3578,7 @@ export class WebDropzone {
     }
 
     private emitChangeEvent(): void {
-        dispatchComposedEvent(this.element, 'change', { files: this.getFiles() });
+        dispatchComposedEvent(this.element, 'change');
 
         if (this.config.changeCallback) {
             this.config.changeCallback(this.getFiles());
@@ -3797,7 +3797,7 @@ export class WebDropzone {
             });
             this.dragOverlay.classList.add('dz__overlay--hover');
             dispatchComposedEvent(this.element, 'overlay-enter', {
-                files: this.getFiles(), overlayElement: this.dragOverlay
+                overlayElement: this.dragOverlay
             });
         };
         const revertOverlayHover = (): void => {
@@ -3810,7 +3810,7 @@ export class WebDropzone {
             });
             this.dragOverlay.classList.remove('dz__overlay--hover');
             dispatchComposedEvent(this.element, 'overlay-leave', {
-                files: this.getFiles(), overlayElement: this.dragOverlay
+                overlayElement: this.dragOverlay
             });
         };
 
