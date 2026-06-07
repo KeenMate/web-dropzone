@@ -1,11 +1,19 @@
 /**
  * WebDropzone - Renderer subclass of DropzoneCore.
  *
- * Phase A · Step 1 of the core/renderer split (see ARCHITECTURE.md). All
+ * Phase A · Steps 1+2 of the core/renderer split (see ARCHITECTURE.md). All
  * non-DOM state and pipelines were moved to `./core/dropzone-core.ts`;
  * this file owns rendering, the popover surface, the drag overlay, and
  * the DOM event wiring. Public API of `WebDropzone` is unchanged — both
  * core methods (inherited) and renderer methods are reachable as before.
+ *
+ * Step 2: state-change wiring runs through substrate events instead of
+ * protected hooks. The renderer subscribes to `file-progress`,
+ * `file-status-changed`, `file-updated`, `file-added`, `file-removed`,
+ * and `change` on the host element and patches the DOM from those
+ * listeners. Lifecycle hooks (`render`, `renderFileList`, `attach/
+ * detachEventListeners`, `setup/cleanupOverlay`, `applyReorderToRenderer`,
+ * `onDestroy`) stay as method overrides — they're not state-driven.
  *
  * Module-level helpers (`formatFileSize`, `isImageFile`, etc.) moved to
  * `./dropzone-shared` so core and renderer can share them without a
@@ -195,6 +203,14 @@ export class WebDropzone extends DropzoneCore {
     private boundHandleOverlayDragEnter: (e: DragEvent) => void;
     private boundHandleWindowBlur: () => void;
 
+    /**
+     * Cleanup function returned by `attachSubstrateEventListeners`. Removes
+     * every renderer subscription (`file-progress`, `change`, etc.) from
+     * the host element. Called from `detachEventListeners` so a config-
+     * driven rebuild (`updateConfig`) doesn't double-subscribe.
+     */
+    private substrateEventCleanup: (() => void) | null = null;
+
     constructor(element: HTMLElement, config: DropzoneConfig = {}) {
         super(element, config);
 
@@ -217,35 +233,24 @@ export class WebDropzone extends DropzoneCore {
     }
 
     // ========================================================================
-    // RENDERER-SIDE OVERRIDES OF CORE HOOKS
+    // RENDERER-SIDE OVERRIDES OF CORE LIFECYCLE HOOKS
     //
-    // Phase A · Step 1 — these short overrides exist so the core class can
-    // call back into the renderer without knowing about its DOM state.
-    // Phase A · Step 2 will route them through events and these hook
-    // overrides will go away.
+    // Only lifecycle / structural hooks are overridden here. State-change
+    // wiring (per-file row patches, summary / selector badge / overall
+    // progress, popover refresh) runs through substrate-event listeners
+    // attached in `attachEventListeners` — see
+    // `attachSubstrateEventListeners` below.
     // ========================================================================
 
-    /** Cache cleanup when a file is removed — drop the element-returning
-     *  row callback's cached output for this id. */
-    protected override onFileRemoved(id: string): void {
-        this.fileRowElements.delete(id);
-    }
-
-    /** Reset renderer-only flags when the whole queue is cleared. */
-    protected override onClearAll(): void {
-        this.showAllList = false;
-    }
-
-    /** Final teardown — wipe the host element's children so a destroy()
-     *  call leaves no rendered DOM behind. */
+    /** Final teardown — close the popover (if open) then wipe the host
+     *  element's children so a destroy() call leaves no rendered DOM
+     *  behind. Popover lives in `this.config.container || this.element`,
+     *  so when the container is set externally the popover would leak
+     *  past an `innerHTML = ''` wipe; closePopover handles the explicit
+     *  removal. */
     protected override onDestroy(): void {
+        this.closePopover();
         this.element.innerHTML = '';
-    }
-
-    /** Surface the popover open flag to `DropzoneCore.processFiles` so it
-     *  knows whether to refresh the popover body after an Add-more. */
-    protected override isPopoverOpenForCore(): boolean {
-        return this.isPopoverOpen;
     }
 
     // ========================================================================
@@ -753,7 +758,7 @@ export class WebDropzone extends DropzoneCore {
      * patching — we can't introspect their DOM shape, so we fall back to
      * replaceWith and let the consumer eat the click-flicker tradeoff.
      */
-    protected override patchFileRow(file: FileState): void {
+    private patchFileRow(file: FileState): void {
         const { listAppearance } = resolveDisplayConfig(this.config);
         const hasCustomRenderer = this.isStructuralMode() && !!this.config.renderFileItemCallback;
         const index = this.files.indexOf(file);
@@ -1543,7 +1548,7 @@ export class WebDropzone extends DropzoneCore {
         iconEl.outerHTML = this.renderSummaryIcon();
     }
 
-    protected override updateSummary(): void {
+    private updateSummary(): void {
         // The button and minimal selectors each carry a top-right count badge
         // — neither is tied to the popover-summary surface, so refresh both
         // here on every files change regardless of whether a summary line is
@@ -1605,7 +1610,7 @@ export class WebDropzone extends DropzoneCore {
      * files change rather than re-rendering the whole selector (which would
      * trash the hidden <input> and its listeners).
      */
-    protected override updateSelectorBadge(): void {
+    private updateSelectorBadge(): void {
         if (!this.dropzoneEl) return;
 
         const count = this.files.length;
@@ -1994,7 +1999,7 @@ export class WebDropzone extends DropzoneCore {
      * to empty (which collapses via `:empty`) when there's no activity to
      * report; otherwise renders the shared bar+stats markup.
      */
-    protected override updateOverallProgress(): void {
+    private updateOverallProgress(): void {
         // Summary-line icon mirrors the same aggregate state — patched here
         // (not in refreshOverallProgress) so it tracks state changes even on
         // surfaces that don't render the inline progress strip (e.g. when
@@ -2064,7 +2069,7 @@ export class WebDropzone extends DropzoneCore {
         }
     }
 
-    protected override closePopover(): void {
+    private closePopover(): void {
         if (!this.isPopoverOpen || !this.popover) return;
 
         // Detach Floating UI's scroll/resize observers before tearing the
@@ -2183,7 +2188,7 @@ export class WebDropzone extends DropzoneCore {
         this.popoverPositionCleanup = autoUpdate(anchor, popover, update);
     }
 
-    protected override updatePopoverContent(): void {
+    private updatePopoverContent(): void {
         if (!this.popover) return;
 
         // Refresh the file-count label, limits hint, body rows, and totals
@@ -2238,6 +2243,12 @@ export class WebDropzone extends DropzoneCore {
         if (this.inputEl) {
             this.inputEl.addEventListener('change', this.boundHandleInputChange);
         }
+
+        // Substrate-event wiring (Phase A · Step 2). Replaces the direct
+        // method-dispatched hooks (patchFileRow / updateSummary / etc.) —
+        // the renderer reacts to events on its own host element instead
+        // of being called back by core. See `attachSubstrateEventListeners`.
+        this.attachSubstrateEventListeners();
     }
 
     protected override detachEventListeners(): void {
@@ -2254,6 +2265,119 @@ export class WebDropzone extends DropzoneCore {
 
         document.removeEventListener('click', this.boundHandleDocumentClick);
         document.removeEventListener('keydown', this.boundHandleKeyDown);
+
+        // Symmetric teardown for the substrate-event subscriptions wired in
+        // `attachEventListeners`. Without this, a `updateConfig` cycle
+        // (which calls detach then attach) would double-subscribe.
+        if (this.substrateEventCleanup) {
+            this.substrateEventCleanup();
+            this.substrateEventCleanup = null;
+        }
+    }
+
+    /**
+     * Wire renderer-side reactions to the substrate events dispatched by
+     * `DropzoneCore`. Replaces the protected-hook pattern from Phase A ·
+     * Step 1 (`patchFileRow`, `updateSummary`, `updateOverallProgress`,
+     * `updatePopoverContent`, `onFileRemoved`, `onClearAll`,
+     * `isPopoverOpenForCore`) — none of those exist on core any more.
+     *
+     * Events bubble + composed off the host element, so a single
+     * `addEventListener` per type covers in-shadow, light-DOM, and
+     * cross-shadow consumers alike. Stored cleanup is invoked by
+     * `detachEventListeners`.
+     */
+    private attachSubstrateEventListeners(): void {
+        // Granular per-file events ----------------------------------------
+
+        const onFileProgress = (e: Event): void => {
+            const file = (e as CustomEvent<{ file: FileState }>).detail?.file;
+            if (!file) return;
+            this.patchFileRow(file);
+            // updateOverallProgress also handled inside patchFileRow's tail
+            // (it calls this.updateOverallProgress); calling it again here
+            // would be redundant. The tail path covers per-tick refreshes
+            // for both surfaces. Status changes and full-list changes still
+            // need their own listener entries below.
+        };
+
+        const onFileStatusChanged = (e: Event): void => {
+            const file = (e as CustomEvent<{ file: FileState }>).detail?.file;
+            if (!file) return;
+            this.patchFileRow(file);
+        };
+
+        const onFileUpdated = (e: Event): void => {
+            const file = (e as CustomEvent<{ file: FileState }>).detail?.file;
+            if (!file) return;
+            this.patchFileRow(file);
+        };
+
+        const onFileAdded = (_e: Event): void => {
+            // Add-more flow: when the popover is open and the user adds
+            // files via the "Add more" affordance, refresh the popover body
+            // so the new rows appear immediately. Replaces the
+            // `isPopoverOpenForCore` reverse-call hook.
+            if (this.isPopoverOpen) {
+                this.updatePopoverContent();
+            }
+        };
+
+        const onFileRemoved = (e: Event): void => {
+            const file = (e as CustomEvent<{ file: FileState }>).detail?.file;
+            if (!file) return;
+            this.fileRowElements.delete(file.id);
+        };
+
+        // Coarse "files changed" tick ------------------------------------
+
+        const onChange = (_e: Event): void => {
+            // Summary line, selector badge, and overall progress strip all
+            // depend on aggregate state. They used to be flushed by
+            // dedicated hooks called from add / remove / clear; now we
+            // refresh them all in one listener gated on the `change`
+            // event (fires from emitChangeEvent on every add/remove/clear,
+            // and from updateConfig after a re-render).
+            this.updateSummary();
+            // updateSummary already invokes updateSelectorBadge +
+            // updateOverallProgress internally, so no separate calls needed.
+
+            // Popover body refresh — only meaningful when open. Add-more
+            // also re-renders via the file-added listener above; the
+            // change listener catches removes / clears / external mutations.
+            if (this.isPopoverOpen) {
+                // If everything was just cleared, close the popover so it
+                // doesn't sit empty over the page.
+                if (this.files.length === 0) {
+                    this.closePopover();
+                } else {
+                    this.updatePopoverContent();
+                }
+            }
+
+            // Renderer-only flag reset on clear: the "Show all" toggle is
+            // a UI state that loses meaning once the queue is empty.
+            if (this.files.length === 0) {
+                this.showAllList = false;
+            }
+        };
+
+        const host = this.element;
+        host.addEventListener('file-progress',        onFileProgress);
+        host.addEventListener('file-status-changed',  onFileStatusChanged);
+        host.addEventListener('file-updated',         onFileUpdated);
+        host.addEventListener('file-added',           onFileAdded);
+        host.addEventListener('file-removed',         onFileRemoved);
+        host.addEventListener('change',               onChange);
+
+        this.substrateEventCleanup = (): void => {
+            host.removeEventListener('file-progress',       onFileProgress);
+            host.removeEventListener('file-status-changed', onFileStatusChanged);
+            host.removeEventListener('file-updated',        onFileUpdated);
+            host.removeEventListener('file-added',          onFileAdded);
+            host.removeEventListener('file-removed',        onFileRemoved);
+            host.removeEventListener('change',              onChange);
+        };
     }
 
     private handleDragOver(e: DragEvent): void {

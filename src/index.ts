@@ -58,6 +58,7 @@ export type {
     AddFilesOptions,
     FileProgressEventDetail,
     FileStatusChangedEventDetail,
+    FileUpdatedEventDetail,
     FileRowUpdateEventDetail,
     FilesChangedEventDetail
 } from './types';

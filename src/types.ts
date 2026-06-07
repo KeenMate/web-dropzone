@@ -823,6 +823,24 @@ export interface FileStatusChangedEventDetail {
 }
 
 /**
+ * Event detail for `file-updated` — dispatched whenever a field on a
+ * `FileState` OTHER than `progress` or `status` changes. Covers the
+ * "catch-all post-mutation refresh" signal: e.g. `previewUrl` arriving
+ * from `generatePreview`, `metadata` / `downloadUrl` / `name` returned
+ * from a successful upload handler, etc.
+ *
+ * Progress and status changes have their own dedicated events
+ * (`file-progress`, `file-status-changed`) — subscribers that care
+ * about every mutation should listen to all three.
+ *
+ * Substrate for satellite renderers — bubbles + composed.
+ */
+export interface FileUpdatedEventDetail {
+    /** Live reference to the full file state, post-mutation */
+    file: FileState;
+}
+
+/**
  * Event detail for `file-row-update` — dispatched on element-returning
  * `renderFileItemCallback` outputs when a file's state changes (instead
  * of re-rendering the row). The consumer listens on the element they
@@ -861,7 +879,8 @@ export type DropzoneEventDetail =
     | FileUploadedEventDetail
     | FileDeletedEventDetail
     | FileProgressEventDetail
-    | FileStatusChangedEventDetail;
+    | FileStatusChangedEventDetail
+    | FileUpdatedEventDetail;
 
 /**
  * File type categories for icon mapping

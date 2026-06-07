@@ -1,20 +1,25 @@
 /**
  * DropzoneCore — non-rendering substrate for `WebDropzone`.
  *
- * Phase A · Step 1 of the core/renderer split (see ARCHITECTURE.md). All
+ * Phase A · Step 2 of the core/renderer split (see ARCHITECTURE.md). All
  * non-DOM state and pipelines live here: file state, validation/add pipeline,
  * upload worker pool, status/progress mutator + events, reorder timer
  * scheduling, persisted-state load/save, overall-progress aggregate.
  *
  * Renderer concerns (DOM cache, popover, overlay, drag handlers, all
  * `render*`/`patch*` methods) stay on `WebDropzone`, which `extends
- * DropzoneCore` and overrides the protected hooks below to wire core
- * mutations back into the DOM.
+ * DropzoneCore` and overrides the protected lifecycle hooks below to wire
+ * core mutations back into the DOM.
  *
- * IMPORTANT: This step is structural only — no behavior change. Hard
- * coupling points (e.g. `flushProgressTick` calling `patchFileRow`) are
- * preserved as protected-hook calls instead of being routed through events
- * (Phase A · Step 2 will do that).
+ * Phase A · Step 2 (this revision): state-change hooks (`patchFileRow`,
+ * `updateSummary`, `updateSelectorBadge`, `updateOverallProgress`,
+ * `updatePopoverContent`, `closePopover`, `onFileRemoved`, `onClearAll`,
+ * `isPopoverOpenForCore`) are gone. The renderer subscribes to substrate
+ * events on its own host element (`file-progress`, `file-status-changed`,
+ * `file-updated`, `file-added`, `file-removed`, `change`) and updates the
+ * DOM from those listeners. Lifecycle hooks (`render`, `renderFileList`,
+ * `attach/detachEventListeners`, `setup/cleanupOverlay`, `applyReorderToRenderer`,
+ * `onDestroy`) stay as protected hooks — they're not state-driven.
  */
 
 import { fileLogger, initLogger, uiLogger } from '../logger';
@@ -112,51 +117,38 @@ export class DropzoneCore {
     }
 
     // ========================================================================
-    // PROTECTED RENDERER HOOKS
+    // PROTECTED RENDERER LIFECYCLE HOOKS
     //
-    // Empty defaults — `WebDropzone` overrides each one with the matching
-    // DOM logic. Phase A · Step 2 will replace these direct calls with
-    // event dispatches so the renderer can be decoupled fully; for now we
-    // keep the direct-call hook pattern so the diff stays structural.
+    // Only structural / lifecycle hooks live here. State-driven updates
+    // (per-file patches, popover refresh, summary / selector badge / overall
+    // progress) used to be hooks too but now flow through substrate events
+    // (`file-progress`, `file-status-changed`, `file-updated`, `file-added`,
+    // `file-removed`, `change`) that the renderer subscribes to on its own
+    // host element. See `WebDropzone.attachEventListeners`.
+    //
+    // Empty defaults so `DropzoneCore` is usable on its own (headless / mode-3
+    // scenarios); `WebDropzone` overrides each lifecycle hook with the
+    // matching DOM logic.
     // ========================================================================
-
-    /** Patch a single file row in-place across every renderer surface
-     *  (inline list, popover, rolling, etc.). Hot path on every upload
-     *  tick — renderer override surgically updates bar fill / status pill
-     *  rather than re-rendering the row. */
-    protected patchFileRow(_file: FileState): void { /* renderer override */ }
 
     /** Initial render. Called from `updateConfig`'s rebuild path. */
     protected render(): void { /* renderer override */ }
 
-    /** Rebuild the inline file list area (or files-inside container). */
+    /** Rebuild the inline file list area (or files-inside container).
+     *  Called after add / remove / clear so the row set is recreated
+     *  fresh — per-tick updates fly through `file-progress` /
+     *  `file-status-changed` instead. */
     protected renderFileList(): void { /* renderer override */ }
-
-    /** Refresh popover header / body / footer after a state mutation
-     *  while the popover is open. */
-    protected updatePopoverContent(): void { /* renderer override */ }
-
-    /** Refresh summary line + selector badge + overall progress strip. */
-    protected updateSummary(): void { /* renderer override */ }
-
-    /** Refresh the count badge on the active selector (button / minimal). */
-    protected updateSelectorBadge(): void { /* renderer override */ }
-
-    /** Refresh the inline overall-progress strip and any embedded
-     *  popover-footer strip. */
-    protected updateOverallProgress(): void { /* renderer override */ }
 
     /** Apply a reorder-timer payload to the renderer (move the row's
      *  bucket dataset, re-sort popover, re-render capped list). Called
-     *  from `scheduleReorder`'s `apply()` callback. */
+     *  from `scheduleReorder`'s `apply()` callback. Kept as a hook (rather
+     *  than an event) because it's purely internal coordination — no
+     *  consumer-facing reason to surface it. */
     protected applyReorderToRenderer(
         _id: string,
         _becomingComplete: boolean
     ): void { /* renderer override */ }
-
-    /** Renderer-side cleanup when a file is removed (e.g. drop cached row
-     *  elements from `fileRowElements`). */
-    protected onFileRemoved(_id: string): void { /* renderer override */ }
 
     /** Subscribe / re-subscribe to drag events on the (configurable)
      *  overlay target. */
@@ -168,11 +160,10 @@ export class DropzoneCore {
     /** Detach drag / drop / click / input listeners. */
     protected detachEventListeners(): void { /* renderer override */ }
 
-    /** Attach drag / drop / click / input listeners. */
+    /** Attach drag / drop / click / input listeners. Renderer also wires
+     *  substrate-event subscriptions (`file-progress`, `change`, etc.) here
+     *  so the in-class DOM stays in sync with state mutations. */
     protected attachEventListeners(): void { /* renderer override */ }
-
-    /** Close the popover (if open) and detach its observers. */
-    protected closePopover(): void { /* renderer override */ }
 
     // ========================================================================
     // PUBLIC READ API
@@ -257,7 +248,6 @@ export class DropzoneCore {
         const file = this.files[liveIndex];
         const hasServerState = this.hasServerSideState(file);
         this.files.splice(liveIndex, 1);
-        this.onFileRemoved(id);
         this.throttleLastFireAt.delete(id);
         this.clearThrottlePending(id);
 
@@ -267,14 +257,16 @@ export class DropzoneCore {
         // the file has server-side state worth cleaning up — completed
         // files (server has the full blob) OR any file whose handler
         // stashed metadata via setMetadata (e.g. tus.io session URL from a
-        // partial upload that the user paused-then-removed).
+        // partial upload that the user paused-then-removed). The renderer
+        // listens on file-removed (drops cached row element) and on change
+        // (refreshes summary / selector badge / overall progress).
         this.emitRemoveEvent(file);
         if (hasServerState) this.emitDeleteEvent(file);
         this.emitChangeEvent();
 
-        // Re-render
+        // Re-render the row set — per-tick updates flow through events,
+        // but add / remove / clear still rebuild the inline list.
         this.renderFileList();
-        this.updateSummary();
     }
 
     /**
@@ -315,7 +307,6 @@ export class DropzoneCore {
 
         const removedFiles = [...this.files];
         this.files = [];
-        this.onClearAll();
         this.clearAllReorderTimers();
 
         fileLogger.debug('All files cleared', { count: removedFiles.length });
@@ -323,20 +314,17 @@ export class DropzoneCore {
         // Emit events for each removed file — also fire file-deleted for
         // any file that had server-side state stashed (completed OR paused
         // with metadata, etc.) so server cleanup hooks fire on Clear all.
+        // The renderer listens on file-removed + change to keep its DOM
+        // cache (`fileRowElements`) and summary surfaces in sync.
         removedFiles.forEach(file => {
             this.emitRemoveEvent(file);
             if (this.hasServerSideState(file)) this.emitDeleteEvent(file);
         });
         this.emitChangeEvent();
 
-        // Re-render
+        // Re-render the row set.
         this.renderFileList();
-        this.updateSummary();
     }
-
-    /** Renderer hook fired from `clear()` so the renderer can reset its
-     *  "Show all" toggle / cached row elements / etc. */
-    protected onClearAll(): void { /* renderer override */ }
 
     /**
      * Update configuration in place. Re-renders the component, re-binds event
@@ -354,12 +342,15 @@ export class DropzoneCore {
         // Tear down and rebuild the in-element DOM. The dropzone's DOM is
         // small and rebuilding is cheaper than diffing — but we keep state
         // (this.files, this.dragActive, this.isPopoverOpen) intact so the
-        // user-visible selection survives.
+        // user-visible selection survives. `attachEventListeners` also
+        // re-subscribes the renderer's substrate-event listeners; we fire
+        // `change` after re-render so the listeners refresh summary /
+        // overall progress / selector badge against the new DOM.
         this.detachEventListeners();
         this.render();
         this.attachEventListeners();
         this.renderFileList();
-        this.updateSummary();
+        this.emitChangeEvent();
 
         // Overlay target replumb only if the target actually changed —
         // listeners on document are cheap but the cleanup is observable
@@ -393,8 +384,11 @@ export class DropzoneCore {
         this.throttlePendingTimer.clear();
 
         this.detachEventListeners();
-        this.closePopover();
         this.cleanupOverlay();
+        // `onDestroy` is the renderer's catch-all teardown — it wipes the
+        // element's innerHTML, closes the popover (if open), and drops any
+        // other renderer-only references. Core stays oblivious to the
+        // popover surface.
         this.onDestroy();
         initLogger.debug('DropzoneCore destroyed');
     }
@@ -467,9 +461,11 @@ export class DropzoneCore {
         } else if (clamped === 100 && file.status === 'uploading') {
             nextStatus = 'complete';
         }
+        // Row patch is event-driven now — `mutateFileState` emits
+        // `file-progress` (and `file-status-changed` when status flips);
+        // the renderer's listener on the host element does the DOM write.
         this.mutateFileState(file, { progress: clamped, status: nextStatus });
         fileLogger.debug('File progress updated', { id, progress: file.progress, status: file.status });
-        this.patchFileRow(file);
     }
 
     protected clearThrottlePending(id: string): void {
@@ -489,15 +485,14 @@ export class DropzoneCore {
 
         if (error) file.error = error;
         // 'complete' implies progress=100 — bundle into one mutator call so
-        // the status-changed and progress events fire atomically.
+        // the status-changed and progress events fire atomically. The
+        // renderer's `file-status-changed` listener patches the row.
         this.mutateFileState(
             file,
             status === 'complete' ? { status, progress: 100 } : { status }
         );
 
         fileLogger.debug('File status updated', { id, status, error });
-
-        this.patchFileRow(file);
     }
 
     /**
@@ -564,7 +559,6 @@ export class DropzoneCore {
         file.error = undefined;
         this.mutateFileState(file, { status: 'pending' });
         fileLogger.debug('File retry requested', { id, name: file.name, startPercent: file.progress });
-        this.patchFileRow(file);
         this.emitRetryEvent(file);
         // Component-driven mode: re-queue via the worker pool. The pool's
         // re-entrancy guard collapses simultaneous calls — retryAll calling
@@ -686,9 +680,7 @@ export class DropzoneCore {
         const file = this.files.find(f => f.id === id);
         if (file && (file.status === 'pending' || file.status === 'uploading')) {
             this.mutateFileState(file, { status: 'paused' });
-            this.patchFileRow(file);
         }
-        this.updateOverallProgress();
     }
 
     /**
@@ -709,12 +701,10 @@ export class DropzoneCore {
             // Preserve progress — handler resumes from context.startBytes.
             file.error = undefined;
             this.mutateFileState(file, { status: 'pending' });
-            this.patchFileRow(file);
         } else if (file.status === 'cancelled') {
             // Cancelled → user-initiated abort, server state is assumed lost.
             file.error = undefined;
             this.mutateFileState(file, { status: 'pending', progress: 0 });
-            this.patchFileRow(file);
         }
         await this.uploadAll();
     }
@@ -731,10 +721,8 @@ export class DropzoneCore {
             const file = this.files.find(f => f.id === id);
             if (file && (file.status === 'pending' || file.status === 'uploading')) {
                 this.mutateFileState(file, { status: 'cancelled' });
-                this.patchFileRow(file);
             }
         }
-        this.updateOverallProgress();
     }
 
     /** Pause every uploading / pending file. */
@@ -755,7 +743,6 @@ export class DropzoneCore {
                 // Progress preserved — handler sees startBytes > 0.
                 f.error = undefined;
                 this.mutateFileState(f, { status: 'pending' });
-                this.patchFileRow(f);
             }
         }
         await this.uploadAll();
@@ -798,7 +785,6 @@ export class DropzoneCore {
         // the optimistic value (user intent, not failure) — only the
         // failure branch in the catch below uses this.
         const baselineProgress = file.progress;
-        this.patchFileRow(file);
 
         // Build the per-call context — startBytes/startPercent reflect the
         // file's preserved progress, metadata carries any state previously
@@ -833,23 +819,31 @@ export class DropzoneCore {
             // state atomically with the complete flip. Restricted shape (only
             // the four whitelisted fields) so handlers can't accidentally
             // overwrite id / file / status / progress / error.
+            //
+            // `file-updated` covers the non-status/non-progress field writes
+            // so the renderer's listener picks up `previewUrl` / `name`
+            // changes; the subsequent `mutateFileState` emits the
+            // status-changed + progress events that trigger the row's
+            // status-pill / bar-fill patch.
+            let didMerge = false;
             if (result) {
-                if (result.metadata !== undefined) file.metadata = result.metadata;
-                if (result.downloadUrl !== undefined) file.downloadUrl = result.downloadUrl;
-                if (result.previewUrl !== undefined) file.previewUrl = result.previewUrl;
-                if (result.name !== undefined) file.name = result.name;
+                if (result.metadata !== undefined)    { file.metadata    = result.metadata;    didMerge = true; }
+                if (result.downloadUrl !== undefined) { file.downloadUrl = result.downloadUrl; didMerge = true; }
+                if (result.previewUrl !== undefined)  { file.previewUrl  = result.previewUrl;  didMerge = true; }
+                if (result.name !== undefined)        { file.name        = result.name;        didMerge = true; }
             }
+            if (didMerge) this.emitFileUpdated(file);
             this.mutateFileState(file, { status: 'complete', progress: 100 });
-            this.patchFileRow(file);
             this.emitUploadedEvent(file);
         } catch (err) {
             if (ctrl.signal.aborted) {
                 // The signal fires for pause AND cancel — distinguish by which
                 // set holds the id. pause keeps it for resume; cancel doesn't.
+                // `mutateFileState` emits `file-status-changed`; the renderer's
+                // listener patches the row.
                 this.mutateFileState(file, {
                     status: this.pausedIds.has(id) ? 'paused' : 'cancelled'
                 });
-                this.patchFileRow(file);
                 return;
             }
             const msg = err instanceof Error ? err.message : 'Upload failed';
@@ -909,7 +903,6 @@ export class DropzoneCore {
                     `[dz auto-retry] starting attempt ${attempt + 2}/${maxAttempts} for "${file.name}" ` +
                     `with progress=${file.progress.toFixed(1)}%`
                 );
-                this.patchFileRow(file);
                 return this.runUpload(id, attempt + 1);
             }
             // eslint-disable-next-line no-console
@@ -918,8 +911,12 @@ export class DropzoneCore {
                 `at progress=${file.progress.toFixed(1)}%`
             );
             file.error = msg;
+            // Status flip to 'error' fires `file-status-changed`; the
+            // renderer's listener patches the row. The `file.error` write
+            // is tied to the same status transition so no separate
+            // `file-updated` is needed — error-aware renderers gate on
+            // status === 'error' anyway.
             this.mutateFileState(file, { status: 'error' });
-            this.patchFileRow(file);
         } finally {
             this.controllers.delete(id);
         }
@@ -1059,16 +1056,14 @@ export class DropzoneCore {
             this.emitRejectEvent(rejectedFiles);
         }
 
-        // Re-render
+        // Re-render the row set. Per-file events were already dispatched
+        // above (`file-added` for each accepted file, `change` from
+        // `emitChangeEvent`); the renderer's listeners pick up the summary
+        // / selector badge / overall-progress refresh AND the open-popover
+        // refresh (renderer's `file-added` listener checks `isPopoverOpen`
+        // and calls `updatePopoverContent` itself — core no longer reaches
+        // back into the popover surface).
         this.renderFileList();
-        this.updateSummary();
-
-        // If the popover is open (e.g. user clicked "Add more"), reflect the
-        // new files immediately — otherwise it stays stuck on the snapshot
-        // taken when the popover opened.
-        if (this.isPopoverOpenForCore() && acceptedFiles.length > 0) {
-            this.updatePopoverContent();
-        }
 
         // Auto-upload kicks in once the new files are committed to state, the
         // UI has reflected the additions, and the file-added event has fired.
@@ -1087,21 +1082,17 @@ export class DropzoneCore {
         }
     }
 
-    /** Renderer-side flag used by `processFiles` to decide whether to call
-     *  `updatePopoverContent`. Defaults to `false` (no popover surface);
-     *  renderer overrides to surface its real `isPopoverOpen` state. */
-    protected isPopoverOpenForCore(): boolean { return false; }
-
     protected async generatePreview(fileState: FileState): Promise<void> {
         try {
             const previewUrl = await createImagePreview(fileState.file);
             fileState.previewUrl = previewUrl;
             fileLogger.debug('Preview generated', { id: fileState.id, name: fileState.name });
 
-            // Patch the row in place. Works for any listAppearance — grid mode
-            // swaps the placeholder for the data URL, other modes are no-op
-            // visually but still keep the DOM in sync with FileState.
-            this.patchFileRow(fileState);
+            // Signal the previewUrl write via `file-updated` so the
+            // renderer's listener patches the row (grid mode swaps the
+            // placeholder for the data URL; other modes are no-op
+            // visually but still keep the DOM in sync with FileState).
+            this.emitFileUpdated(fileState);
         } catch (error) {
             fileLogger.warn('Failed to generate preview', { id: fileState.id, error });
         }
@@ -1360,6 +1351,22 @@ export class DropzoneCore {
         dispatchComposedEvent(this.element, 'file-status-changed', {
             id: file.id, prevStatus, nextStatus, file
         });
+        this.markFilesChanged(file.id);
+    }
+
+    /**
+     * Substrate event — fires whenever a field on a FileState OTHER than
+     * `progress` or `status` changes. Catch-all post-mutation refresh
+     * signal for the renderer (`previewUrl` arriving from
+     * `generatePreview`, `metadata` / `downloadUrl` / `name` returned
+     * from a successful upload handler, etc.). Bubbles + composed.
+     *
+     * Progress and status have their own dedicated events
+     * (`file-progress`, `file-status-changed`) so subscribers can opt
+     * into the granularity they care about.
+     */
+    protected emitFileUpdated(file: FileState): void {
+        dispatchComposedEvent(this.element, 'file-updated', { file });
         this.markFilesChanged(file.id);
     }
 
