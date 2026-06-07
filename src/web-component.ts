@@ -203,9 +203,8 @@ const ATTRIBUTE_TABLE_BY_ATTR = new Map(ATTRIBUTE_TABLE.map(s => [s.attr, s]));
  */
 const UPGRADEABLE_PROPS: ReadonlyArray<string> = [
     // JS-only callbacks
-    'validateCallback', 'addCallback', 'removeCallback', 'changeCallback',
-    'rejectCallback', 'retryCallback', 'uploadFileCallback', 'uploadedCallback',
-    'deleteCallback', 'retryPolicy',
+    'validateCallback', 'beforeFilesAddedCallback', 'beforeFilesRemovedCallback',
+    'uploadFileCallback', 'retryPolicy',
     'renderFileItemCallback', 'renderListWrapperCallback',
     'renderPromptCallback', 'renderSummaryCallback',
     'customStylesCallback',
@@ -300,14 +299,9 @@ export class DropzoneElement extends BaseElement {
 
     // Callback properties (set via JavaScript only — no HTML attribute equivalent)
     private _validateCallback: DropzoneConfig['validateCallback'] = null;
-    private _addCallback: DropzoneConfig['addCallback'] = null;
-    private _removeCallback: DropzoneConfig['removeCallback'] = null;
-    private _changeCallback: DropzoneConfig['changeCallback'] = null;
-    private _rejectCallback: DropzoneConfig['rejectCallback'] = null;
-    private _retryCallback: DropzoneConfig['retryCallback'] = null;
+    private _beforeFilesAddedCallback: DropzoneConfig['beforeFilesAddedCallback'] = null;
+    private _beforeFilesRemovedCallback: DropzoneConfig['beforeFilesRemovedCallback'] = null;
     private _uploadFileCallback: DropzoneConfig['uploadFileCallback'] = null;
-    private _uploadedCallback: DropzoneConfig['uploadedCallback'] = null;
-    private _deleteCallback: DropzoneConfig['deleteCallback'] = null;
     private _retryPolicy: DropzoneConfig['retryPolicy'] = undefined;
     private _renderFileItemCallback: DropzoneConfig['renderFileItemCallback'] = null;
     private _renderListWrapperCallback: DropzoneConfig['renderListWrapperCallback'] = null;
@@ -374,6 +368,13 @@ export class DropzoneElement extends BaseElement {
         instances.add(this);
         this.initializeDropzone();
 
+        // Single hookpoint for ElementInternals.setFormValue: the underlying
+        // store dispatches a composed `change` event after every mutation
+        // (add / remove / clear), which bubbles to the host. Replaces the
+        // previous pattern where buildConfig wrapped removeCallback /
+        // changeCallback to chain syncFormValue inline.
+        this.addEventListener('change', this.boundSyncFormValue);
+
         // FOUC prevention — once initialized, expose [data-ready] so authors
         // can target post-init styling without flashing default browser UA.
         requestAnimationFrame(() => {
@@ -385,10 +386,13 @@ export class DropzoneElement extends BaseElement {
 
     disconnectedCallback(): void {
         instances.delete(this);
+        this.removeEventListener('change', this.boundSyncFormValue);
         this.dropzone?.destroy();
         this.dropzone = undefined;
         initLogger.debug('DropzoneElement disconnected');
     }
+
+    private boundSyncFormValue = () => this.syncFormValue();
 
     /**
      * Called by the browser when the surrounding <form> is reset. Clears the
@@ -490,20 +494,9 @@ export class DropzoneElement extends BaseElement {
 
             // Callbacks (programmatic only — no HTML attribute equivalent)
             validateCallback: this._validateCallback,
-            addCallback: this._addCallback,
-            removeCallback: (file) => {
-                this._removeCallback?.(file);
-                this.syncFormValue();
-            },
-            changeCallback: (files) => {
-                this._changeCallback?.(files);
-                this.syncFormValue();
-            },
-            rejectCallback: this._rejectCallback,
-            retryCallback: this._retryCallback,
+            beforeFilesAddedCallback: this._beforeFilesAddedCallback,
+            beforeFilesRemovedCallback: this._beforeFilesRemovedCallback,
             uploadFileCallback: this._uploadFileCallback,
-            uploadedCallback: this._uploadedCallback,
-            deleteCallback: this._deleteCallback,
             retryPolicy: this._retryPolicy,
             renderFileItemCallback: this._renderFileItemCallback,
             renderListWrapperCallback: this._renderListWrapperCallback,
@@ -827,37 +820,24 @@ export class DropzoneElement extends BaseElement {
         this.dropzone?.updateConfig({ validateCallback: value });
     }
 
-    get addCallback(): DropzoneConfig['addCallback'] { return this._addCallback; }
-    set addCallback(value: DropzoneConfig['addCallback']) {
-        this._addCallback = value;
-        this.dropzone?.updateConfig({ addCallback: value });
+    /** Async user-confirmation gate for additions. See
+     *  {@link DropzoneConfig.beforeFilesAddedCallback}. */
+    get beforeFilesAddedCallback(): DropzoneConfig['beforeFilesAddedCallback'] {
+        return this._beforeFilesAddedCallback;
+    }
+    set beforeFilesAddedCallback(value: DropzoneConfig['beforeFilesAddedCallback']) {
+        this._beforeFilesAddedCallback = value;
+        this.dropzone?.updateConfig({ beforeFilesAddedCallback: value });
     }
 
-    get removeCallback(): DropzoneConfig['removeCallback'] { return this._removeCallback; }
-    set removeCallback(value: DropzoneConfig['removeCallback']) {
-        this._removeCallback = value;
-        // Don't rebuild — buildConfig wraps the callback to also syncFormValue,
-        // and the live dropzone already holds that wrapper. Updating the
-        // backing field is enough; the wrapper reads from `this._removeCallback`
-        // via closure on next invocation.
+    /** Async user-confirmation gate for removals. See
+     *  {@link DropzoneConfig.beforeFilesRemovedCallback}. */
+    get beforeFilesRemovedCallback(): DropzoneConfig['beforeFilesRemovedCallback'] {
+        return this._beforeFilesRemovedCallback;
     }
-
-    get changeCallback(): DropzoneConfig['changeCallback'] { return this._changeCallback; }
-    set changeCallback(value: DropzoneConfig['changeCallback']) {
-        this._changeCallback = value;
-        // Same reasoning as removeCallback above.
-    }
-
-    get rejectCallback(): DropzoneConfig['rejectCallback'] { return this._rejectCallback; }
-    set rejectCallback(value: DropzoneConfig['rejectCallback']) {
-        this._rejectCallback = value;
-        this.dropzone?.updateConfig({ rejectCallback: value });
-    }
-
-    get retryCallback(): DropzoneConfig['retryCallback'] { return this._retryCallback; }
-    set retryCallback(value: DropzoneConfig['retryCallback']) {
-        this._retryCallback = value;
-        this.dropzone?.updateConfig({ retryCallback: value });
+    set beforeFilesRemovedCallback(value: DropzoneConfig['beforeFilesRemovedCallback']) {
+        this._beforeFilesRemovedCallback = value;
+        this.dropzone?.updateConfig({ beforeFilesRemovedCallback: value });
     }
 
     /**
@@ -871,21 +851,6 @@ export class DropzoneElement extends BaseElement {
     set uploadFileCallback(value: DropzoneConfig['uploadFileCallback']) {
         this._uploadFileCallback = value;
         this.dropzone?.updateConfig({ uploadFileCallback: value });
-    }
-
-    get uploadedCallback(): DropzoneConfig['uploadedCallback'] { return this._uploadedCallback; }
-    set uploadedCallback(value: DropzoneConfig['uploadedCallback']) {
-        this._uploadedCallback = value;
-        this.dropzone?.updateConfig({ uploadedCallback: value });
-    }
-
-    /** Fires when a completed file is removed. Hand it whatever does the
-     *  server-side DELETE — use `file.metadata` for the server-assigned id
-     *  (or whatever the upload handler stashed). */
-    get deleteCallback(): DropzoneConfig['deleteCallback'] { return this._deleteCallback; }
-    set deleteCallback(value: DropzoneConfig['deleteCallback']) {
-        this._deleteCallback = value;
-        this.dropzone?.updateConfig({ deleteCallback: value });
     }
 
     /** Whether the user can remove already-uploaded files. False hides the
@@ -1031,22 +996,24 @@ export class DropzoneElement extends BaseElement {
         return this.dropzone?.getFiles() || [];
     }
 
-    /** Add files programmatically */
-    addFiles(files: FileList | File[]): void {
-        this.dropzone?.addFiles(files);
-        this.syncFormValue();
+    /** Add files programmatically. Returns a Promise that resolves once
+     *  the (possibly async) add gate has finished and the queue reflects
+     *  the result. Form value is synced from the host's own `change`
+     *  listener, so the explicit call after the await isn't needed. */
+    addFiles(files: FileList | File[]): Promise<void> {
+        return this.dropzone?.addFiles(files) ?? Promise.resolve();
     }
 
-    /** Remove a file by ID */
-    removeFile(id: string): void {
-        this.dropzone?.removeFile(id);
-        // syncFormValue runs via the wrapped removeCallback in buildConfig.
+    /** Remove a file by ID. Skips the `beforeFilesRemovedCallback` gate
+     *  unless `opts.confirm` is true — programmatic removals are treated
+     *  as intentional. */
+    removeFile(id: string, opts?: { confirm?: boolean }): Promise<void> {
+        return this.dropzone?.removeFile(id, opts) ?? Promise.resolve();
     }
 
-    /** Clear all files */
-    clear(): void {
-        this.dropzone?.clear();
-        this.syncFormValue();
+    /** Clear all files. Same gate semantics as `removeFile`. */
+    clear(opts?: { confirm?: boolean }): Promise<void> {
+        return this.dropzone?.clear(opts) ?? Promise.resolve();
     }
 
     /** Update file progress (for upload tracking) */

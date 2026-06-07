@@ -77,7 +77,7 @@ import type {
 /**
  * Default configuration values
  */
-const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'addCallback' | 'removeCallback' | 'changeCallback' | 'rejectCallback' | 'retryCallback' | 'uploadFileCallback' | 'uploadedCallback' | 'deleteCallback' | 'renderFileItemCallback' | 'renderListWrapperCallback' | 'renderPromptCallback' | 'renderSummaryCallback' | 'customStylesCallback' | 'persistStateCallback' | 'loadStateCallback' | 'storageKey' | 'container' | 'hostElement' | 'overlayTarget' | 'selectorAppearance' | 'listAppearance' | 'cardSize' | 'isShowThumbnailsEnabled' | 'retryPolicy' | 'rollingRotation' | 'isHeadless' | 'renderRollingBodyCallback' | 'renderRollingFileInfoCallback' | 'renderRollingProgressCallback'>> = {
+const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'beforeFilesAddedCallback' | 'beforeFilesRemovedCallback' | 'uploadFileCallback' | 'renderFileItemCallback' | 'renderListWrapperCallback' | 'renderPromptCallback' | 'renderSummaryCallback' | 'customStylesCallback' | 'persistStateCallback' | 'loadStateCallback' | 'storageKey' | 'container' | 'hostElement' | 'overlayTarget' | 'selectorAppearance' | 'listAppearance' | 'cardSize' | 'isShowThumbnailsEnabled' | 'retryPolicy' | 'rollingRotation' | 'isHeadless' | 'renderRollingBodyCallback' | 'renderRollingFileInfoCallback' | 'renderRollingProgressCallback'>> = {
     isMultipleEnabled: true,
     accept: '',
     maxFileSize: 0,
@@ -396,17 +396,33 @@ export class WebDropzone {
      * is handed to the handler via `FileUploadContext.uploadMetadata`.
      * Omit `opts` for Mode A — files inherit the store's handler.
      */
-    addFiles(fileList: FileList | File[], opts?: AddFilesOptions): void {
+    addFiles(fileList: FileList | File[], opts?: AddFilesOptions): Promise<void> {
         const files = Array.from(fileList);
-        this.processFiles(files, opts);
+        return this.processFiles(files, opts);
     }
 
     /**
-     * Remove a file by ID
+     * Remove a file by ID. Pass `{ confirm: true }` to run the
+     * `beforeFilesRemovedCallback` async gate before proceeding —
+     * the call returns a Promise that resolves either way; cancellation
+     * is a silent no-op. Default (no opts) skips the gate, matching the
+     * "programmatic calls are intentional" stance.
      */
-    removeFile(id: string): void {
+    async removeFile(id: string, opts?: { confirm?: boolean }): Promise<void> {
         const index = this.files.findIndex(f => f.id === id);
         if (index === -1) return;
+
+        if (opts?.confirm && this.config.beforeFilesRemovedCallback) {
+            const ok = await this.config.beforeFilesRemovedCallback(
+                [this.files[index]],
+                this.getFiles()
+            );
+            if (!ok) return;
+            // Re-resolve index — the file might have been removed during the
+            // user's confirmation by another code path.
+            const recheckIndex = this.files.findIndex(f => f.id === id);
+            if (recheckIndex === -1) return;
+        }
 
         // Abort any in-flight upload for this file before dropping it from
         // state. Clearing pausedIds first prevents runUpload's catch branch
@@ -421,9 +437,13 @@ export class WebDropzone {
             this.reorderTimers.delete(id);
         }
 
-        const file = this.files[index];
+        // Re-resolve index because the async gate may have run between the
+        // initial find and now (other code paths can mutate `this.files`).
+        const liveIndex = this.files.findIndex(f => f.id === id);
+        if (liveIndex === -1) return;
+        const file = this.files[liveIndex];
         const hasServerState = this.hasServerSideState(file);
-        this.files.splice(index, 1);
+        this.files.splice(liveIndex, 1);
         this.fileRowElements.delete(id);
         this.throttleLastFireAt.delete(id);
         this.clearThrottlePending(id);
@@ -458,9 +478,20 @@ export class WebDropzone {
     }
 
     /**
-     * Clear all files
+     * Clear all files. Pass `{ confirm: true }` to run the
+     * `beforeFilesRemovedCallback` async gate with the full file list
+     * before wiping — gate returning false cancels the clear silently.
+     * Default (no opts) skips the gate.
      */
-    clear(): void {
+    async clear(opts?: { confirm?: boolean }): Promise<void> {
+        if (opts?.confirm && this.config.beforeFilesRemovedCallback && this.files.length > 0) {
+            const ok = await this.config.beforeFilesRemovedCallback(
+                [...this.files],
+                this.getFiles()
+            );
+            if (!ok) return;
+        }
+
         // Abort every in-flight upload before the FileState array is wiped —
         // the run paths key off `this.files.find(...)` so an empty array would
         // already be enough, but explicitly aborting also frees XHRs etc.
@@ -1047,7 +1078,7 @@ export class WebDropzone {
     // FILE PROCESSING
     // ========================================================================
 
-    private processFiles(files: File[], opts?: AddFilesOptions): void {
+    private async processFiles(files: File[], opts?: AddFilesOptions): Promise<void> {
         const acceptedFiles: FileState[] = [];
         const rejectedFiles: RejectedFile[] = [];
 
@@ -1123,6 +1154,29 @@ export class WebDropzone {
             runningCount++;
             runningTotal += file.size;
             acceptedFiles.push(createFileState(file, generateFileId(), opts));
+        }
+
+        // Async user-confirmation gate. Runs ONCE per batch, AFTER all sync
+        // validation passes. Files don't enter the queue (no `file-added`,
+        // not in `this.files`) until the promise resolves. A `false` resolve
+        // moves them to `rejectedFiles` with `code: 'cancelled'` so the
+        // consumer can distinguish user-cancel from validator-reject.
+        if (acceptedFiles.length > 0 && this.config.beforeFilesAddedCallback) {
+            const rawSurvivors = acceptedFiles.map(fs => fs.file);
+            const confirmed = await this.config.beforeFilesAddedCallback(rawSurvivors, this.getFiles());
+            if (!confirmed) {
+                for (const fs of acceptedFiles) {
+                    rejectedFiles.push({
+                        file: fs.file,
+                        validation: {
+                            valid: false,
+                            error: 'Add cancelled by user',
+                            code: 'cancelled'
+                        }
+                    });
+                }
+                acceptedFiles.length = 0;
+            }
         }
 
         // Add accepted files
@@ -1737,7 +1791,9 @@ export class WebDropzone {
         if (file.status === 'uploading') {
             this.cancelFile(id);
         } else {
-            this.removeFile(id);
+            // User-initiated remove runs the confirm gate (if set). Programmatic
+            // `removeFile(id)` callers stay un-gated unless they opt in.
+            void this.removeFile(id, { confirm: true });
         }
     }
 
@@ -2716,8 +2772,11 @@ export class WebDropzone {
         this.positionPopover();
 
         // Add event handlers
-        this.popover.querySelector('[data-action="clear"]')?.addEventListener('click', () => {
-            this.clear();
+        this.popover.querySelector('[data-action="clear"]')?.addEventListener('click', async () => {
+            // User-initiated clear runs the confirm gate (if set). Popover
+            // stays open until the user resolves so the dialog has surrounding
+            // context, then closes.
+            await this.clear({ confirm: true });
             this.closePopover();
         });
 
@@ -3449,7 +3508,7 @@ export class WebDropzone {
         const files = e.dataTransfer?.files;
         if (files && files.length > 0) {
             interactionLogger.debug('Files dropped', { count: files.length });
-            this.processFiles(Array.from(files));
+            void this.processFiles(Array.from(files));
         }
     }
 
@@ -3493,7 +3552,7 @@ export class WebDropzone {
 
         if (files && files.length > 0) {
             interactionLogger.debug('Files selected via input', { count: files.length });
-            this.processFiles(Array.from(files));
+            void this.processFiles(Array.from(files));
         }
 
         // Reset input so same file can be selected again
@@ -3541,19 +3600,11 @@ export class WebDropzone {
     private emitAddEvent(file: FileState): void {
         dispatchComposedEvent(this.element, 'file-added', { file });
         this.markFilesChanged(file.id);
-
-        if (this.config.addCallback) {
-            this.config.addCallback([file]);
-        }
     }
 
     private emitRemoveEvent(file: FileState): void {
         dispatchComposedEvent(this.element, 'file-removed', { file });
         this.markFilesChanged(file.id);
-
-        if (this.config.removeCallback) {
-            this.config.removeCallback(file);
-        }
     }
 
     /**
@@ -3579,42 +3630,22 @@ export class WebDropzone {
 
     private emitChangeEvent(): void {
         dispatchComposedEvent(this.element, 'change');
-
-        if (this.config.changeCallback) {
-            this.config.changeCallback(this.getFiles());
-        }
     }
 
     private emitRejectEvent(rejectedFiles: RejectedFile[]): void {
         dispatchComposedEvent(this.element, 'files-rejected', { rejectedFiles });
-
-        if (this.config.rejectCallback) {
-            this.config.rejectCallback(rejectedFiles);
-        }
     }
 
     private emitRetryEvent(file: FileState): void {
         dispatchComposedEvent(this.element, 'file-retry', { file });
-
-        if (this.config.retryCallback) {
-            this.config.retryCallback(file);
-        }
     }
 
     private emitUploadedEvent(file: FileState): void {
         dispatchComposedEvent(this.element, 'file-uploaded', { file });
-
-        if (this.config.uploadedCallback) {
-            this.config.uploadedCallback(file);
-        }
     }
 
     private emitDeleteEvent(file: FileState): void {
         dispatchComposedEvent(this.element, 'file-deleted', { file });
-
-        if (this.config.deleteCallback) {
-            this.config.deleteCallback(file);
-        }
     }
 
     /**
@@ -3837,7 +3868,7 @@ export class WebDropzone {
             const files = e.dataTransfer?.files;
             if (files && files.length > 0) {
                 interactionLogger.debug('Files dropped on overlay', { count: files.length });
-                this.processFiles(Array.from(files));
+                void this.processFiles(Array.from(files));
             }
 
             this.removeOverlay();

@@ -303,7 +303,7 @@ export interface ValidationResult {
     /** Error message if validation failed */
     error?: string;
     /** Error code for programmatic handling */
-    code?: 'size' | 'type' | 'count' | 'duplicate' | 'custom';
+    code?: 'size' | 'type' | 'count' | 'duplicate' | 'custom' | 'cancelled';
 }
 
 /**
@@ -509,21 +509,32 @@ export interface DropzoneConfig {
     // CALLBACKS
     // ========================================================================
 
-    /** Custom validation callback - return ValidationResult */
+    /** Sync technical-validation gate — returns ValidationResult to accept
+     *  or reject a file before it enters the queue. Runs LAST among the
+     *  built-in checks (size / type / count / duplicate). Pure: must return
+     *  immediately. For user-facing async confirmation see
+     *  `beforeFilesAddedCallback`. */
     validateCallback?: ((file: File, existingFiles: FileState[]) => ValidationResult) | null;
-    /** Callback when files are added */
-    addCallback?: ((files: FileState[]) => void) | null;
-    /** Callback when a file is removed */
-    removeCallback?: ((file: FileState) => void) | null;
-    /** Callback when files change (add or remove) */
-    changeCallback?: ((files: FileState[]) => void) | null;
-    /** Callback when files are rejected due to validation */
-    rejectCallback?: ((rejectedFiles: RejectedFile[]) => void) | null;
-    /** Callback when an upload retry is requested (via the "Retry all" button
-     *  in the overall progress strip, or `retryFile(id)` / `retryAll()`). The
-     *  app's existing upload logic should re-run for the supplied file — the
-     *  component has already reset its status to 'pending' and progress to 0. */
-    retryCallback?: ((file: FileState) => void) | null;
+
+    /** Async user-confirmation gate fired once per add batch AFTER all
+     *  sync validation passes. Receives the array of File objects that
+     *  survived validation. Resolve `true` to accept; resolve `false` to
+     *  cancel — the files are then emitted via `files-rejected` with
+     *  `code: 'cancelled'`. While the promise is pending the files do NOT
+     *  appear in the dropzone (no `file-added`, not in `dz.files`); the
+     *  consumer is responsible for showing the confirmation UI. */
+    beforeFilesAddedCallback?:
+        ((files: File[], existingFiles: FileState[]) => boolean | Promise<boolean>) | null;
+
+    /** Async user-confirmation gate fired before a user-initiated removal.
+     *  Receives the batch about to leave (single-row → `[file]`; clear-all
+     *  → all files). Resolve `true` to proceed; resolve `false` to cancel
+     *  (no state change, no events fire). Programmatic `removeFile(id)` /
+     *  `clear()` skip this gate by default — pass `{ confirm: true }` to
+     *  opt in. The row X button and the popover Clear button always run
+     *  the gate. */
+    beforeFilesRemovedCallback?:
+        ((files: FileState[], allFiles: FileState[]) => boolean | Promise<boolean>) | null;
     /**
      * Per-file upload handler. When set, the component takes ownership of the
      * upload lifecycle: a worker pool runs queued files at the configured
@@ -535,10 +546,6 @@ export interface DropzoneConfig {
      * call `updateFileProgress` / `setFileStatus` manually.
      */
     uploadFileCallback?: FileUploadHandler | null;
-    /** Optional callback fired after a file uploads successfully (mirrors
-     *  the `file-uploaded` event). Only relevant when `uploadFileCallback`
-     *  is set. */
-    uploadedCallback?: ((file: FileState) => void) | null;
     /**
      * Max number of concurrent uploads when the component drives the queue.
      * Default 1 — uploads run sequentially. Has no effect when
@@ -602,14 +609,6 @@ export interface DropzoneConfig {
      * effectively 0 when it's off (the attribute has no effect).
      */
     reorderCompletedDelay?: number;
-    /**
-     * Callback fired when a file that had finished uploading
-     * (`status === 'complete'`) is removed from the selection. Mirrors the
-     * `file-deleted` event. The app should issue a DELETE against its
-     * server using `file.metadata` (or whatever identifier the upload
-     * handler stashed there). The plain `file-removed` event also fires.
-     */
-    deleteCallback?: ((file: FileState) => void) | null;
 
     // ========================================================================
     // CUSTOM RENDERING

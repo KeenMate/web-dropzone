@@ -145,6 +145,39 @@ el.validateCallback = (file, existingFiles) => {
             </div>
         </div>
 
+        <!-- ASYNC CONFIRMATION GATES -->
+        <div class="card">
+            <h2>Async Confirmation Gates</h2>
+            <p><code>beforeFilesAddedCallback</code> and <code>beforeFilesRemovedCallback</code> let you pop a dialog before files actually enter or leave the dropzone. They run AFTER the sync validators pass (size, type, count, <code>validateCallback</code>) and are skipped for programmatic <code>removeFile(id)</code> / <code>clear()</code> calls unless you pass <code>{ confirm: true }</code>. Resolving <code>false</code> on the add gate emits <code>files-rejected</code> with <code>code: 'cancelled'</code>.</p>
+
+            <div class="form-group">
+                <label>Confirm-on-add + confirm-on-remove</label>
+                <web-dropzone
+                    id="confirm-gate"
+                    display-mode="detailed"
+                    prompt-text="Drop a file (you'll get a confirm dialog)"
+                    hint-text="Add and remove both run native confirm()">
+                </web-dropzone>
+                <div class="rejected-log" data-log-for="confirm-gate"></div>
+            </div>
+
+            <div class="code-block">
+                <pre><code>const el = document.getElementById('confirm-gate')
+
+el.beforeFilesAddedCallback = async (files, existingFiles) =&gt; {
+    const names = files.map(f =&gt; f.name).join(', ')
+    return confirm(`Add ${files.length} file(s)?\n\n${names}`)
+}
+
+el.beforeFilesRemovedCallback = async (files, allFiles) =&gt; {
+    if (files.length === 1) {
+        return confirm(`Remove "${files[0].name}"?`)
+    }
+    return confirm(`Remove all ${files.length} files?`)
+}</code></pre>
+            </div>
+        </div>
+
         <!-- COMBINED -->
         <div class="card">
             <h2>Combined Rules</h2>
@@ -231,6 +264,19 @@ el.validateCallback = (file, existingFiles) => {
                 return { valid: false, error: 'Filenames containing "logo" are not allowed', code: 'custom' }
             }
             return { valid: true }
+        }
+
+        // Async confirmation gates — confirm() blocks the await, simulating an
+        // app-rendered modal. Cancel on add lands the file in files-rejected
+        // with code='cancelled' (logged alongside other rejections above).
+        const gateEl = document.getElementById('confirm-gate')
+        gateEl.beforeFilesAddedCallback = async (files) => {
+            const names = files.map(f => f.name).join(', ')
+            return confirm(`Add ${files.length} file(s)?\n\n${names}`)
+        }
+        gateEl.beforeFilesRemovedCallback = async (files) => {
+            if (files.length === 1) return confirm(`Remove "${files[0].name}"?`)
+            return confirm(`Remove all ${files.length} files?`)
         }
 
         function escapeHtml(s) {
