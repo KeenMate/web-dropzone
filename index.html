@@ -138,7 +138,7 @@
             <p style="margin-bottom:0.5rem">Pick a mode up-front via the <code>mode</code> attribute — it's a hard switch that decides who renders what.</p>
             <ul style="margin:0.5rem 0 0;line-height:1.7">
                 <li><strong><code>mode="bulk"</code></strong> (default) — framework owns the UI; you style via CSS variables. See <a href="examples-classic.html">Classic</a> / <a href="examples-validation.html">Validation</a>.</li>
-                <li><strong><code>mode="structural"</code></strong> — framework owns the lifecycle; you provide HTML structure via render callbacks (including <code>renderListWrapperCallback</code> for tables and element-returning rows with <code>file-row-update</code> events). See <a href="examples-templating.html">Custom Rendering</a>.</li>
+                <li><strong><code>mode="structural"</code></strong> — framework owns the lifecycle; you provide HTML structure via render callbacks (including <code>renderListWrapperCallback</code> for tables and element-returning rows with <code>file-row-update</code> events). See <a href="examples-structural.html">Structural Rendering</a>.</li>
                 <li><strong><code>mode="headless"</code></strong> — framework just fires events (<code>files-changed</code> on rAF + granular ones); bring your own renderer or pair with satellites. See <a href="examples-architecture.html">Architecture</a>.</li>
             </ul>
         </div>
@@ -181,7 +181,7 @@
                 description: 'Fake-upload pipelines using updateFileProgress + setFileStatus. Random failures, slow uploads, bytes-per-second pacing, and toast feedback.'
             },
             {
-                href: 'examples-form-integration.html',
+                href: 'examples-form.html',
                 icon: '📝',
                 title: 'Form Integration',
                 description: 'Form-associated submission with real FormData, automatic form reset, and field naming.'
@@ -193,9 +193,9 @@
                 description: 'Pre-upload server check for existing filenames, per-row Overwrite / Rename / Skip decisions via mode="structural".'
             },
             {
-                href: 'examples-templating.html',
+                href: 'examples-structural.html',
                 icon: '✨',
-                title: 'Custom Rendering (mode="structural")',
+                title: 'Structural Rendering (mode="structural")',
                 description: 'Override file items, prompts, summaries, AND the list wrapper (table layouts!). Element-returning row callbacks survive state ticks via file-row-update events.'
             },
             {

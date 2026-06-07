@@ -523,7 +523,7 @@ select.renderBadgeContentCallback = (option) => {
 
 EXAMPLES
 --------
-See examples-templating.html for:
+See examples-structural.html for:
 - Complex layouts
 - Conditional rendering
 - Custom styling
