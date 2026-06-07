@@ -49,6 +49,24 @@
             font-weight: 500;
         }
 
+        .section-heading {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            margin: 2.5rem 0 1rem 0.25rem;
+        }
+        .section-heading:first-of-type { margin-top: 0; }
+        .section-heading small {
+            font-size: 0.75rem;
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: 0;
+            color: #94a3b8;
+            margin-left: 0.5rem;
+        }
+
         .cards {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -143,7 +161,7 @@
             </ul>
         </div>
 
-        <div class="cards" id="cards"></div>
+        <div id="sections"></div>
 
         <footer>
             <p>Created by <a href="https://github.com/keenmate" target="_blank">KeenMate</a> &nbsp;|&nbsp; <a href="https://github.com/keenmate/web-dropzone" target="_blank">GitHub</a></p>
@@ -155,113 +173,136 @@
         // Demo Page Registry
         // Add new pages here - they'll appear automatically
         // =====================================================
-        const pages = [
+        const sections = [
             {
-                href: 'examples-architecture.html',
-                icon: '🛰️',
-                title: 'Architecture: store + satellites (mode="headless")',
-                description: 'Headless <web-dropzone> store with <web-dropzone-picker>, <web-dropzone-list>, and <web-dropzone-indicator> satellites — plus a BYO-renderer example using files-changed.'
+                title: 'Technical reference',
+                hint: 'One concept per page — the API building blocks',
+                pages: [
+                    {
+                        href: 'examples-architecture.html',
+                        icon: '🛰️',
+                        title: 'Architecture: store + satellites',
+                        description: 'Headless <web-dropzone> store with <web-dropzone-picker>, <web-dropzone-list>, and <web-dropzone-indicator> satellites — plus a BYO-renderer example using files-changed.'
+                    },
+                    {
+                        href: 'examples-display.html',
+                        icon: '🎛️',
+                        title: 'Display & Composition',
+                        description: 'Selector / list appearance axes, card sizes, popover placement, files-inside layout, single vs multiple, accept patterns, and the programmatic API.'
+                    },
+                    {
+                        href: 'examples-validation.html',
+                        icon: '✅',
+                        title: 'Validation & Rejection',
+                        description: 'maxSize, maxFiles, MIME/extension filters, custom validators, async confirmation gates, and files-rejected handling.'
+                    },
+                    {
+                        href: 'examples-upload.html',
+                        icon: '📤',
+                        title: 'Upload Pipeline',
+                        description: 'uploadFileCallback with pause / resume / retry, concurrency, manual mode, and resume-aware progress via context.startBytes.'
+                    },
+                    {
+                        href: 'examples-structural.html',
+                        icon: '✨',
+                        title: 'Structural Rendering',
+                        description: 'mode="structural" — override file items, prompts, summaries, AND the list wrapper (table layouts!). Element-returning rows survive state ticks via file-row-update events.'
+                    },
+                    {
+                        href: 'examples-form.html',
+                        icon: '📝',
+                        title: 'Form Integration',
+                        description: 'Form-associated submission with real FormData, automatic form reset, and field naming.'
+                    },
+                    {
+                        href: 'examples-drag-overlay.html',
+                        icon: '🎯',
+                        title: 'Drag Overlay',
+                        description: 'Trigger a full-element drop overlay when files are dragged over an existing input or form area.'
+                    },
+                    {
+                        href: 'examples-theming.html',
+                        icon: '🎨',
+                        title: 'Theming & Sizing',
+                        description: 'Three levels: --base-* (cross-component), --dz-* (component), --dz-rem (global scaling). Live playground + recipe for building your own theme.'
+                    },
+                    {
+                        href: 'examples-logging.html',
+                        icon: '🐛',
+                        title: 'Logging & Debugging',
+                        description: 'Built-in logging system with categorized debug output for development and troubleshooting.'
+                    }
+                ]
             },
             {
-                href: 'examples-display.html',
-                icon: '🎛️',
-                title: 'Display & Composition',
-                description: 'Selector / list appearance axes, card sizes, popover placement, files-inside layout, single vs multiple, accept patterns, and the programmatic API.'
+                title: 'Real-world scenarios',
+                hint: 'Applied demos showing what\'s possible',
+                pages: [
+                    {
+                        href: 'examples-sharepoint-collisions.html',
+                        icon: '🗂️',
+                        title: 'SharePoint-style name collision check',
+                        description: 'Pre-upload server check for existing filenames, per-row Overwrite / Rename / Skip decisions via mode="structural".'
+                    },
+                    {
+                        href: 'examples-split-overlay.html',
+                        icon: '📨',
+                        title: 'Outlook-style split overlay',
+                        description: 'Two dropzones share the viewport — split-screen "attach as file" vs "share as link" reveal during drag.'
+                    },
+                    {
+                        href: 'examples-themes-gallery.html',
+                        icon: '🎭',
+                        title: 'Theme Gallery',
+                        description: 'Six prebuilt themes — Dark, Neon, Corporate, Sunset, Forest, Minimal — showcasing what CSS variables make possible.'
+                    }
+                ]
             },
             {
-                href: 'examples-validation.html',
-                icon: '✅',
-                title: 'Validation & Rejection',
-                description: 'maxSize, maxFiles, MIME/extension filters, custom validators, and files-rejected handling.'
-            },
-            {
-                href: 'examples-upload.html',
-                icon: '📤',
-                title: 'Simulated Uploads',
-                description: 'Fake-upload pipelines using updateFileProgress + setFileStatus. Random failures, slow uploads, bytes-per-second pacing, and toast feedback.'
-            },
-            {
-                href: 'examples-form.html',
-                icon: '📝',
-                title: 'Form Integration',
-                description: 'Form-associated submission with real FormData, automatic form reset, and field naming.'
-            },
-            {
-                href: 'examples-sharepoint-collisions.html',
-                icon: '🗂️',
-                title: 'Name-collision check (SharePoint-style)',
-                description: 'Pre-upload server check for existing filenames, per-row Overwrite / Rename / Skip decisions via mode="structural".'
-            },
-            {
-                href: 'examples-structural.html',
-                icon: '✨',
-                title: 'Structural Rendering (mode="structural")',
-                description: 'Override file items, prompts, summaries, AND the list wrapper (table layouts!). Element-returning row callbacks survive state ticks via file-row-update events.'
-            },
-            {
-                href: 'examples-drag-overlay.html',
-                icon: '🎯',
-                title: 'Drag Overlay',
-                description: 'Trigger a full-element drop overlay when files are dragged over an existing input or form area.'
-            },
-            {
-                href: 'examples-split-overlay.html',
-                icon: '📨',
-                title: 'Split Overlay (Outlook-style)',
-                description: 'Two dropzones share the viewport — split-screen "attach as file" vs "share as link" reveal during drag.'
-            },
-            {
-                href: 'examples-theming.html',
-                icon: '🎨',
-                title: 'Theming & Sizing',
-                description: 'Three levels: --base-* (cross-component), --dz-* (component), --dz-rem (global scaling). Live playground + recipe for building your own theme.'
-            },
-            {
-                href: 'examples-themes-gallery.html',
-                icon: '🎭',
-                title: 'Theme Gallery',
-                description: 'Six prebuilt themes — Dark, Neon, Corporate, Sunset, Forest, Minimal — showcasing what CSS variables make possible.'
-            },
-            {
-                href: 'examples-logging.html',
-                icon: '🐛',
-                title: 'Logging & Debugging',
-                description: 'Built-in logging system with categorized debug output for development and troubleshooting.'
-            },
-            {
-                href: 'examples-lit.html',
-                icon: '🔥',
-                title: 'Lit integration',
-                description: 'A <code>LitElement</code> wraps the headless store and renders a reactive file list with lit-html templates.'
-            },
-            {
-                href: 'examples-react.html',
-                icon: '⚛️',
-                title: 'React integration',
-                description: 'React component using <code>useRef</code> + <code>useEffect</code> + <code>files-changed</code>. JSX via htm so it runs build-free in the browser.'
-            },
-            {
-                href: 'examples-vue.html',
-                icon: '🟢',
-                title: 'Vue 3 integration',
-                description: 'Vue 3 setup() component with <code>isCustomElement</code> opt-in, refs, and computed stats driven by the store.'
+                title: 'Framework integration',
+                hint: 'Each wraps the headless store in a host framework',
+                pages: [
+                    {
+                        href: 'examples-lit.html',
+                        icon: '🔥',
+                        title: 'Lit integration',
+                        description: 'A <code>LitElement</code> wraps the headless store and renders a reactive file list with lit-html templates.'
+                    },
+                    {
+                        href: 'examples-react.html',
+                        icon: '⚛️',
+                        title: 'React integration',
+                        description: 'React component using <code>useRef</code> + <code>useEffect</code> + <code>files-changed</code>. JSX via htm so it runs build-free in the browser.'
+                    },
+                    {
+                        href: 'examples-vue.html',
+                        icon: '🟢',
+                        title: 'Vue 3 integration',
+                        description: 'Vue 3 setup() component with <code>isCustomElement</code> opt-in, refs, and computed stats driven by the store.'
+                    }
+                ]
             }
         ]
 
-        function renderCards() {
-            const container = document.getElementById('cards')
-            container.innerHTML = pages.map(page => `
-                <a href="${page.href}" class="card-link">
-                    <div class="card-icon">${page.icon}</div>
-                    <h2 class="card-title">
-                        ${page.title}${page.badge ? `<span class="badge">${page.badge}</span>` : ''}
-                    </h2>
-                    <p class="card-description">${page.description}</p>
-                </a>
+        function renderSections() {
+            const container = document.getElementById('sections')
+            container.innerHTML = sections.map(section => `
+                <h3 class="section-heading">${section.title}<small>${section.hint}</small></h3>
+                <div class="cards">
+                    ${section.pages.map(page => `
+                        <a href="${page.href}" class="card-link">
+                            <div class="card-icon">${page.icon}</div>
+                            <h2 class="card-title">
+                                ${page.title}${page.badge ? `<span class="badge">${page.badge}</span>` : ''}
+                            </h2>
+                            <p class="card-description">${page.description}</p>
+                        </a>
+                    `).join('')}
+                </div>
             `).join('')
         }
 
-        renderCards()
+        renderSections()
     </script>
 </body>
 </html>
