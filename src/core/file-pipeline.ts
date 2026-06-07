@@ -13,7 +13,7 @@
  * arrives as an argument.
  */
 
-import { formatFileSize } from './dropzone';
+import { formatFileSize } from './dropzone-shared';
 import type {
     AddFilesOptions,
     DedupeMode,

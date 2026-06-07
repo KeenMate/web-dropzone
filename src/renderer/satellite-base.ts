@@ -10,7 +10,7 @@
  */
 
 import type { DropzoneElement } from './web-component';
-import type { DropzoneStoreAPI } from './status-surface';
+import type { DropzoneStoreAPI } from '../core/store-api';
 
 /**
  * Look up the `<web-dropzone>` element a satellite binds to via its `for=`

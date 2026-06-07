@@ -20,14 +20,14 @@ import {
     subscribeStoreEvents,
     resolveEnumAttribute
 } from './satellite-base';
-import { escapeHtml } from './dom-utils';
-import type { DropzoneStoreAPI } from './status-surface';
+import { escapeHtml } from '../core/dom-utils';
+import type { DropzoneStoreAPI } from '../core/store-api';
 import type { DropzoneElement } from './web-component';
 import type {
     SelectorAppearance,
     CardSize,
     FileUploadHandler
-} from './types';
+} from '../core/types';
 
 const SELECTOR_APPEARANCES = ['card', 'button', 'minimal', 'native'] as const;
 const CARD_SIZES = ['minimal', 'compact', 'big'] as const;

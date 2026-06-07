@@ -38,7 +38,7 @@ import {
     resolveEnumAttribute,
     createMicrotaskScheduler
 } from './satellite-base';
-import { escapeHtml } from './dom-utils';
+import { escapeHtml } from '../core/dom-utils';
 import {
     buildStatusSurfaceArgs,
     StatusSurface
@@ -51,11 +51,11 @@ import {
     STATUS_ICONS,
     STATUS_LABELS,
     createDropzoneSpinner
-} from './icons';
-import { formatFileSize } from './dropzone';
-import type { DropzoneStoreAPI } from './status-surface';
+} from '../core/icons';
+import { formatFileSize } from '../core/dropzone-shared';
+import type { DropzoneStoreAPI } from '../core/store-api';
 import type { DropzoneElement } from './web-component';
-import type { FileState, FileStatus } from './types';
+import type { FileState, FileStatus } from '../core/types';
 
 const POSITIONS = ['right', 'left', 'top', 'bottom', 'inline'] as const;
 type IndicatorPosition = typeof POSITIONS[number];
@@ -546,15 +546,15 @@ if (typeof customElements !== 'undefined' && !customElements.get('web-dropzone-i
 // path for everything: types + spinner + status icons.
 export {
     formatFileSize
-} from './dropzone';
+} from '../core/dropzone-shared';
 export {
     createDropzoneSpinner,
     STATUS_ICONS,
     STATUS_LABELS
-} from './icons';
+} from '../core/icons';
 export type {
     StatusSurfaceArgs,
     StatusSurfaceCallback,
     StatusSurfaceResult,
     StatusAggregate
-} from './status-surface';
+} from '../core/store-api';

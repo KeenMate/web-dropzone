@@ -25,8 +25,8 @@ import {
     ACTION_ICONS,
     ACTION_LABELS,
     actionForStatus
-} from './icons';
-import type { FileState, FileStatus } from './types';
+} from '../core/icons';
+import type { FileState, FileStatus } from '../core/types';
 
 /**
  * Set the progress-bar fill's width. Idempotent — assigning the same

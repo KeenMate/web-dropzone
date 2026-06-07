@@ -24,9 +24,9 @@
 
 import { computePosition, flip, shift, offset, size, autoUpdate } from '@floating-ui/dom';
 import type { Placement } from '@floating-ui/dom';
-import { initLogger, uiLogger, interactionLogger } from './logger';
-import { dispatchComposedEvent, escapeHtml } from './dom-utils';
-import { DropzoneCore } from './core/dropzone-core';
+import { initLogger, uiLogger, interactionLogger } from '../core/logger';
+import { dispatchComposedEvent, escapeHtml } from '../core/dom-utils';
+import { DropzoneCore } from '../core/dropzone-core';
 import {
     patchProgressFill,
     patchProgressText,
@@ -40,7 +40,7 @@ import {
     getFileIcon,
     isImageFile,
     createImagePreview
-} from './dropzone-shared';
+} from '../core/dropzone-shared';
 import type {
     DropzoneConfig,
     FileState,
@@ -50,7 +50,7 @@ import type {
     RollingRotation,
     CardSize,
     FileItemRenderContext
-} from './types';
+} from '../core/types';
 
 // Re-export the shared pure helpers so existing consumers
 // (`import { formatFileSize } from '@keenmate/web-dropzone'`) keep working
@@ -63,9 +63,9 @@ export {
     createImagePreview
 };
 
-// Status / action icons live in `./icons` so the satellite renderers and any
-// user-provided callbacks can share the same Lucide SVG family.
-import { STATUS_ICONS, STATUS_LABELS, actionForStatus } from './icons';
+// Status / action icons live in `../core/icons` so the satellite renderers
+// and any user-provided callbacks can share the same Lucide SVG family.
+import { STATUS_ICONS, STATUS_LABELS, actionForStatus } from '../core/icons';
 // Row templates (list / detailed / grid / badges) are shared with the
 // `<web-dropzone-list>` satellite via `./row-templates` — single source of
 // truth so the polished styling in `_file-item.css` applies identically

@@ -28,11 +28,11 @@ import {
     subscribeStoreEvents,
     createMicrotaskScheduler
 } from './satellite-base';
-import { escapeHtml } from './dom-utils';
-import { formatFileSize } from './dropzone';
-import type { DropzoneStoreAPI } from './status-surface';
+import { escapeHtml } from '../core/dom-utils';
+import { formatFileSize } from '../core/dropzone-shared';
+import type { DropzoneStoreAPI } from '../core/store-api';
 import type { DropzoneElement } from './web-component';
-import type { OverallProgress } from './types';
+import type { OverallProgress } from '../core/types';
 
 export class DropzoneProgressElement extends SatelliteElement {
     protected readonly satelliteTagName = 'web-dropzone-progress';

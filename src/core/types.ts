@@ -711,17 +711,17 @@ export interface DropzoneConfig {
     /**
      * Custom rendering for the rolling list appearance. Three structural
      * callbacks share the same `StatusSurfaceCallback` contract as the
-     * `<web-dropzone-indicator>` element — see `./status-surface.ts`.
+     * `<web-dropzone-indicator>` element — see `./store-api.ts`.
      * Each part is replaceable piecemeal; `null` returns yield to the
      * library's polished default. `false` from body hides the rolling
      * block (useful while idle). Memoization rules: string equality
      * skips DOM writes, element identity preserves WAAPI animations.
      */
-    renderRollingBodyCallback?: import('./status-surface').StatusSurfaceCallback | null;
+    renderRollingBodyCallback?: import('./store-api').StatusSurfaceCallback | null;
     /** File-info slot inside the rolling current row — name, icon, status. */
-    renderRollingFileInfoCallback?: import('./status-surface').StatusSurfaceCallback | null;
+    renderRollingFileInfoCallback?: import('./store-api').StatusSurfaceCallback | null;
     /** Progress slot inside the rolling current row — bar + percent. */
-    renderRollingProgressCallback?: import('./status-surface').StatusSurfaceCallback | null;
+    renderRollingProgressCallback?: import('./store-api').StatusSurfaceCallback | null;
     /** Callback to inject custom CSS into Shadow DOM */
     customStylesCallback?: (() => string) | null;
 

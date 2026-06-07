@@ -7,9 +7,9 @@
  */
 
 import { WebDropzone } from './dropzone';
-import { initLogger } from './logger';
-import { dispatchComposedEvent } from './dom-utils';
-import type { DropzoneStoreAPI } from './status-surface';
+import { initLogger } from '../core/logger';
+import { dispatchComposedEvent } from '../core/dom-utils';
+import type { DropzoneStoreAPI } from '../core/store-api';
 import type {
     DropzoneConfig,
     DisplayMode,
@@ -20,7 +20,7 @@ import type {
     CardSize,
     ValueFormat,
     FileState
-} from './types';
+} from '../core/types';
 
 // Import CSS as inline string for Shadow DOM injection
 import styles from './css/main.css?inline';

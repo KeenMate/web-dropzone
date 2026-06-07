@@ -22,13 +22,13 @@
  * `onDestroy`) stay as protected hooks — they're not state-driven.
  */
 
-import { fileLogger, initLogger, uiLogger } from '../logger';
-import { dispatchComposedEvent } from '../dom-utils';
+import { fileLogger, initLogger, uiLogger } from './logger';
+import { dispatchComposedEvent } from './dom-utils';
 import {
     validateFile as validateFilePure,
     dedupeKeyFor,
     createFileState
-} from '../file-pipeline';
+} from './file-pipeline';
 import type {
     DropzoneConfig,
     DedupeMode,
@@ -38,8 +38,8 @@ import type {
     AddFilesOptions,
     DropzoneState,
     OverallProgress
-} from '../types';
-// Module-level pure helpers + DEFAULT_CONFIG live in `../dropzone-shared`
+} from './types';
+// Module-level pure helpers + DEFAULT_CONFIG live in `./dropzone-shared`
 // so both core and renderer can import them without circular dependencies.
 import {
     formatFileSize,
@@ -47,7 +47,7 @@ import {
     createImagePreview,
     generateFileId,
     DEFAULT_CONFIG
-} from '../dropzone-shared';
+} from './dropzone-shared';
 
 /**
  * Non-rendering store. `WebDropzone` extends this and adds DOM rendering.
