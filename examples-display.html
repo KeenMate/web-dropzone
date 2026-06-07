@@ -3,15 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Classic Examples - Web Dropzone</title>
+    <title>Display & Composition - Web Dropzone</title>
     <link rel="stylesheet" href="examples-shared.css">
+    <style>
+        .placement-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+        @media (max-width: 768px) {
+            .placement-grid { grid-template-columns: 1fr; }
+        }
+        .placement-cell {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .placement-cell label {
+            display: block;
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 0.75rem;
+            font-family: monospace;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <header>
             <a href="index.html" class="back-link">← Back to Examples</a>
-            <h1>📦 Classic Examples</h1>
-            <p class="subtitle">Display modes, single vs multiple selection, and accept patterns</p>
+            <h1>🎛️ Display &amp; Composition</h1>
+            <p class="subtitle">Selector &amp; list appearance axes, card sizes, popover, files-inside, single vs multiple, accept patterns</p>
         </header>
 
         <!-- DISPLAY: THREE ORTHOGONAL AXES -->
@@ -23,7 +47,7 @@
                 <li><code>list-appearance</code> — <strong>list</strong> · detailed · grid · badges · popover · none · <em>(where picked files appear)</em></li>
                 <li><code>card-size</code> — minimal · <strong>compact</strong> · big · <em>(density of the card selector)</em></li>
             </ul>
-            <p>The legacy single-axis <code>display-mode</code> attribute is still supported as a shorthand — see the bottom of this section.</p>
+            <p>The legacy single-axis <code>display-mode</code> attribute is still supported as a shorthand — see the bottom of this page.</p>
         </div>
 
         <!-- SELECTOR APPEARANCE -->
@@ -82,7 +106,6 @@
                 <div class="form-group">
                     <label>badges with thumbnails — <code>show-thumbnails</code></label>
                     <web-dropzone list-appearance="badges" show-thumbnails accept="image/*" max-file-count="6" prompt-text="Drop images for badge thumbnails"></web-dropzone>
-                    <small class="form-text">Same badge shell, but image files render their thumbnail in the placeholder slot.</small>
                 </div>
 
                 <div class="form-group">
@@ -98,36 +121,32 @@
                 </div>
 
                 <div class="form-group">
-                    <label><code>max-visible-files="3"</code> — caps the rendered rows, "Show N more" reveals the rest</label>
+                    <label><code>max-visible-files="3"</code> — caps rendered rows, "Show N more" reveals the rest</label>
                     <web-dropzone list-appearance="detailed" max-visible-files="3" accept="*/*" max-file-count="20"></web-dropzone>
-                    <small class="form-text">Drop more than 3 files to see the toggle button.</small>
                 </div>
 
                 <div class="form-group">
                     <label><code>max-visible-files="4"</code> + badges — compact "+N" pill toggle</label>
                     <web-dropzone list-appearance="badges" max-visible-files="4" accept="*/*" max-file-count="20"></web-dropzone>
-                    <small class="form-text">Excess badges collapse behind a counter pill. Click "+N" to expand, "−" to collapse.</small>
                 </div>
 
                 <div class="form-group">
                     <label><code>--dz-file-list-max-height</code> — CSS-only height cap with internal scroll</label>
                     <web-dropzone list-appearance="detailed" accept="*/*" max-file-count="20" style="--dz-file-list-max-height: 18rem;"></web-dropzone>
-                    <small class="form-text">Drop several files — the list caps at 18rem and scrolls internally. Combine with <code>max-visible-files</code> for the best of both.</small>
                 </div>
 
                 <div class="form-group">
                     <label><code>max-total-size="5MB"</code> — aggregate cap with "X left" hint</label>
                     <web-dropzone list-appearance="popover" accept="*/*" max-total-size="5MB"></web-dropzone>
-                    <small class="form-text">Selection capped at 5 MB total across all files. Popover limits line shows remaining headroom.</small>
                 </div>
 
                 <div class="form-group">
-                    <label><code>min-file-size="1kB"</code> + <code>min-file-count="2"</code> — both caps + form validity</label>
+                    <label><code>min-file-size="1kB"</code> + <code>min-file-count="2"</code> — caps + form validity</label>
                     <form onsubmit="event.preventDefault(); alert('Form submitted (valid).');">
                         <web-dropzone name="docs" list-appearance="detailed" accept="*/*" min-file-size="1kB" min-file-count="2" max-file-count="5"></web-dropzone>
                         <button type="submit" style="margin-top: 0.8rem;">Submit</button>
                     </form>
-                    <small class="form-text">Zero-byte files are rejected (min size 1 KB). Submit is blocked by native form validity until at least 2 files are selected.</small>
+                    <small class="form-text">Submit blocked by native form validity until at least 2 files ≥ 1 KB are selected.</small>
                 </div>
             </div>
         </div>
@@ -163,6 +182,29 @@
             </div>
         </div>
 
+        <!-- FILES-INSIDE LAYOUT -->
+        <div class="card">
+            <h2>Files-Inside Layout (<code>files-inside</code>)</h2>
+            <p>Render the file list <em>inside</em> the dropzone area instead of below it. Useful when vertical space is constrained or when you want a unified container look.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>files-inside + list</label>
+                    <web-dropzone files-inside list-appearance="list" accept="*/*" max-file-count="5" prompt-text="Drop files"></web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>files-inside + detailed</label>
+                    <web-dropzone files-inside list-appearance="detailed" accept="*/*" max-file-count="5" prompt-text="Drop files"></web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>files-inside + grid</label>
+                    <web-dropzone files-inside list-appearance="grid" accept="image/*" max-file-count="6" prompt-text="Drop images"></web-dropzone>
+                </div>
+            </div>
+        </div>
+
         <!-- COMMON COMBOS -->
         <div class="card">
             <h2>Common combinations</h2>
@@ -182,12 +224,6 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Card + badges below</label>
-                    <web-dropzone selector-appearance="card" list-appearance="badges" accept="*/*" max-file-count="5" card-size="minimal"></web-dropzone>
-                    <small class="form-text">Thin card with badge pills underneath.</small>
-                </div>
-
-                <div class="form-group">
                     <label>Landing page hero — big card</label>
                     <web-dropzone
                         selector-appearance="card"
@@ -204,36 +240,84 @@
             </div>
         </div>
 
-        <!-- LEGACY SHORTHAND -->
+        <!-- SUMMARY TEMPLATE (popover/compact-specific) -->
         <div class="card">
-            <h2>Legacy <code>display-mode</code> shorthand</h2>
-            <p>The original single-axis attribute still works as a shorthand. Explicit orthogonal attributes override the shorthand when both are present.</p>
+            <h2>Summary Template (<code>summary-template</code>)</h2>
+            <p>When <code>list-appearance="popover"</code> the summary line supports <code>{count}</code> and <code>{size}</code> placeholders — quick customization without writing JS. For richer summaries (pluralization, badges) use <code>renderSummaryCallback</code>; see <a href="examples-structural.html">Structural Rendering</a>.</p>
 
             <div class="grid">
                 <div class="form-group">
-                    <label>display-mode="list" → card + list</label>
-                    <web-dropzone display-mode="list" accept="*/*" max-file-count="5"></web-dropzone>
+                    <label>Default: <code>{count} file(s), {size}</code></label>
+                    <web-dropzone list-appearance="popover" accept="*/*"></web-dropzone>
                 </div>
 
                 <div class="form-group">
-                    <label>display-mode="detailed" → card + detailed</label>
+                    <label>Custom: <code>📎 {count} attachments ({size})</code></label>
+                    <web-dropzone list-appearance="popover" summary-template="📎 {count} attachments ({size})" accept="*/*"></web-dropzone>
+                </div>
+
+                <div class="form-group">
+                    <label>Localized: <code>{count} soubor(ů) — {size}</code></label>
+                    <web-dropzone list-appearance="popover" summary-template="{count} soubor(ů) — {size}" accept="*/*"></web-dropzone>
+                </div>
+            </div>
+        </div>
+
+        <!-- POPOVER PLACEMENT -->
+        <div class="card">
+            <h2>Popover Placement (<code>popover-placement</code>)</h2>
+            <p>Positioning uses <a href="https://floating-ui.com" target="_blank">Floating UI</a>, so it auto-flips on viewport collisions. The attribute sets the preferred initial placement.</p>
+
+            <div class="placement-grid">
+                <div class="placement-cell">
+                    <label>bottom-start (default)</label>
+                    <web-dropzone list-appearance="popover" popover-placement="bottom-start"></web-dropzone>
+                </div>
+                <div class="placement-cell">
+                    <label>bottom</label>
+                    <web-dropzone list-appearance="popover" popover-placement="bottom"></web-dropzone>
+                </div>
+                <div class="placement-cell">
+                    <label>bottom-end</label>
+                    <web-dropzone list-appearance="popover" popover-placement="bottom-end"></web-dropzone>
+                </div>
+                <div class="placement-cell">
+                    <label>top-start</label>
+                    <web-dropzone list-appearance="popover" popover-placement="top-start"></web-dropzone>
+                </div>
+                <div class="placement-cell">
+                    <label>top</label>
+                    <web-dropzone list-appearance="popover" popover-placement="top"></web-dropzone>
+                </div>
+                <div class="placement-cell">
+                    <label>top-end</label>
+                    <web-dropzone list-appearance="popover" popover-placement="top-end"></web-dropzone>
+                </div>
+            </div>
+        </div>
+
+        <!-- LEGACY SHORTHAND -->
+        <div class="card">
+            <h2>Legacy <code>display-mode</code> shorthand</h2>
+            <p>The original single-axis attribute still works as a shorthand. When both are set, the orthogonal attribute wins.</p>
+
+            <ul style="margin: 0 0 1rem 1.5rem; line-height: 1.8;">
+                <li><code>display-mode="list"</code> → <code>selector-appearance="card"</code> + <code>list-appearance="list"</code></li>
+                <li><code>display-mode="detailed"</code> → card + detailed</li>
+                <li><code>display-mode="grid"</code> → card + grid</li>
+                <li><code>display-mode="compact"</code> → card + popover</li>
+            </ul>
+
+            <div class="grid">
+                <div class="form-group">
+                    <label>display-mode="detailed"</label>
                     <web-dropzone display-mode="detailed" accept="*/*" max-file-count="5"></web-dropzone>
                 </div>
 
                 <div class="form-group">
-                    <label>display-mode="grid" → card + grid</label>
-                    <web-dropzone display-mode="grid" accept="image/*"></web-dropzone>
-                </div>
-
-                <div class="form-group">
-                    <label>display-mode="compact" → card + popover</label>
+                    <label>display-mode="compact" (= popover)</label>
                     <web-dropzone display-mode="compact" accept="image/*,.pdf" max-file-size="5MB" max-file-count="10"></web-dropzone>
                 </div>
-            </div>
-
-            <div class="note">
-                <div class="note-title">Precedence</div>
-                <p>When both are set, the orthogonal attribute wins. For example, <code>display-mode="grid" list-appearance="badges"</code> renders badges, not a grid.</p>
             </div>
         </div>
 
@@ -245,22 +329,12 @@
             <div class="grid">
                 <div class="form-group">
                     <label>Multiple (default)</label>
-                    <web-dropzone
-                        display-mode="detailed"
-                        prompt-text="Drop one or more files">
-                    </web-dropzone>
-                    <small class="form-text">Each dropped file is appended to the list.</small>
+                    <web-dropzone display-mode="detailed" prompt-text="Drop one or more files"></web-dropzone>
                 </div>
 
                 <div class="form-group">
                     <label>Single only</label>
-                    <web-dropzone
-                        multiple="false"
-                        display-mode="detailed"
-                        prompt-text="Drop a single file"
-                        hint-text="Replaces any existing selection">
-                    </web-dropzone>
-                    <small class="form-text">New drops replace the previous file.</small>
+                    <web-dropzone multiple="false" display-mode="detailed" prompt-text="Drop a single file" hint-text="Replaces any existing selection"></web-dropzone>
                 </div>
             </div>
         </div>
@@ -273,44 +347,23 @@
             <div class="grid">
                 <div class="form-group">
                     <label>Images only (<code>image/*</code>)</label>
-                    <web-dropzone
-                        accept="image/*"
-                        display-mode="grid"
-                        prompt-text="Drop images">
-                    </web-dropzone>
+                    <web-dropzone accept="image/*" display-mode="grid" prompt-text="Drop images"></web-dropzone>
                 </div>
 
                 <div class="form-group">
                     <label>PDF or Word (<code>.pdf,.doc,.docx</code>)</label>
-                    <web-dropzone
-                        accept=".pdf,.doc,.docx"
-                        display-mode="detailed"
-                        prompt-text="Drop documents">
-                    </web-dropzone>
-                </div>
-
-                <div class="form-group">
-                    <label>Specific MIME (<code>application/json</code>)</label>
-                    <web-dropzone
-                        accept="application/json"
-                        display-mode="detailed"
-                        prompt-text="Drop JSON files">
-                    </web-dropzone>
+                    <web-dropzone accept=".pdf,.doc,.docx" display-mode="detailed" prompt-text="Drop documents"></web-dropzone>
                 </div>
 
                 <div class="form-group">
                     <label>Mixed (<code>image/*,.pdf,video/*</code>)</label>
-                    <web-dropzone
-                        accept="image/*,.pdf,video/*"
-                        display-mode="detailed"
-                        prompt-text="Drop images, PDFs, or videos">
-                    </web-dropzone>
+                    <web-dropzone accept="image/*,.pdf,video/*" display-mode="detailed" prompt-text="Drop images, PDFs, or videos"></web-dropzone>
                 </div>
             </div>
 
             <div class="note">
                 <div class="note-title">Tip</div>
-                <p>Files that don't match <code>accept</code> are rejected at validation time and surface via the <code>files-rejected</code> event — see the <a href="examples-validation.html">Validation page</a> for handling.</p>
+                <p>Files that don't match <code>accept</code> are rejected at validation time and surface via the <code>files-rejected</code> event — see <a href="examples-validation.html">Validation</a>.</p>
             </div>
         </div>
 
@@ -322,12 +375,7 @@
             <div class="grid">
                 <div class="form-group">
                     <label>Disabled dropzone</label>
-                    <web-dropzone
-                        disabled
-                        display-mode="detailed"
-                        prompt-text="This dropzone is disabled">
-                    </web-dropzone>
-                    <small class="form-text">Pointer events blocked; visually dimmed.</small>
+                    <web-dropzone disabled display-mode="detailed" prompt-text="This dropzone is disabled"></web-dropzone>
                 </div>
 
                 <div class="form-group">
@@ -384,9 +432,7 @@ const files = el.files       // current FileState[]</code></pre>
     <script type="module">
         import { simulateUpload } from '/examples-shared.js';
 
-        // Toast rejections from every dropzone on the page so the user can
-        // see what falls out of validation. Groups by rejection code so a
-        // 5-over-cap drop shows as one toast, not five.
+        // Toast rejections so the user can see what falls out of validation.
         const REJECTION_LABEL = {
             count:     'Too many files',
             size:      'Size limit',
@@ -395,10 +441,7 @@ const files = el.files       // current FileState[]</code></pre>
             custom:    'Rejected'
         };
         for (const dz of document.querySelectorAll('web-dropzone')) {
-            // auto-upload is true by default — files start the moment they're
-            // added. Failure rate exercises the error / retry path so the
-            // demo isn't always a happy path.
-            dz.uploadFileCallback = simulateUpload({ bucket: 'demo', durationMs: 3000, failRate: 0.2 });
+            dz.uploadFileCallback = simulateUpload({ bucket: 'display', durationMs: 3000, failRate: 0.2 });
             dz.addEventListener('files-rejected', (e) => {
                 const groups = new Map();
                 for (const r of e.detail.rejectedFiles) {

@@ -137,7 +137,7 @@
             <h2 style="margin-top:0">Three modes, one component</h2>
             <p style="margin-bottom:0.5rem">Pick a mode up-front via the <code>mode</code> attribute — it's a hard switch that decides who renders what.</p>
             <ul style="margin:0.5rem 0 0;line-height:1.7">
-                <li><strong><code>mode="bulk"</code></strong> (default) — framework owns the UI; you style via CSS variables. See <a href="examples-classic.html">Classic</a> / <a href="examples-validation.html">Validation</a>.</li>
+                <li><strong><code>mode="bulk"</code></strong> (default) — framework owns the UI; you style via CSS variables. See <a href="examples-display.html">Display &amp; Composition</a> / <a href="examples-validation.html">Validation</a>.</li>
                 <li><strong><code>mode="structural"</code></strong> — framework owns the lifecycle; you provide HTML structure via render callbacks (including <code>renderListWrapperCallback</code> for tables and element-returning rows with <code>file-row-update</code> events). See <a href="examples-structural.html">Structural Rendering</a>.</li>
                 <li><strong><code>mode="headless"</code></strong> — framework just fires events (<code>files-changed</code> on rAF + granular ones); bring your own renderer or pair with satellites. See <a href="examples-architecture.html">Architecture</a>.</li>
             </ul>
@@ -163,10 +163,10 @@
                 description: 'Headless <web-dropzone> store with <web-dropzone-picker>, <web-dropzone-list>, and <web-dropzone-indicator> satellites — plus a BYO-renderer example using files-changed.'
             },
             {
-                href: 'examples-classic.html',
-                icon: '📦',
-                title: 'Classic Examples',
-                description: 'Display modes (list, detailed, grid, compact), single vs multiple selection, and accept patterns.'
+                href: 'examples-display.html',
+                icon: '🎛️',
+                title: 'Display & Composition',
+                description: 'Selector / list appearance axes, card sizes, popover placement, files-inside layout, single vs multiple, accept patterns, and the programmatic API.'
             },
             {
                 href: 'examples-validation.html',
@@ -209,12 +209,6 @@
                 icon: '📨',
                 title: 'Split Overlay (Outlook-style)',
                 description: 'Two dropzones share the viewport — split-screen "attach as file" vs "share as link" reveal during drag.'
-            },
-            {
-                href: 'examples-compact.html',
-                icon: '📎',
-                title: 'Compact & Popover',
-                description: 'Compact summary line with click-to-expand popover, custom templates, files-inside layout.'
             },
             {
                 href: 'examples-sizes.html',
