@@ -26,9 +26,15 @@ import {
     resolveEnumAttribute,
     createMicrotaskScheduler
 } from './satellite-base';
-import { escapeHtml, dispatchComposedEvent } from '../core/dom-utils';
-import { isImageFile, createImagePreview, formatFileSize } from '../core/dropzone-shared';
-import { STATUS_ICONS, STATUS_LABELS } from '../core/icons';
+import {
+    escapeHtml,
+    dispatchComposedEvent,
+    isImageFile,
+    createImagePreview,
+    formatFileSize,
+    STATUS_ICONS,
+    STATUS_LABELS
+} from '@keenmate/web-dropzone-core';
 import {
     patchProgressFill,
     patchProgressText,
@@ -43,9 +49,9 @@ import {
 } from './row-templates';
 import { buildStatusSurfaceArgs, StatusSurface } from './status-surface';
 import type { StatusSurfaceArgs } from './status-surface';
-import type { DropzoneStoreAPI } from '../core/store-api';
+import type { DropzoneStoreAPI } from '@keenmate/web-dropzone-core';
 import type { DropzoneElement } from './web-component';
-import type { FileState, ListAppearance, RollingRotation } from '../core/types';
+import type { FileState, ListAppearance, RollingRotation } from '@keenmate/web-dropzone-core';
 
 // Appearances this satellite implements. `none` deliberately omitted —
 // it means "no list visible at all", which is best handled by simply

@@ -1,18 +1,18 @@
 // Import styles
-import './renderer/css/main.css';
+import './css/main.css';
 
 // Import for export and global API.
 //
 // IMPORTANT — import ORDER matters. ES modules are evaluated on first
 // import, so the textual order of these named imports determines which
 // `customElements.define` call runs first. Satellites MUST be imported
-// before `./renderer/web-component`; see the comment block on the
+// before `./web-component`; see the comment block on the
 // side-effect imports below for the full rationale.
-import { DropzonePickerElement } from './renderer/web-component-picker';
-import { DropzoneListElement } from './renderer/web-component-list';
-import { DropzoneIndicatorElement } from './renderer/web-component-indicator';
-import { DropzoneProgressElement } from './renderer/web-component-progress';
-import { getAllInstances, DropzoneElement } from './renderer/web-component';
+import { DropzonePickerElement } from './web-component-picker';
+import { DropzoneListElement } from './web-component-list';
+import { DropzoneIndicatorElement } from './web-component-indicator';
+import { DropzoneProgressElement } from './web-component-progress';
+import { getAllInstances, DropzoneElement } from './web-component';
 
 // Export the web component + satellite renderers (see ARCHITECTURE.md)
 export {
@@ -31,13 +31,13 @@ export type {
     StatusSurfaceResult,
     StatusAggregate,
     DropzoneStoreAPI
-} from './core/store-api';
-export { createDropzoneSpinner, STATUS_ICONS, STATUS_LABELS, ACTION_ICONS, ACTION_LABELS, actionForStatus } from './core/icons';
-export type { RowAction } from './core/icons';
+} from '@keenmate/web-dropzone-core';
+export { createDropzoneSpinner, STATUS_ICONS, STATUS_LABELS, ACTION_ICONS, ACTION_LABELS, actionForStatus } from '@keenmate/web-dropzone-core';
+export type { RowAction } from '@keenmate/web-dropzone-core';
 
 // Export the base class if users want direct access
-export { WebDropzone } from './renderer/dropzone';
-export { formatFileSize, getFileTypeCategory, getFileIcon, isImageFile, createImagePreview } from './core/dropzone-shared';
+export { WebDropzone } from './dropzone';
+export { formatFileSize, getFileTypeCategory, getFileIcon, isImageFile, createImagePreview } from '@keenmate/web-dropzone-core';
 
 // Export types
 export type {
@@ -63,9 +63,9 @@ export type {
     FileUpdatedEventDetail,
     FileRowUpdateEventDetail,
     FilesChangedEventDetail
-} from './core/types';
+} from '@keenmate/web-dropzone-core';
 
-export { FILE_TYPE_ICONS } from './core/types';
+export { FILE_TYPE_ICONS } from '@keenmate/web-dropzone-core';
 
 // Export logging utilities for runtime control
 export {
@@ -78,7 +78,7 @@ export {
     fileLogger,
     uiLogger,
     interactionLogger
-} from './core/logger';
+} from '@keenmate/web-dropzone-core';
 
 // Custom-element registration order is established by the NAMED imports
 // at the top of this file. Each module's `customElements.define` runs as
@@ -143,7 +143,7 @@ import {
     disableLogging,
     setCategoryLevel,
     LOGGING_CATEGORIES
-} from './core/logger';
+} from '@keenmate/web-dropzone-core';
 
 // Initialize global API
 if (typeof window !== 'undefined') {

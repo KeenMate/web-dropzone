@@ -1,0 +1,64 @@
+{
+  "name": "@keenmate/web-dropzone",
+  "version": "1.0.0",
+  "description": "Lightweight file dropzone web component with drag-drop, previews, validation, and multiple display modes.",
+  "type": "module",
+  "main": "./dist/dropzone.umd.js",
+  "module": "./dist/dropzone.js",
+  "types": "./dist/index.d.ts",
+  "style": "./dist/style.css",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/dropzone.js",
+      "require": "./dist/dropzone.umd.js",
+      "default": "./dist/dropzone.js"
+    },
+    "./style.css": "./dist/style.css",
+    "./css": "./src/css/main.css",
+    "./dist/*": "./dist/*",
+    "./src/css/*": "./src/css/*",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": [
+    "./dist/dropzone.js",
+    "./dist/dropzone.umd.js",
+    "*.css"
+  ],
+  "files": [
+    "dist",
+    "src/css"
+  ],
+  "scripts": {
+    "build": "npm run clean && vite build && tsc -b",
+    "build:types": "tsc -b",
+    "clean": "rimraf dist tsconfig.tsbuildinfo"
+  },
+  "keywords": [
+    "dropzone",
+    "file-upload",
+    "drag-drop",
+    "file-input",
+    "file-selector",
+    "upload",
+    "web-component",
+    "custom-element",
+    "file-preview",
+    "keenmate"
+  ],
+  "author": "Keenmate",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keenmate/web-dropzone.git",
+    "directory": "packages/web-dropzone"
+  },
+  "homepage": "https://github.com/keenmate/web-dropzone#readme",
+  "bugs": {
+    "url": "https://github.com/keenmate/web-dropzone/issues"
+  },
+  "dependencies": {
+    "@floating-ui/dom": "^1.5.3",
+    "@keenmate/web-dropzone-core": "*"
+  }
+}

@@ -1,56 +1,20 @@
 {
-  "name": "@keenmate/web-dropzone",
+  "name": "@keenmate/web-dropzone-monorepo",
+  "private": true,
   "version": "1.0.0",
-  "description": "Lightweight file dropzone web component with drag-drop, previews, validation, and multiple display modes",
+  "description": "Monorepo for @keenmate/web-dropzone (renderer + custom elements) and @keenmate/web-dropzone-core (headless store).",
   "type": "module",
-  "main": "./dist/dropzone.umd.js",
-  "module": "./dist/dropzone.js",
-  "types": "./dist/index.d.ts",
-  "style": "./dist/style.css",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/dropzone.js",
-      "require": "./dist/dropzone.umd.js",
-      "default": "./dist/dropzone.js"
-    },
-    "./style.css": "./dist/style.css",
-    "./css": "./src/css/main.css",
-    "./dist/*": "./dist/*",
-    "./src/css/*": "./src/css/*",
-    "./package.json": "./package.json"
-  },
-  "sideEffects": [
-    "./dist/dropzone.js",
-    "./dist/dropzone.umd.js",
-    "*.css"
-  ],
-  "files": [
-    "dist",
-    "src/css"
+  "workspaces": [
+    "packages/*"
   ],
   "scripts": {
     "dev": "vite --port 12200",
-    "build": "npm run clean:dist && tsc && vite build",
-    "build:types": "tsc",
-    "build:full": "npm run build",
-    "preview": "vite preview",
-    "package": "npm run build && npm pack",
-    "clean": "rimraf dist --glob \"*.tgz\"",
-    "clean:dist": "rimraf dist"
+    "build": "npm run build -ws --if-present",
+    "build:core": "npm run build -w @keenmate/web-dropzone-core",
+    "build:renderer": "npm run build -w @keenmate/web-dropzone",
+    "clean": "npm run clean -ws --if-present && rimraf node_modules/.vite",
+    "preview": "vite preview"
   },
-  "keywords": [
-    "dropzone",
-    "file-upload",
-    "drag-drop",
-    "file-input",
-    "file-selector",
-    "upload",
-    "web-component",
-    "custom-element",
-    "file-preview",
-    "keenmate"
-  ],
   "author": "Keenmate",
   "license": "MIT",
   "repository": {
@@ -65,8 +29,5 @@
     "rimraf": "^5.0.5",
     "typescript": "^5.3.3",
     "vite": "^5.0.8"
-  },
-  "dependencies": {
-    "@floating-ui/dom": "^1.5.3"
   }
 }

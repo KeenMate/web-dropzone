@@ -7,9 +7,8 @@
  */
 
 import { WebDropzone } from './dropzone';
-import { initLogger } from '../core/logger';
-import { dispatchComposedEvent } from '../core/dom-utils';
-import type { DropzoneStoreAPI } from '../core/store-api';
+import { initLogger, dispatchComposedEvent } from '@keenmate/web-dropzone-core';
+import type { DropzoneStoreAPI } from '@keenmate/web-dropzone-core';
 import type {
     DropzoneConfig,
     DisplayMode,
@@ -20,7 +19,7 @@ import type {
     CardSize,
     ValueFormat,
     FileState
-} from '../core/types';
+} from '@keenmate/web-dropzone-core';
 
 // Import CSS as inline string for Shadow DOM injection
 import styles from './css/main.css?inline';

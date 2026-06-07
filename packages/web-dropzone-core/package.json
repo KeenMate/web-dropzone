@@ -1,0 +1,45 @@
+{
+  "name": "@keenmate/web-dropzone-core",
+  "version": "1.0.0",
+  "description": "Headless store for @keenmate/web-dropzone — file state, validation, upload pipeline, events. No DOM rendering, no CSS.",
+  "type": "module",
+  "main": "./dist/core.umd.js",
+  "module": "./dist/core.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.umd.js",
+      "default": "./dist/core.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "npm run clean && vite build && tsc -b",
+    "build:types": "tsc -b",
+    "clean": "rimraf dist tsconfig.tsbuildinfo"
+  },
+  "keywords": [
+    "dropzone",
+    "file-upload",
+    "headless",
+    "keenmate"
+  ],
+  "author": "Keenmate",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keenmate/web-dropzone.git",
+    "directory": "packages/web-dropzone-core"
+  },
+  "homepage": "https://github.com/keenmate/web-dropzone#readme",
+  "bugs": {
+    "url": "https://github.com/keenmate/web-dropzone/issues"
+  }
+}

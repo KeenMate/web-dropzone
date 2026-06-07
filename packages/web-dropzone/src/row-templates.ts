@@ -17,16 +17,19 @@
  * uses it. See `WebDropzone.renderCompactItem`.
  */
 
-import { formatFileSize, getFileTypeCategory, getFileIcon, isImageFile } from '../core/dropzone-shared';
-import { escapeHtml } from '../core/dom-utils';
 import {
+    formatFileSize,
+    getFileTypeCategory,
+    getFileIcon,
+    isImageFile,
+    escapeHtml,
     STATUS_ICONS,
     STATUS_LABELS,
     ACTION_ICONS,
     ACTION_LABELS,
     actionForStatus
-} from '../core/icons';
-import type { FileState } from '../core/types';
+} from '@keenmate/web-dropzone-core';
+import type { FileState } from '@keenmate/web-dropzone-core';
 
 export { escapeHtml };
 

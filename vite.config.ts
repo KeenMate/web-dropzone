@@ -1,32 +1,23 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
-import { readFileSync } from 'fs';
 
-// Read package.json for build-time constants
-const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
-
+// Root vite config — dev server only.
+//
+// The examples HTML files at the repo root still reference `/src/index.ts`
+// (the pre-monorepo location of the renderer barrel). We alias that path
+// to the renderer package's `src/index.ts` so the examples keep working
+// without touching every HTML file. The aliasing is dev-server scoped;
+// production builds happen inside each package via `npm run build -ws`.
 export default defineConfig({
-  define: {
-    '__VERSION__': JSON.stringify(pkg.version),
-    '__PACKAGE_NAME__': JSON.stringify(pkg.name),
-    '__AUTHOR__': JSON.stringify(pkg.author),
-    '__LICENSE__': JSON.stringify(pkg.license),
-    '__REPOSITORY__': JSON.stringify(pkg.repository.url),
-    '__HOMEPAGE__': JSON.stringify(pkg.homepage)
-  },
-  build: {
-    lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
-      name: 'WebDropzone',
-      formats: ['es', 'umd'],
-      fileName: (format) => `dropzone.${format === 'es' ? 'js' : 'umd.js'}`
-    },
-    rollupOptions: {
-      // Floating UI will be bundled into the component
-      external: [],
-      output: {
-        globals: {}
-      }
+  resolve: {
+    alias: {
+      // Examples HTML files reference `/src/index.ts` directly.
+      '/src/index.ts': resolve(__dirname, 'packages/web-dropzone/src/index.ts'),
+      // During dev, resolve the core package to its TS source so edits in
+      // core/ trigger HMR in the renderer instead of serving a stale built
+      // dist/core.js. The exports map in core's package.json otherwise
+      // resolves `@keenmate/web-dropzone-core` to its built artifact.
+      '@keenmate/web-dropzone-core': resolve(__dirname, 'packages/web-dropzone-core/src/index.ts')
     }
   }
 });

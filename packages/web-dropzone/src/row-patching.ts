@@ -25,8 +25,8 @@ import {
     ACTION_ICONS,
     ACTION_LABELS,
     actionForStatus
-} from '../core/icons';
-import type { FileState, FileStatus } from '../core/types';
+} from '@keenmate/web-dropzone-core';
+import type { FileState, FileStatus } from '@keenmate/web-dropzone-core';
 
 /**
  * Set the progress-bar fill's width. Idempotent — assigning the same

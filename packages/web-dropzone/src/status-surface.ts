@@ -46,13 +46,13 @@
  * the eventual package boundary back into the renderer.
  */
 
-import type { FileState } from '../core/types';
+import type { FileState } from '@keenmate/web-dropzone-core';
 import type {
     StatusAggregate,
     StatusSurfaceArgs,
     StatusSurfaceResult,
     DropzoneStoreAPI
-} from '../core/store-api';
+} from '@keenmate/web-dropzone-core';
 
 // Re-export the public surface types so existing renderer-internal imports
 // keep working — they import these symbols from `./status-surface` today.
@@ -62,7 +62,7 @@ export type {
     StatusSurfaceResult,
     StatusSurfaceCallback,
     DropzoneStoreAPI
-} from '../core/store-api';
+} from '@keenmate/web-dropzone-core';
 
 /**
  * Computes a `StatusAggregate` from a file list. The aggregate is cheap
