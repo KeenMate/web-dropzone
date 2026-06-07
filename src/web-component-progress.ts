@@ -30,10 +30,9 @@ import {
 } from './satellite-base';
 import { escapeHtml } from './dom-utils';
 import { formatFileSize } from './dropzone';
-import type { WebDropzone } from './dropzone';
+import type { DropzoneStoreAPI } from './status-surface';
 import type { DropzoneElement } from './web-component';
-
-type OverallProgress = ReturnType<WebDropzone['getOverallProgress']>;
+import type { OverallProgress } from './types';
 
 export class DropzoneProgressElement extends SatelliteElement {
     protected readonly satelliteTagName = 'web-dropzone-progress';

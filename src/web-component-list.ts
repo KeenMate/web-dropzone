@@ -43,7 +43,7 @@ import {
 } from './row-templates';
 import { buildStatusSurfaceArgs, StatusSurface } from './status-surface';
 import type { StatusSurfaceArgs } from './status-surface';
-import type { WebDropzone } from './dropzone';
+import type { DropzoneStoreAPI } from './status-surface';
 import type { DropzoneElement } from './web-component';
 import type { FileState, ListAppearance, RollingRotation } from './types';
 

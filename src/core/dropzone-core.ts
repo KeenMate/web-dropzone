@@ -36,7 +36,8 @@ import type {
     FileUploadContext,
     RejectedFile,
     AddFilesOptions,
-    DropzoneState
+    DropzoneState,
+    OverallProgress
 } from '../types';
 // Module-level pure helpers + DEFAULT_CONFIG live in `../dropzone-shared`
 // so both core and renderer can import them without circular dependencies.
@@ -1201,17 +1202,7 @@ export class DropzoneCore {
      * Public so satellite surfaces (`<web-dropzone-progress>`) can read the
      * same aggregate without duplicating the calculation.
      */
-    getOverallProgress(): {
-        uploadedBytes: number;
-        totalBytes: number;
-        completedCount: number;
-        failedCount: number;
-        uploadingCount: number;
-        pausedCount: number;
-        percent: number;
-        hasActivity: boolean;
-        aggregateStatus: 'uploading' | 'paused' | 'error' | 'complete';
-    } {
+    getOverallProgress(): OverallProgress {
         let uploadedBytes = 0;
         let totalBytes = 0;
         let completedCount = 0;

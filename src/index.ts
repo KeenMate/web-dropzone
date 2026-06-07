@@ -56,6 +56,7 @@ export type {
     DropzoneEventDetail,
     FileTypeCategory,
     AddFilesOptions,
+    OverallProgress,
     FileProgressEventDetail,
     FileStatusChangedEventDetail,
     FileUpdatedEventDetail,

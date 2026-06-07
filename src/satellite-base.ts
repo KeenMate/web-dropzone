@@ -9,8 +9,8 @@
  * trickiest part of the wiring; these helpers centralize it.
  */
 
-import { WebDropzone } from './dropzone';
 import type { DropzoneElement } from './web-component';
+import type { DropzoneStoreAPI } from './status-surface';
 
 /**
  * Look up the `<web-dropzone>` element a satellite binds to via its `for=`
@@ -49,7 +49,7 @@ export function resolveStoreElement(forId: string | null): DropzoneElement | nul
  */
 export function whenStoreReady(
     storeEl: DropzoneElement,
-    onResolved: (store: WebDropzone) => void
+    onResolved: (store: DropzoneStoreAPI) => void
 ): () => void {
     const immediate = typeof storeEl.getStore === 'function' ? storeEl.getStore() : undefined;
     if (immediate) {
@@ -173,7 +173,7 @@ const SatelliteBaseElement = (typeof HTMLElement !== 'undefined' ? HTMLElement :
  *    diagnostic names the specific element type.
  */
 export abstract class SatelliteElement extends SatelliteBaseElement {
-    protected store: WebDropzone | null = null;
+    protected store: DropzoneStoreAPI | null = null;
     protected storeEl: DropzoneElement | null = null;
     /**
      * Set by `bindToStore()` for satellites mounted inside another shadow
@@ -191,12 +191,12 @@ export abstract class SatelliteElement extends SatelliteBaseElement {
 
     protected abstract attachStoreSubscriptions(
         storeEl: DropzoneElement,
-        store: WebDropzone
+        store: DropzoneStoreAPI
     ): () => void;
 
     protected abstract onStoreReady(
         storeEl: DropzoneElement,
-        store: WebDropzone
+        store: DropzoneStoreAPI
     ): void;
 
     /** Optional pre-bind DOM setup. Default no-op. */
@@ -258,7 +258,7 @@ export abstract class SatelliteElement extends SatelliteBaseElement {
      * consumer code (e.g. a callback set on the host) can reach the bound
      * store without going through the original element reference.
      */
-    getStore(): WebDropzone | null {
+    getStore(): DropzoneStoreAPI | null {
         return this.store;
     }
 

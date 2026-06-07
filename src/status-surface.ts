@@ -36,39 +36,62 @@
  * instance each tick — the surface will skip the DOM swap.
  */
 
-import type { FileState, FileStatus } from './types';
+import type {
+    FileState,
+    FileStatus,
+    DropzoneConfig,
+    AddFilesOptions,
+    OverallProgress
+} from './types';
 
 /**
- * Narrow store interface exposed to render callbacks. Callbacks that want to
- * MUTATE the store (e.g. an indicator chip with built-in pause / resume /
- * cancel buttons) reach for `args.store` instead of looking up the host
- * element with `document.getElementById` or `indicator.getStore()`. The full
- * `WebDropzone` class implements this interface structurally — surfaces hand
- * `this` to `buildStatusSurfaceArgs` and TypeScript narrows it to the contract
- * below at the callback boundary.
+ * Public store interface — the contract between `DropzoneCore` and everything
+ * that talks to it (renderer overrides, satellites, status-surface render
+ * callbacks). The canonical reference type used by:
  *
- * Kept deliberately small: only the methods that make sense from a callback
- * context. No `addFiles` / `updateConfig` / `formAssociated` — those belong
- * on the element / store, not on a status surface.
+ *   - **Satellites** (`<web-dropzone-picker>`, `<web-dropzone-list>`,
+ *     `<web-dropzone-indicator>`, `<web-dropzone-progress>`) — type their
+ *     `store` field as `DropzoneStoreAPI` so they don't depend on the
+ *     concrete `WebDropzone` / `DropzoneCore` class.
+ *   - **Status-surface render callbacks** — receive `args.store: DropzoneStoreAPI`
+ *     so they can dispatch actions (`store.pauseAll()`, `store.removeFile(id)`)
+ *     from within the rendering context.
+ *   - **`<web-dropzone>.getStore()`** returns this type so consumers stay
+ *     decoupled from the underlying implementation.
+ *
+ * Both `DropzoneCore` and the renderer subclass `WebDropzone` implement this
+ * interface structurally. After the package split (Phase B Step 6), this is
+ * the single import that crosses the package boundary at runtime.
  */
 export interface DropzoneStoreAPI {
+    // ---- Programmatic add -------------------------------------------------
+    addFiles(fileList: FileList | File[], opts?: AddFilesOptions): Promise<void>;
+
     // ---- Per-file actions -------------------------------------------------
     pauseFile(id: string): void;
     resumeFile(id: string): Promise<void>;
     retryFile(id: string): void;
     cancelFile(id: string): void;
-    removeFile(id: string): void;
+    /** Pass `{ confirm: true }` to run `beforeFilesRemovedCallback` first. */
+    removeFile(id: string, opts?: { confirm?: boolean }): Promise<void>;
 
     // ---- Bulk actions -----------------------------------------------------
     pauseAll(): void;
     resumeAll(): Promise<void>;
     retryAll(): void;
-    /** Nuke the queue — aborts active uploads, drops every FileState. */
-    clear(): void;
+    /** Nuke the queue — aborts active uploads, drops every FileState.
+     *  Pass `{ confirm: true }` to run `beforeFilesRemovedCallback` first. */
+    clear(opts?: { confirm?: boolean }): Promise<void>;
 
     // ---- Reads ------------------------------------------------------------
-    getFiles(): ReadonlyArray<FileState>;
+    /** Returns a mutable copy of the file list. Mutating it does NOT mutate
+     *  the store — re-add via `addFiles` if you want the change reflected. */
+    getFiles(): FileState[];
     getFile(id: string): FileState | undefined;
+    /** Read-only view of the merged config (includes DEFAULT_CONFIG fallback). */
+    getConfig(): Readonly<DropzoneConfig>;
+    /** Byte-weighted aggregate progress + per-status counts. */
+    getOverallProgress(): OverallProgress;
 }
 
 /**

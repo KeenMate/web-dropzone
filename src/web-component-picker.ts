@@ -21,7 +21,7 @@ import {
     resolveEnumAttribute
 } from './satellite-base';
 import { escapeHtml } from './dom-utils';
-import type { WebDropzone } from './dropzone';
+import type { DropzoneStoreAPI } from './status-surface';
 import type { DropzoneElement } from './web-component';
 import type {
     SelectorAppearance,

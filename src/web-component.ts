@@ -9,6 +9,7 @@
 import { WebDropzone } from './dropzone';
 import { initLogger } from './logger';
 import { dispatchComposedEvent } from './dom-utils';
+import type { DropzoneStoreAPI } from './status-surface';
 import type {
     DropzoneConfig,
     DisplayMode,
@@ -288,14 +289,16 @@ export class DropzoneElement extends BaseElement {
     private _overlayTargetEl: HTMLElement | null = null;
 
     /**
-     * Underlying store instance — accessor used by satellite renderers
-     * (`<web-dropzone-picker>`, `<web-dropzone-list>`, `<web-dropzone-indicator>`)
-     * to resolve their `for="<store-id>"` reference. Returns undefined before
-     * `connectedCallback` runs; satellites must handle the timing race
-     * (resolve in their own `connectedCallback` and re-resolve on
-     * `store-ready` if the lookup comes back empty).
+     * Underlying store — exposed as the `DropzoneStoreAPI` contract so
+     * consumers stay decoupled from the concrete implementation (a Phase B
+     * prereq: the store can be the renderer-bound `WebDropzone` or the
+     * headless `DropzoneCore`; satellites and apps shouldn't care). Used by
+     * satellite renderers (`<web-dropzone-picker>`, `<web-dropzone-list>`,
+     * `<web-dropzone-indicator>`) to resolve their `for="<store-id>"`
+     * reference. Returns undefined before `connectedCallback` runs;
+     * satellites handle the timing race via `store-ready` re-resolution.
      */
-    getStore(): WebDropzone | undefined {
+    getStore(): DropzoneStoreAPI | undefined {
         return this.dropzone;
     }
 

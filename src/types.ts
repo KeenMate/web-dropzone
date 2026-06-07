@@ -204,6 +204,26 @@ export interface AddFilesOptions {
     uploadMetadata?: Record<string, unknown>;
 }
 
+/**
+ * Aggregate view returned by `getOverallProgress()`. Byte-weighted overall
+ * percent + per-status counts + a single roll-up status for surface color.
+ * Computed once per call; cheap (O(N)) and shared across the popover footer,
+ * the indicator chip, and any `<web-dropzone-progress>` satellite.
+ */
+export interface OverallProgress {
+    uploadedBytes: number;
+    totalBytes: number;
+    completedCount: number;
+    failedCount: number;
+    uploadingCount: number;
+    pausedCount: number;
+    /** 0–100, byte-weighted across the queue. */
+    percent: number;
+    /** True when any non-complete activity exists (uploading / paused / queued). */
+    hasActivity: boolean;
+    aggregateStatus: 'uploading' | 'paused' | 'error' | 'complete';
+}
+
 export type FileUploadHandler = (
     file: File,
     onProgress: (percent: number) => void,

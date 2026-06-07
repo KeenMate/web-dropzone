@@ -53,7 +53,7 @@ import {
     createDropzoneSpinner
 } from './icons';
 import { formatFileSize } from './dropzone';
-import type { WebDropzone } from './dropzone';
+import type { DropzoneStoreAPI } from './status-surface';
 import type { DropzoneElement } from './web-component';
 import type { FileState, FileStatus } from './types';
 
