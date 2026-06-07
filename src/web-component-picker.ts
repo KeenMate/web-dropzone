@@ -29,13 +29,14 @@ import type {
     FileUploadHandler
 } from './types';
 
-const SELECTOR_APPEARANCES = ['card', 'button', 'minimal'] as const;
+const SELECTOR_APPEARANCES = ['card', 'button', 'minimal', 'native'] as const;
 const CARD_SIZES = ['minimal', 'compact', 'big'] as const;
 
 const DEFAULT_ICON = '📤';
 const DEFAULT_PROMPT = 'Drop files here or click to browse';
 const DEFAULT_DRAG_ACTIVE = 'Drop files here';
 const DEFAULT_SELECT_TEXT = 'Select files';
+const DEFAULT_NO_FILE_TEXT = 'No file chosen';
 
 export class DropzonePickerElement extends SatelliteElement {
     protected readonly satelliteTagName = 'web-dropzone-picker';
@@ -99,7 +100,7 @@ export class DropzonePickerElement extends SatelliteElement {
     static get observedAttributes(): string[] {
         return [
             'for', 'selector-appearance', 'card-size', 'accept', 'multiple',
-            'label', 'icon', 'hint', 'disabled', 'inside'
+            'label', 'icon', 'hint', 'disabled', 'inside', 'no-file-chosen-text'
         ];
     }
 
@@ -199,6 +200,23 @@ export class DropzonePickerElement extends SatelliteElement {
                         <span class="dz__minimal__icon">${icon}</span>
                         ${minimalBadge}
                     </button>
+                </div>
+            `;
+        } else if (appearance === 'native') {
+            const noFileText = this.getAttribute('no-file-chosen-text')
+                ?? storeCfg.noFileChosenText
+                ?? DEFAULT_NO_FILE_TEXT;
+            const files = this.store.getFiles();
+            const labelText = files.length === 0
+                ? noFileText
+                : files.length === 1
+                    ? files[0].name
+                    : `${files.length} files chosen`;
+            inner = `
+                <div class="dz__dropzone dz__dropzone--native ${disabled ? 'dz__dropzone--disabled' : ''}">
+                    ${inputHtml}
+                    <button type="button" class="dz__native__button" ${disabled ? 'disabled' : ''}>${escapeHtml(label)}</button>
+                    <span class="dz__native__label" title="${escapeHtml(labelText)}">${escapeHtml(labelText)}</span>
                 </div>
             `;
         } else {

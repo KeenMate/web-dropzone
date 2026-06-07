@@ -143,7 +143,7 @@ const ATTRIBUTE_TABLE: ReadonlyArray<AttrSpec> = [
 
     // Display — orthogonal axes (override the shorthand when set explicitly)
     { attr: 'selector-appearance', key: 'selectorAppearance',    parser: 'enum',
-      enumValues: ['card', 'button', 'minimal'] },
+      enumValues: ['card', 'button', 'minimal', 'native'] },
     { attr: 'list-appearance',     key: 'listAppearance',        parser: 'enum',
       enumValues: ['list', 'detailed', 'grid', 'badges', 'rolling', 'popover', 'none'] },
     { attr: 'rolling-rotation',    key: 'rollingRotation',       parser: 'enum',
@@ -159,6 +159,7 @@ const ATTRIBUTE_TABLE: ReadonlyArray<AttrSpec> = [
     { attr: 'icon',                key: 'icon',                  parser: 'string-or-undefined' },
     { attr: 'prompt-text',         key: 'promptText',            parser: 'string-or-undefined' },
     { attr: 'select-files-text',   key: 'selectFilesText',       parser: 'string-or-undefined' },
+    { attr: 'no-file-chosen-text', key: 'noFileChosenText',      parser: 'string-or-undefined' },
     { attr: 'hint-text',           key: 'hintText',              parser: 'string-or-undefined' },
     { attr: 'drag-active-text',    key: 'dragActiveText',        parser: 'string-or-undefined' },
     { attr: 'empty-message',       key: 'emptyMessage',          parser: 'string-or-undefined' },
@@ -214,6 +215,7 @@ const UPGRADEABLE_PROPS: ReadonlyArray<string> = [
     'accept', 'multiple', 'maxFileSize', 'minFileSize', 'maxTotalSize',
     'maxFileCount', 'minFileCount', 'disabled', 'displayMode',
     'selectorAppearance', 'listAppearance', 'rollingRotation', 'cardSize', 'selectFilesText',
+    'noFileChosenText',
     'showThumbnails', 'filesInside', 'icon', 'promptText', 'hintText',
     'dragActiveText', 'emptyMessage', 'summaryTemplate', 'popoverPlacement',
     'overlayTarget', 'overlayText', 'overlayIcon', 'name', 'valueFormat',
@@ -730,6 +732,9 @@ export class DropzoneElement extends BaseElement {
 
     get selectFilesText(): string { return this.getAttribute('select-files-text') || ''; }
     set selectFilesText(value: string) { this.setAttribute('select-files-text', value); }
+
+    get noFileChosenText(): string { return this.getAttribute('no-file-chosen-text') || ''; }
+    set noFileChosenText(value: string) { this.setAttribute('no-file-chosen-text', value); }
 
     /**
      * Three-state reflection so JS can read "unset / explicit on / explicit off".

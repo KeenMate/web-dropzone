@@ -98,6 +98,7 @@ const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'before
     icon: '📤',
     promptText: 'Drop files here or click to browse',
     selectFilesText: 'Select files',
+    noFileChosenText: 'No file chosen',
     hintText: '',
     dragActiveText: 'Drop files here',
     emptyMessage: 'No files selected',
@@ -1494,6 +1495,23 @@ export class WebDropzone {
                         <span class="dz__minimal__icon">${icon}</span>
                         ${count > 0 ? `<span class="dz__minimal__badge">${count}</span>` : ''}
                     </button>
+                </div>
+            `;
+        }
+
+        if (appearance === 'native') {
+            const label = escapeHtml(this.config.selectFilesText || DEFAULT_CONFIG.selectFilesText);
+            const count = this.files.length;
+            const labelText = count === 0
+                ? (this.config.noFileChosenText || DEFAULT_CONFIG.noFileChosenText)
+                : count === 1
+                    ? this.files[0].name
+                    : `${count} files chosen`;
+            return `
+                <div class="dz__dropzone dz__dropzone--native ${disabled}">
+                    ${input}
+                    <button type="button" class="dz__native__button" ${this.config.isDisabled ? 'disabled' : ''}>${label}</button>
+                    <span class="dz__native__label" title="${escapeHtml(labelText)}">${escapeHtml(labelText)}</span>
                 </div>
             `;
         }

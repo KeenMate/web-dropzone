@@ -48,8 +48,11 @@ export type DropzoneMode = 'bulk' | 'structural' | 'headless';
  * - 'card'    — bordered drop-zone card with icon, prompt, browse button (default)
  * - 'button'  — single accent-styled "Select files" button (no drag-drop)
  * - 'minimal' — compact icon-only button with optional file-count badge
+ * - 'native'  — mimics the browser's native <input type="file">: a button
+ *               followed by a plain text label ("No file chosen" / filename /
+ *               "N files chosen"). Drag-drop still works.
  */
-export type SelectorAppearance = 'card' | 'button' | 'minimal';
+export type SelectorAppearance = 'card' | 'button' | 'minimal' | 'native';
 
 /**
  * List appearance — how picked files are presented.
@@ -467,8 +470,10 @@ export interface DropzoneConfig {
     icon?: string;
     /** Main text for the dropzone prompt */
     promptText?: string;
-    /** Label text for the button selector (selectorAppearance='button') */
+    /** Label text for the button selector (selectorAppearance='button' and 'native') */
     selectFilesText?: string;
+    /** Empty-state label for the native selector (selectorAppearance='native'). Default: 'No file chosen' */
+    noFileChosenText?: string;
     /** Hint text shown below the prompt (e.g., 'PNG, JPG up to 5MB') */
     hintText?: string;
     /** Text shown when dragging over the dropzone */

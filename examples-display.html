@@ -53,7 +53,7 @@
         <!-- SELECTOR APPEARANCE -->
         <div class="card">
             <h2>Selector Appearance (<code>selector-appearance</code>)</h2>
-            <p>Three visual entry points for picking files.</p>
+            <p>Four visual entry points for picking files.</p>
 
             <div class="grid">
                 <div class="form-group">
@@ -65,13 +65,31 @@
                 <div class="form-group">
                     <label>button — accent button, no drag zone</label>
                     <web-dropzone selector-appearance="button" list-appearance="list" accept="*/*" max-file-count="5"></web-dropzone>
-                    <small class="form-text">Use when the picker should sit inline (toolbars, dense forms). No drag-and-drop on the button itself.</small>
+                    <small class="form-text">Use when the picker should sit inline (toolbars, dense forms).</small>
                 </div>
 
                 <div class="form-group">
                     <label>minimal — icon-only with count badge</label>
                     <web-dropzone selector-appearance="minimal" list-appearance="list" accept="*/*" icon="📎" max-file-count="5"></web-dropzone>
                     <small class="form-text">Compact 36×36 button. The badge appears when files are picked.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>native — button + text label, like &lt;input type="file"&gt;</label>
+                    <web-dropzone selector-appearance="native" list-appearance="none" accept="*/*" max-file-count="5" select-files-text="Choose Files"></web-dropzone>
+                    <small class="form-text">Mirrors the modern browser look. Empty: "No file chosen" · 1 file: filename · multiple: "N files chosen". Customize via <code>select-files-text</code> and <code>no-file-chosen-text</code>.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>native + list below (combines with any list-appearance)</label>
+                    <web-dropzone selector-appearance="native" list-appearance="detailed" accept="*/*" max-file-count="5" select-files-text="Choose Files"></web-dropzone>
+                    <small class="form-text">The native label shows a summary; the full list still renders below per <code>list-appearance</code>.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>native + localized labels</label>
+                    <web-dropzone selector-appearance="native" list-appearance="none" accept="*/*" max-file-count="5" select-files-text="Vybrat soubory" no-file-chosen-text="Žádný soubor"></web-dropzone>
+                    <small class="form-text">Both labels are i18n-friendly.</small>
                 </div>
             </div>
         </div>
