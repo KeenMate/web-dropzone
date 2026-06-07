@@ -1,10 +1,10 @@
-.PHONY: help setup dev build package publish publish-dry clean test lint
+.PHONY: help setup dev build build-core build-renderer package publish publish-dry clean clean-dist test lint preview check-version update-deps install-dev
 
 help: ## Show this help message
 	@echo "Available targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
 
-setup: ## Install dependencies and prepare project
+setup: ## Install dependencies (root + workspaces)
 	@echo "Installing dependencies..."
 	npm install
 	@echo "Setup complete"
@@ -13,41 +13,58 @@ dev: ## Start development server with hot reload
 	@echo "Starting development server..."
 	npm run dev
 
-build: ## Build for production
-	@echo "Building for production..."
+build: ## Build all packages (workspaces)
+	@echo "Building all packages..."
 	npm run build
-	@echo "Build complete - Files in ./dist"
+	@echo "Build complete - see packages/*/dist/"
 
-package: build ## Create npm package (tarball)
-	@echo "Creating package..."
-	npm pack
-	@echo "Package created - see above for details"
+build-core: ## Build only @keenmate/web-dropzone-core
+	@echo "Building @keenmate/web-dropzone-core..."
+	npm run build:core
+	@echo "Build complete - see packages/web-dropzone-core/dist/"
 
-publish-dry: ## Publish to npm (dry run) - cleans dist first
-	@echo "Running publish dry-run..."
-	npm run clean:dist
-	npm run build
-	npm publish --dry-run
-	@echo "Dry-run complete - Review the output above"
+build-renderer: ## Build only @keenmate/web-dropzone
+	@echo "Building @keenmate/web-dropzone..."
+	npm run build:renderer
+	@echo "Build complete - see packages/web-dropzone/dist/"
 
-publish: ## Publish to npm - cleans dist first
-	@echo "WARNING: This will publish to npm registry"
+package: build ## Pack both packages (creates .tgz tarballs in each package dir)
+	@echo "Packing @keenmate/web-dropzone-core..."
+	cd packages/web-dropzone-core && npm pack
+	@echo "Packing @keenmate/web-dropzone..."
+	cd packages/web-dropzone && npm pack
+	@echo "Packages created - see packages/*/keenmate-*.tgz"
+
+publish-dry: build ## Dry-run publish for both packages
+	@echo "Dry-run publish: @keenmate/web-dropzone-core"
+	cd packages/web-dropzone-core && npm publish --dry-run
+	@echo ""
+	@echo "Dry-run publish: @keenmate/web-dropzone"
+	cd packages/web-dropzone && npm publish --dry-run
+	@echo ""
+	@echo "Dry-runs complete - review both tarballs above"
+
+publish: build ## Publish BOTH packages to npm (core first, then renderer)
+	@echo "WARNING: This will publish BOTH packages to npm registry"
+	@echo "  1. @keenmate/web-dropzone-core"
+	@echo "  2. @keenmate/web-dropzone"
 	@echo "Press Ctrl+C to cancel, or Enter to continue..."
 	@powershell -Command "Read-Host | Out-Null"
-	@echo "Publishing to npm..."
-	npm run clean:dist
-	npm run build
-	npm publish
-	@echo "Published successfully"
+	@echo "Publishing @keenmate/web-dropzone-core..."
+	cd packages/web-dropzone-core && npm publish
+	@echo "Publishing @keenmate/web-dropzone..."
+	cd packages/web-dropzone && npm publish
+	@echo "Both packages published successfully"
 
-clean: ## Clean build artifacts and node_modules
+clean: ## Clean build artifacts in all packages
 	@echo "Cleaning build artifacts..."
 	npm run clean
 	@echo "Clean complete"
 
-clean-dist: ## Clean only dist folder
-	@echo "Cleaning dist folder..."
-	npm run clean:dist
+clean-dist: ## Clean only dist folders in both packages
+	@echo "Cleaning dist folders..."
+	cd packages/web-dropzone-core && npm run clean
+	cd packages/web-dropzone && npm run clean
 	@echo "Dist cleaned"
 
 preview: build ## Preview production build
@@ -62,20 +79,21 @@ test: ## Run tests (if configured)
 	@echo "Tests are not configured yet"
 	@echo "Consider adding tests in the future"
 
-check-version: ## Show current package version
-	@echo "Current version:"
-	@node -p "require('./package.json').version"
+check-version: ## Show current package versions
+	@echo "@keenmate/web-dropzone-core:"
+	@node -p "require('./packages/web-dropzone-core/package.json').version"
+	@echo "@keenmate/web-dropzone:"
+	@node -p "require('./packages/web-dropzone/package.json').version"
 
-update-deps: ## Update dependencies
+update-deps: ## Update dependencies (root + workspaces)
 	@echo "Updating dependencies..."
 	npm update
 	@echo "Dependencies updated"
 
-install-dev: ## Install as local dev dependency (for testing)
-	@echo "Installing package locally..."
-	npm pack
-	@echo "You can now install this in another project with:"
-	@echo "npm install <path-to-tgz-file>"
+install-dev: package ## Pack both and print install snippets for local testing
+	@echo "You can install these locally with:"
+	@echo "  npm install <path>/packages/web-dropzone-core/keenmate-web-dropzone-core-<v>.tgz"
+	@echo "  npm install <path>/packages/web-dropzone/keenmate-web-dropzone-<v>.tgz"
 
 # Default target
 .DEFAULT_GOAL := help

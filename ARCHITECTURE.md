@@ -16,6 +16,102 @@ The package serves a spectrum of upload use cases that share state but differ in
 
 Backing all of these from a single monolithic element is the wrong direction; we split.
 
+## Package topology — core vs. renderer
+
+The repository is a workspaces monorepo with two published packages:
+
+```
+packages/
+├── web-dropzone-core/     → @keenmate/web-dropzone-core
+│   ├── src/
+│   │   ├── dropzone-core.ts   ← the DropzoneCore class
+│   │   ├── store-api.ts       ← DropzoneStoreAPI interface (the boundary contract)
+│   │   ├── file-pipeline.ts   ← stateless validation helpers
+│   │   ├── types.ts           ← all domain types + event-detail types
+│   │   ├── icons.ts           ← shared Lucide SVG family + createDropzoneSpinner
+│   │   ├── dropzone-shared.ts ← DEFAULT_CONFIG + formatFileSize / getFileIcon / …
+│   │   ├── dom-utils.ts       ← dispatchComposedEvent / escapeHtml (zero-dep DOM primitives)
+│   │   └── logger.ts          ← runtime-controllable log channels
+│   └── dist/                  ← core.js (~53KB min / ~16KB gzip), core.umd.js, *.d.ts
+│
+└── web-dropzone/          → @keenmate/web-dropzone
+    ├── src/
+    │   ├── dropzone.ts                ← WebDropzone extends DropzoneCore
+    │   ├── web-component.ts           ← <web-dropzone> (store + back-compat picker/list)
+    │   ├── web-component-picker.ts    ← <web-dropzone-picker>
+    │   ├── web-component-list.ts      ← <web-dropzone-list>
+    │   ├── web-component-indicator.ts ← <web-dropzone-indicator>
+    │   ├── web-component-progress.ts  ← <web-dropzone-progress>
+    │   ├── satellite-base.ts          ← shared satellite plumbing (resolveStoreElement, …)
+    │   ├── status-surface.ts          ← three-callback contract impl (uses core types)
+    │   ├── row-templates.ts / row-patching.ts
+    │   └── css/                       ← all .css partials + main.css entry
+    └── dist/                          ← dropzone.js (bundles core in), style.css, *.d.ts
+```
+
+### Why split?
+
+1. **Headless consumers don't pay for the renderer.** React / Vue / Lit / Svelte / Solid wrappers that render the file list with the framework's own reactivity import `@keenmate/web-dropzone-core` — no Floating UI, no CSS, no custom elements, no satellites. The core's only "dependency" is its own vendored `loglevel`.
+2. **Satellites are replaceable.** A satellite is anything that depends on `DropzoneStoreAPI` + the store's CustomEvents. A custom satellite written in any framework is a peer of the four built-in ones — none of them have any privileged access path into the core.
+3. **The boundary is enforceable by construction.** The core package has no DOM imports beyond the bare-bones `dom-utils.ts` (which exports two functions: `dispatchComposedEvent`, `escapeHtml`). It is impossible for renderer concerns to leak across the package wall without showing up as a new import in `packages/web-dropzone-core/src/`.
+
+### The boundary contract
+
+The renderer talks to the core through exactly two surfaces — nothing else.
+
+1. **TypeScript:** the `DropzoneStoreAPI` interface in [`packages/web-dropzone-core/src/store-api.ts`](./packages/web-dropzone-core/src/store-api.ts). Read methods (`getFiles`, `getConfig`, `getOverallProgress`, …) plus mutators (`addFiles`, `removeFile`, `clear`, `pauseFile`, `resumeFile`, `retryFile`, `setFileStatus`, `updateFileProgress`, …). Every satellite stores `store: DropzoneStoreAPI`, never `store: WebDropzone`. Custom satellites do the same.
+2. **DOM CustomEvents** dispatched on the store element with `bubbles: true, composed: true`:
+   - **Per-file:** `file-added`, `file-removed`, `file-progress`, `file-status-changed`, `file-updated`, `file-retry`, `file-uploaded`, `file-deleted`.
+   - **Batch / aggregate:** `change`, `files-changed`, `files-rejected`.
+   - **Lifecycle:** `store-ready` (fires at the end of `initializeDropzone`; satellites use it to resolve their `for=` reference race-free).
+   - **Drag:** `overlay-enter`, `overlay-leave`.
+
+`WebDropzone` (the renderer's `<web-dropzone>` class) extends `DropzoneCore` purely so the convenience-form back-compat case stays a single element — it then drives its internal picker/list via the same events any external satellite would consume. The split would still hold if `WebDropzone` had `core: DropzoneCore` instead of `extends DropzoneCore`; the inheritance is convenience, not architectural.
+
+### "What do I install?"
+
+| You want… | Install | Entry |
+|---|---|---|
+| Drop `<web-dropzone>` (or any built-in satellite) into a page | `@keenmate/web-dropzone` | `import '@keenmate/web-dropzone'` registers all custom elements |
+| Build a React / Vue / Lit / Svelte / Solid renderer | `@keenmate/web-dropzone-core` | `import { DropzoneCore } from '@keenmate/web-dropzone-core'` then `new DropzoneCore(hostElement, config)` |
+| Both: the built-in elements **and** a custom satellite that runs alongside them | `@keenmate/web-dropzone` only | The renderer re-exports core types and helpers — `import { DropzoneStoreAPI, createDropzoneSpinner } from '@keenmate/web-dropzone'` works |
+
+Installing both packages explicitly is fine but redundant — the renderer pins `@keenmate/web-dropzone-core: ^1.0.0` and bundles the core code into its single-file `dist/dropzone.js`, so the runtime is self-contained either way. The hard dep exists so the renderer's `dist/index.d.ts` can re-export core types without npm warning the consumer.
+
+### Headless entry-point
+
+There is no `<web-dropzone-core>` custom element. The core is JS-only:
+
+```ts
+import { DropzoneCore, DropzoneStoreAPI } from '@keenmate/web-dropzone-core';
+
+const host = document.createElement('div');           // any HTMLElement works as the event host
+document.body.appendChild(host);
+
+const store = new DropzoneCore(host, {
+  isMultipleEnabled: true,
+  maxFileCount: 10,
+  uploadFileCallback: async (file, onProgress, signal, context) => {
+    // your upload here
+  }
+});
+
+// Read via DropzoneStoreAPI
+const files = store.getFiles();
+
+// Subscribe via DOM events
+host.addEventListener('file-progress', (e) => {
+  // e.detail = { id, progress, status, file }
+});
+
+host.addEventListener('files-changed', (e) => {
+  // e.detail = { changedIds, files }
+  rerenderYourFramework(e.detail.files);
+});
+```
+
+Use `host` as the event target — every event the core dispatches is `bubbles: true, composed: true`, so a single listener anywhere up the tree (or inside any shadow root) catches the lot.
+
 ## Topology — store + satellite renderers
 
 `<web-dropzone>` **is the store.** It owns `FileState[]`, config, validation, the upload loop, and persistence. By default it renders nothing — it is the headless source of truth.
@@ -107,5 +203,6 @@ We ship the architecture in stages. Each stage compiles, each leaves the existin
 | 3 | **List satellite** | Introduce `<web-dropzone-list for=>` — list / detailed / grid / badges appearances, in-place row patching on `file-progress` / `file-status-changed` ticks, pause/resume/cancel/retry/remove actions wired through to the store. Rolling/popover appearances deferred (the existing convenience form still covers them inside `<web-dropzone>`). | done |
 | 4 | **Indicator + drawer** | New satellite `<web-dropzone-indicator for=>`. Floating chip showing "N uploading / N% / N failed" with state-coloured styling, anchored to a screen edge (`position="right\|left\|top\|bottom"`). Click → slide-out drawer that embeds a `<web-dropzone-list>` for the full queue view — no list rendering is duplicated. | done |
 | 5 | **Mode B per-file upload** | Added `uploadCallback?` / `uploadMetadata?` to `FileState`. `addFiles(files, opts)` stamps both onto every new file; the upload loop picks `file.uploadCallback ?? store.uploadFileCallback` and threads `uploadMetadata` into `FileUploadContext`. Mode A unchanged; Mode B works without ever exposing routing concerns to the store. | done |
+| 6 | **Core / renderer package split** | Phase A extracted `DropzoneCore` in-repo (non-breaking), routed renderer updates through events (introducing `file-updated`), and formalised `DropzoneStoreAPI` as the boundary contract. Phase B reorganised the source tree into `packages/web-dropzone-core/` + `packages/web-dropzone/` and published the two as separate npm packages — see the **Package topology** section above. | done |
 
 Each stage gets its own PR / commit batch and a `CHANGELOG.md` entry.
