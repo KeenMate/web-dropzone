@@ -477,11 +477,24 @@ export class DropzoneListElement extends SatelliteElement {
             return;
         }
 
-        // Remove button (also always in the DOM).
+        // Remove button (also always in the DOM). Match the core store's
+        // cancel-vs-remove semantics: clicking X on an uploading file cancels
+        // the upload (no gate) and leaves the row in the list as 'cancelled';
+        // clicking X on anything else routes through removeFile with the
+        // confirm flag so `beforeFilesRemovedCallback` (if set) gets the
+        // chance to veto. Programmatic `removeFile(id)` callers are still
+        // un-gated by default.
         const removeBtn = target.closest<HTMLElement>('[data-action="remove"]');
         if (removeBtn) {
             const id = removeBtn.getAttribute('data-file-id');
-            if (id) this.store.removeFile(id);
+            if (!id) return;
+            const file = this.store.getFile(id);
+            if (!file) return;
+            if (file.status === 'uploading') {
+                this.store.cancelFile(id);
+            } else {
+                void this.store.removeFile(id, { confirm: true });
+            }
         }
     };
 

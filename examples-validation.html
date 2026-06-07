@@ -155,8 +155,9 @@ el.validateCallback = (file, existingFiles) => {
                 <web-dropzone
                     id="confirm-gate"
                     display-mode="detailed"
+                    auto-upload="false"
                     prompt-text="Drop a file (you'll get a confirm dialog)"
-                    hint-text="Add and remove both run native confirm()">
+                    hint-text="auto-upload is off so X always tests the remove gate (during upload the X cancels instead)">
                 </web-dropzone>
                 <div class="rejected-log" data-log-for="confirm-gate"></div>
             </div>
@@ -269,6 +270,8 @@ el.beforeFilesRemovedCallback = async (files, allFiles) =&gt; {
         // Async confirmation gates — confirm() blocks the await, simulating an
         // app-rendered modal. Cancel on add lands the file in files-rejected
         // with code='cancelled' (logged alongside other rejections above).
+        // The console.log lines let you verify in DevTools that the gate fires
+        // (and with what files) — useful when debugging consumer wiring.
         const gateEl = document.getElementById('confirm-gate')
         gateEl.beforeFilesAddedCallback = async (files) => {
             const names = files.map(f => f.name).join(', ')
