@@ -104,6 +104,8 @@ declare const __AUTHOR__: string;
 declare const __LICENSE__: string;
 declare const __REPOSITORY__: string;
 declare const __HOMEPAGE__: string;
+declare const __CORE_VERSION__: string;
+declare const __CORE_PACKAGE_NAME__: string;
 
 // Global API interface
 export interface GlobalDropzoneAPI {
@@ -115,6 +117,8 @@ export interface GlobalDropzoneAPI {
         license: string;
         repository: string;
         homepage: string;
+        /** Name + version of the underlying @keenmate/web-dropzone-core package. */
+        core: { name: string; version: string };
     };
     logging: {
         enableLogging: () => void;
@@ -156,7 +160,8 @@ if (typeof window !== 'undefined') {
             author: __AUTHOR__,
             license: __LICENSE__,
             repository: __REPOSITORY__,
-            homepage: __HOMEPAGE__
+            homepage: __HOMEPAGE__,
+            core: { name: __CORE_PACKAGE_NAME__, version: __CORE_VERSION__ }
         },
         logging: {
             enableLogging,

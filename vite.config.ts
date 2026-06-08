@@ -19,6 +19,9 @@ import { readFileSync } from 'fs';
 const rendererPkg = JSON.parse(
   readFileSync('./packages/web-dropzone/package.json', 'utf-8')
 );
+const corePkg = JSON.parse(
+  readFileSync('./packages/web-dropzone-core/package.json', 'utf-8')
+);
 
 export default defineConfig({
   define: {
@@ -27,7 +30,9 @@ export default defineConfig({
     '__AUTHOR__': JSON.stringify(rendererPkg.author ?? 'Keenmate'),
     '__LICENSE__': JSON.stringify(rendererPkg.license ?? 'MIT'),
     '__REPOSITORY__': JSON.stringify(rendererPkg.repository?.url ?? ''),
-    '__HOMEPAGE__': JSON.stringify(rendererPkg.homepage ?? '')
+    '__HOMEPAGE__': JSON.stringify(rendererPkg.homepage ?? ''),
+    '__CORE_VERSION__': JSON.stringify(corePkg.version),
+    '__CORE_PACKAGE_NAME__': JSON.stringify(corePkg.name)
   },
   resolve: {
     alias: {

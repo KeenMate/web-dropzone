@@ -40,13 +40,29 @@
             margin: 0 0 1rem 0;
         }
 
+        .version-badges {
+            display: inline-flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
         .version-badge {
-            display: inline-block;
-            background: rgba(255, 255, 255, 0.2);
+            display: inline-flex;
+            align-items: baseline;
+            gap: 0.35rem;
+            background: rgba(255, 255, 255, 0.18);
             padding: 0.35rem 0.85rem;
             border-radius: 8px;
-            font-size: 0.875rem;
+            font-size: 0.85rem;
             font-weight: 500;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+        }
+        .version-badge code {
+            background: transparent;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 0.8rem;
+        }
+        .version-badge strong {
+            font-weight: 600;
         }
 
         .section-heading {
@@ -148,7 +164,10 @@
         <header class="header-card">
             <h1>Web Dropzone</h1>
             <p class="subtitle">File upload web component with drag-drop, previews, validation, and multiple display modes</p>
-            <span class="version-badge">v1.0.0</span>
+            <div class="version-badges" id="version-badges">
+                <span class="version-badge"><code>@keenmate/web-dropzone</code> <strong id="renderer-version">…</strong></span>
+                <span class="version-badge"><code>@keenmate/web-dropzone-core</code> <strong id="core-version">…</strong></span>
+            </div>
         </header>
 
         <div class="card" style="background:white;border-radius:12px;padding:1.5rem 2rem;margin-bottom:2rem;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
@@ -303,6 +322,19 @@
         }
 
         renderSections()
+    </script>
+
+    <!-- Loads the dropzone module so window.components['web-dropzone'] is populated.
+         The landing page itself doesn't use any <web-dropzone> elements, but
+         importing the module here lets us read the two package versions from
+         the global API and render them in the header badges. -->
+    <script type="module">
+        import '/src/index.ts'
+        const api = window.components?.['web-dropzone']?.config
+        if (api) {
+            document.getElementById('renderer-version').textContent = 'v' + api.version
+            document.getElementById('core-version').textContent = 'v' + api.core.version
+        }
     </script>
 </body>
 </html>
