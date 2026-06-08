@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — list appearance</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 420px; }
+    </style>
+</head>
+<body>
+    <h1>list-appearance variants</h1>
+    <p>Targeted by <code>e2e/list.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">list (default)</div>
+        <web-dropzone id="list" list-appearance="list" accept="*/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">detailed</div>
+        <web-dropzone id="detailed" list-appearance="detailed" accept="*/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">grid</div>
+        <web-dropzone id="grid" list-appearance="grid" accept="image/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">badges</div>
+        <web-dropzone id="badges" list-appearance="badges" accept="*/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">popover (compact summary)</div>
+        <web-dropzone id="popover" list-appearance="popover" accept="*/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">none — caller renders the list</div>
+        <web-dropzone id="none" list-appearance="none" accept="*/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">max-visible-files="3" — caps rendered rows, exposes a "Show N more" toggle</div>
+        <web-dropzone id="capped" list-appearance="detailed" max-visible-files="3" accept="*/*" max-file-count="20"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">files-inside — list renders inside the card</div>
+        <web-dropzone id="inside" files-inside list-appearance="list" accept="*/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+        // Helpers exposed so specs can stage files via page.evaluate without
+        // having to construct File arrays one by one. `count` files,
+        // optional MIME (default text/plain) so we can drive image-only
+        // grid fixtures too.
+        window.__stage = (id, count, type = 'text/plain', baseName = 'f') => {
+            const dz = document.getElementById(id);
+            const files = [];
+            for (let i = 0; i < count; i++) {
+                const ext = type.startsWith('image/') ? '.png' : '.txt';
+                files.push(new File([new Uint8Array(16)], `${baseName}${i}${ext}`, { type }));
+            }
+            return dz.addFiles(files);
+        };
+    </script>
+</body>
+</html>

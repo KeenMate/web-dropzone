@@ -29,20 +29,26 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 
 ## 2. List appearance
 
-| Feature                                                       | Status | Spec | Fixture |
-| ------------------------------------------------------------- | :----: | ---- | ------- |
-| `list-appearance="list"` (default)                            | ✗      |      |         |
-| `list-appearance="detailed"`                                  | ✗      |      |         |
-| `list-appearance="grid"` (image thumbnails)                   | ✗      |      |         |
-| `list-appearance="badges"`                                    | ✗      |      |         |
-| `list-appearance="badges"` + `show-thumbnails`                | ✗      |      |         |
-| `list-appearance="popover"` summary + popover                 | ✗      |      |         |
-| `list-appearance="rolling"`                                   | ✗      |      |         |
-| `list-appearance="none"`                                      | ✗      |      |         |
-| `max-visible-files` "Show N more" toggle                      | ✗      |      |         |
-| `--dz-file-list-max-height` internal scroll                   | ✗      |      |         |
-| `files-inside` layout                                         | ✗      |      |         |
-| Legacy `display-mode` shorthand → orthogonal axes             | ✗      |      |         |
+| Feature                                                       | Status | Spec           | Fixture     |
+| ------------------------------------------------------------- | :----: | -------------- | ----------- |
+| `list-appearance="list"` (default)                            | ✓      | `list.spec.ts` | `list.html` |
+| `list-appearance="detailed"`                                  | ✓      | `list.spec.ts` | `list.html` |
+| `list-appearance="grid"` (image thumbnails)                   | ✓      | `list.spec.ts` | `list.html` |
+| `list-appearance="badges"`                                    | ✓      | `list.spec.ts` | `list.html` |
+| `list-appearance="badges"` + `show-thumbnails`                | ✗      |                |             |
+| `list-appearance="popover"` summary + popover                 | △      | `list.spec.ts` | `list.html` |
+| `list-appearance="rolling"`                                   | ✗      |                |             |
+| `list-appearance="none"`                                      | ✓      | `list.spec.ts` | `list.html` |
+| `max-visible-files` "Show N more" toggle (in-class renderer)  | △      | `list.spec.ts` | `list.html` |
+| `max-visible-files` cap **in satellite renderer** — GAP       | ✗      |                |             |
+| `--dz-file-list-max-height` internal scroll                   | ✗      |                |             |
+| `files-inside` layout                                         | ✓      | `list.spec.ts` | `list.html` |
+| Legacy `display-mode` shorthand → orthogonal axes             | ✗      |                |             |
+
+> **Known gap:** `<web-dropzone-list>` (satellite) doesn't honor `max-visible-files`.
+> The cap is implemented in `dropzone.ts` (in-class renderer); the satellite
+> renders the full list regardless. Two tests in `list.spec.ts` are marked
+> `.fixme()` until the satellite reads the cap from store config.
 
 ## 3. Validation
 
@@ -74,11 +80,16 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 | `file-row-update` on element-returning row callbacks          | ✗      |                  |                |
 | `overlay-enter` / `overlay-leave` during drag                 | ✗      |                  |                |
 | `el.target.files` snapshot in sync at dispatch                | ✓      | `events.spec.ts` | `events.html` |
-| Public methods: `addFiles`, `removeFile`, `clear`             | ✓      | `events.spec.ts` | `events.html` |
-| Public methods: `pauseFile`, `resumeFile`, `retryFile`, `cancelFile` | ✗ |                  |                |
-| Public methods: `pauseAll`, `resumeAll`, `retryAll`           | ✗      |                  |                |
-| `getOverallProgress()` aggregate                              | ✗      |                  |                |
-| `getStore()` returns DropzoneStoreAPI                         | ✗      |                  |                |
+| Public methods: `addFiles`, `removeFile`, `clear`             | ✓      | `api.spec.ts`    | `api.html`    |
+| Public method: `getFile(id)` / `getFile(missing)`             | ✓      | `api.spec.ts`    | `api.html`    |
+| Public methods: `pauseFile` / `cancelFile`                    | ✓      | `api.spec.ts`    | `api.html`    |
+| Public methods: `resumeFile`, `retryFile`, `pauseAll`, `resumeAll`, `retryAll` | ✗ |                  |                |
+| `uploadAll` returns + drives worker pool                      | ✓      | `api.spec.ts`    | `api.html`    |
+| `getStore().getFiles()` returns mutable copy                  | ✓      | `api.spec.ts`    | `api.html`    |
+| `getStore().getConfig()` returns merged config                | ✓      | `api.spec.ts`    | `api.html`    |
+| `getStore().getOverallProgress()` aggregate                   | ✓      | `api.spec.ts`    | `api.html`    |
+| `getStore()` returns DropzoneStoreAPI (method signatures)     | ✓      | `api.spec.ts`    | `api.html`    |
+| `.files` getter on host element                               | ✓      | `api.spec.ts`    | `api.html`    |
 
 ## 5. Upload pipeline
 
@@ -129,11 +140,13 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 
 ## 9. Form integration
 
-| Feature                                                       | Status | Spec | Fixture |
-| ------------------------------------------------------------- | :----: | ---- | ------- |
-| `name` attribute submits real `File` blobs in FormData        | ✗      |      |         |
-| `form.reset()` clears selection (formResetCallback)           | ✗      |      |         |
-| `min-file-count` blocks form submit via setValidity           | ✗      |      |         |
+| Feature                                                       | Status | Spec           | Fixture     |
+| ------------------------------------------------------------- | :----: | -------------- | ----------- |
+| `name` attribute submits real `File` blobs in FormData        | ✓      | `form.spec.ts` | `form.html` |
+| Zero-files → no FormData entry under the configured name      | ✓      | `form.spec.ts` | `form.html` |
+| `form.reset()` clears selection (formResetCallback)           | ✓      | `form.spec.ts` | `form.html` |
+| Unnamed dropzone → no FormData entry at all                   | ✓      | `form.spec.ts` | `form.html` |
+| `min-file-count` blocks form submit via setValidity           | ✗      |                |             |
 
 ## 10. Theming
 

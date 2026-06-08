@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — programmatic API</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 420px; }
+    </style>
+</head>
+<body>
+    <h1>programmatic API surface</h1>
+    <p>Targeted by <code>e2e/api.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">vanilla — addFiles / removeFile / clear / getFiles / getFile</div>
+        <web-dropzone id="api" accept="*/*" max-file-count="10" display-mode="detailed"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">with uploadFileCallback (synth) — getOverallProgress, pause/resume/cancel/retry</div>
+        <web-dropzone id="upload" accept="*/*" max-file-count="10" display-mode="detailed" auto-upload="false"></web-dropzone>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        // Synthetic upload handler controlled by window-level promise
+        // pumps so specs can step the upload state machine deterministically.
+        // Each pending upload sits on a deferred Promise that the spec
+        // resolves / rejects via window.__resolveUpload(id, 'ok'|'fail').
+        const pending = new Map(); // id -> { resolve, reject, signal }
+        window.__pending = pending;
+        window.__resolveUpload = (id, outcome = 'ok') => {
+            const entry = pending.get(id);
+            if (!entry) throw new Error(`No pending upload for ${id}`);
+            pending.delete(id);
+            if (outcome === 'ok') entry.resolve();
+            else entry.reject(new Error('simulated'));
+        };
+        window.__progress = (id, pct) => {
+            const entry = pending.get(id);
+            if (!entry) throw new Error(`No pending upload for ${id}`);
+            entry.onProgress(pct);
+        };
+
+        customElements.whenDefined('web-dropzone').then(() => {
+            const dz = document.getElementById('upload');
+            dz.uploadFileCallback = (file, onProgress, signal) => {
+                return new Promise((resolve, reject) => {
+                    // Track by FileState id so specs can target by index.
+                    const id = file.name;
+                    pending.set(id, { resolve, reject, onProgress, signal });
+                    signal?.addEventListener('abort', () => {
+                        pending.delete(id);
+                        reject(new DOMException('Aborted', 'AbortError'));
+                    });
+                });
+            };
+        });
+
+        window.__addNamed = (id, names) => {
+            const dz = document.getElementById(id);
+            const files = names.map(n => new File([new Uint8Array(16)], n, { type: 'text/plain' }));
+            return dz.addFiles(files);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — form integration</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 420px; }
+        form { display: grid; gap: 8px; max-width: 420px; }
+        button { width: fit-content; }
+    </style>
+</head>
+<body>
+    <h1>form integration</h1>
+    <p>Targeted by <code>e2e/form.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">named dropzone in a real &lt;form&gt; (formAssociated)</div>
+        <form id="named-form">
+            <input type="text" name="title" value="quarterly" id="title">
+            <web-dropzone id="named" name="attachments" accept="*/*" max-file-count="10" display-mode="detailed"></web-dropzone>
+            <button type="submit" id="submit-named">Submit</button>
+            <button type="reset" id="reset-named">Reset</button>
+        </form>
+        <div class="event-log" id="named-log"></div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">unnamed dropzone — should not appear in FormData</div>
+        <form id="unnamed-form">
+            <input type="text" name="title" value="anon">
+            <web-dropzone id="unnamed" accept="*/*" max-file-count="10"></web-dropzone>
+            <button type="submit" id="submit-unnamed">Submit</button>
+        </form>
+        <div class="event-log" id="unnamed-log"></div>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        // Intercept submit and dump FormData into the log as `key:filename` lines
+        // for each File entry, or `key:value` for plain strings. Specs assert
+        // textContent. Using newline separators keeps assertions explicit.
+        function wire(formId, logId) {
+            const form = document.getElementById(formId);
+            const log = document.getElementById(logId);
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const fd = new FormData(form);
+                const lines = [];
+                for (const [k, v] of fd.entries()) {
+                    if (v instanceof File) lines.push(`${k}:${v.name}:${v.size}`);
+                    else lines.push(`${k}:${v}`);
+                }
+                log.textContent = lines.join('\n');
+            });
+        }
+        wire('named-form', 'named-log');
+        wire('unnamed-form', 'unnamed-log');
+
+        window.__stage = (id, names) => {
+            const dz = document.getElementById(id);
+            const files = names.map(n => new File([new Uint8Array(8)], n, { type: 'text/plain' }));
+            return dz.addFiles(files);
+        };
+    </script>
+</body>
+</html>
