@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — card-size + display-mode shorthand</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 360px; }
+    </style>
+</head>
+<body>
+    <h1>card-size variants + display-mode shorthand</h1>
+    <p>Targeted by <code>e2e/appearance.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">card-size="minimal"</div>
+        <web-dropzone id="card-mini" selector-appearance="card" card-size="minimal" accept="*/*"></web-dropzone>
+    </div>
+    <div class="fixture">
+        <div class="fixture-label">card-size="compact" (default)</div>
+        <web-dropzone id="card-compact" selector-appearance="card" card-size="compact" accept="*/*"></web-dropzone>
+    </div>
+    <div class="fixture">
+        <div class="fixture-label">card-size="big" (browse button visible)</div>
+        <web-dropzone id="card-big" selector-appearance="card" card-size="big" accept="*/*" select-files-text="Browse"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">display-mode="list" — card + list shorthand</div>
+        <web-dropzone id="dm-list" display-mode="list" accept="*/*"></web-dropzone>
+    </div>
+    <div class="fixture">
+        <div class="fixture-label">display-mode="detailed" — card + detailed</div>
+        <web-dropzone id="dm-detailed" display-mode="detailed" accept="*/*"></web-dropzone>
+    </div>
+    <div class="fixture">
+        <div class="fixture-label">display-mode="grid" — card + grid</div>
+        <web-dropzone id="dm-grid" display-mode="grid" accept="image/*"></web-dropzone>
+    </div>
+    <div class="fixture">
+        <div class="fixture-label">display-mode="compact" — card + popover</div>
+        <web-dropzone id="dm-compact" display-mode="compact" accept="*/*"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">orthogonal attr overrides display-mode shorthand</div>
+        <web-dropzone id="override" display-mode="grid" list-appearance="badges" accept="*/*"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">button + count badge after add</div>
+        <web-dropzone id="button-badge" selector-appearance="button" accept="*/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        window.__addNamed = (id, names) => {
+            const dz = document.getElementById(id);
+            const files = names.map(n => new File([new Uint8Array(8)], n, { type: 'text/plain' }));
+            return dz.addFiles(files);
+        };
+    </script>
+</body>
+</html>

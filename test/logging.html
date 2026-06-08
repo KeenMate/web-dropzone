@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — global API + logging</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 360px; }
+    </style>
+</head>
+<body>
+    <h1>global API + logging</h1>
+    <p>Targeted by <code>e2e/logging.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">window.components['web-dropzone'] populated by module load</div>
+        <web-dropzone id="any" accept="*/*"></web-dropzone>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+    </script>
+</body>
+</html>

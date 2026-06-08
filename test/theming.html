@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — theming</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 360px; }
+
+        /* Scale: 8px vs 10px (default) vs 14px */
+        #scaled-small  { --dz-rem: 8px;  }
+        #scaled-default {}
+        #scaled-big    { --dz-rem: 14px; }
+
+        /* Per-variable override */
+        #dz-override {
+            --dz-dropzone-padding: 48px;
+            --dz-dropzone-icon-size: 64px;
+        }
+
+        /* --base-* integration */
+        #base-themed {
+            --base-accent-color: rgb(20, 184, 166);
+            --base-text-color-1: rgb(15, 23, 42);
+            --base-border-color: rgb(125, 211, 252);
+            --base-input-background: rgb(240, 253, 250);
+        }
+
+        /* Disabled state */
+        #disabled-dz {}
+
+        /* RTL */
+        [dir="rtl"] web-dropzone { font-family: system-ui; }
+    </style>
+</head>
+<body>
+    <h1>CSS variable theming</h1>
+    <p>Targeted by <code>e2e/theming.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">--dz-rem scaling (8 / 10 / 14 px)</div>
+        <web-dropzone id="scaled-small" accept="*/*" display-mode="list"></web-dropzone>
+        <web-dropzone id="scaled-default" accept="*/*" display-mode="list"></web-dropzone>
+        <web-dropzone id="scaled-big" accept="*/*" display-mode="list"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">individual --dz-* override (padding + icon size)</div>
+        <web-dropzone id="dz-override" accept="*/*" display-mode="list"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">--base-* integration (accent, text, border, background)</div>
+        <web-dropzone id="base-themed" accept="*/*" display-mode="list"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">disabled state (pointer-events blocked + visual dim)</div>
+        <web-dropzone id="disabled-dz" disabled accept="*/*" display-mode="list"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">RTL — dir="rtl" on the host flips the layout</div>
+        <div dir="rtl">
+            <web-dropzone id="rtl-dz" accept="*/*" display-mode="detailed"></web-dropzone>
+        </div>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        // Expose a helper to read the computed value of a CSS variable on
+        // the host element — specs assert these directly rather than poking
+        // at internal shadow DOM rules.
+        window.__cssvar = (id, name) => {
+            const el = document.getElementById(id);
+            return getComputedStyle(el).getPropertyValue(name).trim();
+        };
+        // Resolve an internal computed style by stepping into the shadow
+        // root to read whatever `target` selector resolves to. Returns the
+        // matched value of the requested computed-style property.
+        window.__shadowStyle = (id, selector, prop) => {
+            const host = document.getElementById(id);
+            const node = host.shadowRoot?.querySelector(selector);
+            if (!node) return null;
+            return getComputedStyle(node).getPropertyValue(prop);
+        };
+    </script>
+</body>
+</html>

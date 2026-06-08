@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — additional validation rules</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 420px; }
+        form { display: grid; gap: 8px; max-width: 420px; margin-top: 8px; }
+        button { width: fit-content; }
+    </style>
+</head>
+<body>
+    <h1>min-file-size / max-total-size / min-file-count / dedupe</h1>
+    <p>Targeted by <code>e2e/validation-rules.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">min-file-size="1024" — sub-1KB files rejected</div>
+        <web-dropzone id="min-size" min-file-size="1024" accept="*/*" display-mode="detailed"></web-dropzone>
+        <div class="event-log" id="min-size-log"></div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">max-total-size="2048" — aggregate cap across batch</div>
+        <web-dropzone id="max-total" max-total-size="2048" accept="*/*" display-mode="detailed"></web-dropzone>
+        <div class="event-log" id="max-total-log"></div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">min-file-count="2" — form submit blocked until 2+ files via setValidity</div>
+        <form id="min-count-form">
+            <web-dropzone id="min-count" name="docs" min-file-count="2" max-file-count="10" accept="*/*" display-mode="detailed"></web-dropzone>
+            <button type="submit">Submit</button>
+        </form>
+        <div class="event-log" id="min-count-log"></div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">dedupe-mode="name" (default) — same filename rejected as duplicate</div>
+        <web-dropzone id="dedupe-name" accept="*/*" display-mode="detailed"></web-dropzone>
+        <div class="event-log" id="dedupe-name-log"></div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">dedupe-mode="none" — duplicates allowed</div>
+        <web-dropzone id="dedupe-none" dedupe-mode="none" accept="*/*" display-mode="detailed"></web-dropzone>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        // Each rejection lands one line in the matching log.
+        const wireLog = (id) => {
+            const dz = document.getElementById(id);
+            const log = document.getElementById(`${id}-log`);
+            if (!log) return;
+            dz.addEventListener('files-rejected', (e) => {
+                for (const r of e.detail.rejectedFiles) {
+                    log.textContent += `${r.validation.code} ${r.file.name}\n`;
+                }
+            });
+        };
+        ['min-size', 'max-total', 'min-count', 'dedupe-name'].forEach(wireLog);
+
+        // Track submit attempts on the min-count form
+        document.getElementById('min-count-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const log = document.getElementById('min-count-log');
+            log.textContent += 'submitted\n';
+        });
+
+        window.__stage = (id, specs) => {
+            const dz = document.getElementById(id);
+            const files = specs.map(s => {
+                const bytes = new Uint8Array(s.size);
+                return new File([bytes], s.name, { type: s.type || 'application/octet-stream' });
+            });
+            return dz.addFiles(files);
+        };
+    </script>
+</body>
+</html>

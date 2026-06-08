@@ -43,7 +43,8 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 | `max-visible-files` cap **in satellite renderer** — GAP       | ✗      |                |             |
 | `--dz-file-list-max-height` internal scroll                   | ✗      |                |             |
 | `files-inside` layout                                         | ✓      | `list.spec.ts` | `list.html` |
-| Legacy `display-mode` shorthand → orthogonal axes             | ✗      |                |             |
+| Legacy `display-mode` shorthand → orthogonal axes             | ✓      | `appearance.spec.ts` | `appearance.html`  |
+| Orthogonal attr overrides `display-mode` shorthand            | ✓      | `appearance.spec.ts` | `appearance.html`  |
 
 > **Known gap:** `<web-dropzone-list>` (satellite) doesn't honor `max-visible-files`.
 > The cap is implemented in `dropzone.ts` (in-class renderer); the satellite
@@ -55,13 +56,14 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 | Feature                                                       | Status | Spec                 | Fixture            |
 | ------------------------------------------------------------- | :----: | -------------------- | ------------------ |
 | `max-file-size` rejects with code="size"                      | ✓      | `validation.spec.ts` | `validation.html`  |
-| `min-file-size` rejects sub-threshold files                   | ✗      |                      |                    |
-| `max-total-size` aggregate cap                                | ✗      |                      |                    |
+| `min-file-size` rejects sub-threshold files                   | ✓      | `validation-rules.spec.ts` | `validation-rules.html` |
+| `max-total-size` aggregate cap                                | ✓      | `validation-rules.spec.ts` | `validation-rules.html` |
 | `max-file-count` rejects with code="count"                    | ✓      | `validation.spec.ts` | `validation.html`  |
-| `min-file-count` form-validity gate                           | ✗      |                      |                    |
+| `min-file-count` form-validity gate (setValidity)             | ✓      | `validation-rules.spec.ts` | `validation-rules.html` |
 | `accept` MIME / extension filter (code="type")                | ✓      | `validation.spec.ts` | `validation.html`  |
 | `validateCallback` (custom sync rule)                         | ✓      | `validation.spec.ts` | `validation.html`  |
-| Duplicate detection (`dedupe-mode`)                           | ✗      |                      |                    |
+| Duplicate detection — `dedupe-mode="name"` (default)          | ✓      | `validation-rules.spec.ts` | `validation-rules.html` |
+| `dedupe-mode="none"` allows duplicates                        | ✓      | `validation-rules.spec.ts` | `validation-rules.html` |
 | `beforeFilesAddedCallback` async gate (accept)                | ✓      | `gates.spec.ts`      | `gates.html`       |
 | `beforeFilesAddedCallback` async gate (cancel, code='cancelled') | ✓   | `gates.spec.ts`      | `gates.html`       |
 | `beforeFilesAddedCallback` receives (files, existingFiles)    | ✓      | `gates.spec.ts`      | `gates.html`       |
@@ -167,18 +169,30 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 
 ## 10. Theming
 
-| Feature                                                       | Status | Spec | Fixture |
-| ------------------------------------------------------------- | :----: | ---- | ------- |
-| `--dz-rem` scales every dimension                             | ✗      |      |         |
-| Individual `--dz-*` override                                  | ✗      |      |         |
-| `--base-*` integration with sibling KM components             | ✗      |      |         |
-| Disabled state styling + pointer-events block                 | ✗      |      |         |
-| RTL (`dir="rtl"`) flips layout                                | ✗      |      |         |
+| Feature                                                       | Status | Spec              | Fixture        |
+| ------------------------------------------------------------- | :----: | ----------------- | -------------- |
+| `--dz-rem` value lands on the host element                    | ✓      | `theming.spec.ts` | `theming.html` |
+| `--dz-rem` propagates through satellite shadow — GAP          | ✗      |                   |                |
+| Individual `--dz-*` override on the host                      | ✓      | `theming.spec.ts` | `theming.html` |
+| `--base-*` integration variables readable on the host         | ✓      | `theming.spec.ts` | `theming.html` |
+| Disabled host carries `dz__dropzone--disabled` modifier       | ✓      | `theming.spec.ts` | `theming.html` |
+| Disabled host still accepts programmatic addFiles             | ✓      | `theming.spec.ts` | `theming.html` |
+| RTL (`dir="rtl"`) on parent inherits to the host              | ✓      | `theming.spec.ts` | `theming.html` |
+
+> **Known gap:** The picker satellite's own CSS sets `:host { --dz-rem: 10px }`
+> in its shadow root, which masks any value set on the parent `<web-dropzone>`
+> host element. Theming via `--dz-rem` only takes effect when set at a scope
+> ABOVE the satellite (body, a wrapper div). One test marked `.fixme()` until
+> the satellite reads `--dz-rem` from the parent properly (or stops re-defining
+> it).
 
 ## 11. Logging
 
-| Feature                                                       | Status | Spec | Fixture |
-| ------------------------------------------------------------- | :----: | ---- | ------- |
-| Global API `window.components['web-dropzone']` exists         | ✗      |      |         |
-| `setLogLevel` switches category output                        | ✗      |      |         |
-| Core + renderer version exposed on `.config.core`             | ✗      |      |         |
+| Feature                                                       | Status | Spec              | Fixture        |
+| ------------------------------------------------------------- | :----: | ----------------- | -------------- |
+| Global API `window.components['web-dropzone']` exists         | ✓      | `logging.spec.ts` | `logging.html` |
+| `config.name` / `config.version` from package.json            | ✓      | `logging.spec.ts` | `logging.html` |
+| `config.core.{name, version}` exposes both packages           | ✓      | `logging.spec.ts` | `logging.html` |
+| `version()` matches `config.version`                          | ✓      | `logging.spec.ts` | `logging.html` |
+| `getInstances()` returns mounted host elements                | ✓      | `logging.spec.ts` | `logging.html` |
+| `logging.setLogLevel / setCategoryLevel / getCategories`      | ✓      | `logging.spec.ts` | `logging.html` |
