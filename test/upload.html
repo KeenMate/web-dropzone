@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — upload pipeline</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 420px; }
+    </style>
+</head>
+<body>
+    <h1>upload pipeline</h1>
+    <p>Targeted by <code>e2e/upload.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">auto-upload (default true)</div>
+        <web-dropzone id="auto" accept="*/*" max-file-count="10" display-mode="detailed"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">auto-upload="false" — handler doesn't run until uploadAll()</div>
+        <web-dropzone id="manual" accept="*/*" max-file-count="10" display-mode="detailed" auto-upload="false"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">concurrency="2" — only 2 workers active at a time</div>
+        <web-dropzone id="conc" accept="*/*" max-file-count="10" display-mode="detailed" concurrency="2"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">progress + status events</div>
+        <web-dropzone id="events" accept="*/*" max-file-count="10" display-mode="detailed"></web-dropzone>
+        <div class="event-log" id="events-log"></div>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        // Synthetic pump shared across every fixture's handler. Specs
+        // resolve / fail / progress per file name. The handler keys on
+        // file.name so specs target predictable IDs.
+        const pending = new Map(); // name -> { resolve, reject, onProgress, signal }
+        window.__pending = pending;
+        window.__pendingCount = () => pending.size;
+        window.__pendingNames = () => Array.from(pending.keys());
+
+        window.__resolve = (name, outcome = 'ok') => {
+            const e = pending.get(name);
+            if (!e) throw new Error(`No pending: ${name}`);
+            pending.delete(name);
+            if (outcome === 'ok') e.resolve();
+            else e.reject(new Error('simulated'));
+        };
+        window.__progress = (name, pct) => {
+            const e = pending.get(name);
+            if (!e) throw new Error(`No pending: ${name}`);
+            e.onProgress(pct);
+        };
+
+        function handler(file, onProgress, signal) {
+            return new Promise((resolve, reject) => {
+                pending.set(file.name, { resolve, reject, onProgress, signal });
+                signal?.addEventListener('abort', () => {
+                    pending.delete(file.name);
+                    reject(new DOMException('Aborted', 'AbortError'));
+                });
+            });
+        }
+
+        customElements.whenDefined('web-dropzone').then(() => {
+            for (const id of ['auto', 'manual', 'conc', 'events']) {
+                document.getElementById(id).uploadFileCallback = handler;
+            }
+
+            // Wire the events fixture to record progress + status-change
+            // dispatches into the log so the spec can assert on order.
+            const dz = document.getElementById('events');
+            const log = document.getElementById('events-log');
+            dz.addEventListener('file-progress', (e) => {
+                log.textContent += `progress ${e.detail.file.name}=${Math.round(e.detail.file.progress)}\n`;
+            });
+            dz.addEventListener('file-status-changed', (e) => {
+                log.textContent += `status ${e.detail.file.name}=${e.detail.file.status}\n`;
+            });
+        });
+
+        window.__addNamed = (id, names) => {
+            const dz = document.getElementById(id);
+            const files = names.map(n => new File([new Uint8Array(64)], n, { type: 'text/plain' }));
+            return dz.addFiles(files);
+        };
+    </script>
+</body>
+</html>

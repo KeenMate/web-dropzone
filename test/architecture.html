@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — architecture (satellites + headless)</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 420px; }
+        web-dropzone-picker { display: block; max-width: 420px; }
+        .row { display: flex; gap: 16px; align-items: flex-start; }
+        .row > * { flex: 1; min-width: 0; }
+    </style>
+</head>
+<body>
+    <h1>store + satellites + headless</h1>
+    <p>Targeted by <code>e2e/architecture.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">headless store + standalone satellites bound via <code>for=</code></div>
+        <web-dropzone id="store-headless" mode="headless" accept="*/*" max-file-count="10"></web-dropzone>
+        <div class="row">
+            <web-dropzone-picker for="store-headless" selector-appearance="card"></web-dropzone-picker>
+            <web-dropzone-list for="store-headless" list-appearance="detailed"></web-dropzone-list>
+        </div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">two independent stores on one page — each picker only routes to its own</div>
+        <web-dropzone id="store-a" mode="headless" accept="*/*" max-file-count="10"></web-dropzone>
+        <web-dropzone id="store-b" mode="headless" accept="*/*" max-file-count="10"></web-dropzone>
+        <div class="row">
+            <web-dropzone-picker for="store-a" selector-appearance="button"></web-dropzone-picker>
+            <web-dropzone-picker for="store-b" selector-appearance="button"></web-dropzone-picker>
+        </div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">shared store + two pickers (Mode A) — both contribute to one queue</div>
+        <web-dropzone id="shared" mode="headless" accept="*/*" max-file-count="20"></web-dropzone>
+        <div class="row">
+            <web-dropzone-picker for="shared" selector-appearance="button"></web-dropzone-picker>
+            <web-dropzone-picker for="shared" selector-appearance="button"></web-dropzone-picker>
+        </div>
+        <web-dropzone-list for="shared" list-appearance="list"></web-dropzone-list>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        // Helper: programmatically push a file into a store. Specs call
+        // through the bound satellite OR directly on the store, depending
+        // on what's being verified.
+        window.__addNamed = (storeId, names) => {
+            const dz = document.getElementById(storeId);
+            const files = names.map(n => new File([new Uint8Array(8)], n, { type: 'text/plain' }));
+            return dz.addFiles(files);
+        };
+
+        // Probe helper: does a satellite have its store bound?
+        window.__satelliteHasStore = (sel) => {
+            const el = document.querySelector(sel);
+            return !!el?.getStore?.();
+        };
+    </script>
+</body>
+</html>

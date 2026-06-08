@@ -93,18 +93,24 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 
 ## 5. Upload pipeline
 
-| Feature                                                       | Status | Spec | Fixture |
-| ------------------------------------------------------------- | :----: | ---- | ------- |
-| `uploadFileCallback` runs on auto-upload                      | ✗      |      |         |
-| `auto-upload="false"` keeps files pending                     | ✗      |      |         |
-| `concurrency` cap holds N workers active                      | ✗      |      |         |
-| Resume from `context.startBytes` after pause                  | ✗      |      |         |
-| Retry from error preserves progress                           | ✗      |      |         |
-| Per-file pause / resume / cancel via X button                 | ✗      |      |         |
-| `progress-throttle` caps emission rate                        | ✗      |      |         |
-| `reorder-completed` reflows completed rows                    | ✗      |      |         |
-| `progress-mode="pessimistic"` keeps bar from snapping back    | ✗      |      |         |
-| Resume-aware progress on `file-progress`                      | ✗      |      |         |
+| Feature                                                       | Status | Spec             | Fixture       |
+| ------------------------------------------------------------- | :----: | ---------------- | ------------- |
+| `uploadFileCallback` runs on auto-upload                      | ✓      | `upload.spec.ts` | `upload.html` |
+| `auto-upload="false"` keeps files pending                     | ✓      | `upload.spec.ts` | `upload.html` |
+| `uploadAll()` starts queued files after auto-upload=false     | ✓      | `upload.spec.ts` | `upload.html` |
+| Handler resolves → status flips to `complete`                 | ✓      | `upload.spec.ts` | `upload.html` |
+| Handler rejects → status flips to `error`                     | ✓      | `upload.spec.ts` | `upload.html` |
+| `concurrency` cap holds N workers active                      | ✓      | `upload.spec.ts` | `upload.html` |
+| Worker slot rotates on completion                             | ✓      | `upload.spec.ts` | `upload.html` |
+| `file-progress` event fires per onProgress() pump             | ✓      | `upload.spec.ts` | `upload.html` |
+| `file-status-changed` event fires per status transition       | ✓      | `upload.spec.ts` | `upload.html` |
+| Resume from `context.startBytes` after pause                  | ✗      |                  |                |
+| Retry from error preserves progress                           | ✗      |                  |                |
+| Per-file pause / resume / cancel via X button                 | ✗      |                  |                |
+| `progress-throttle` caps emission rate                        | ✗      |                  |                |
+| `reorder-completed` reflows completed rows                    | ✗      |                  |                |
+| `progress-mode="pessimistic"` keeps bar from snapping back    | ✗      |                  |                |
+| Resume-aware progress on `file-progress`                      | ✗      |                  |                |
 
 ## 6. Structural mode (`mode="structural"`)
 
@@ -119,16 +125,17 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 
 ## 7. Architecture (satellites + headless)
 
-| Feature                                                       | Status | Spec | Fixture |
-| ------------------------------------------------------------- | :----: | ---- | ------- |
-| `<web-dropzone-picker for=>` binds to store                   | ✗      |      |         |
-| `<web-dropzone-list for=>` binds to store                     | ✗      |      |         |
-| `<web-dropzone-indicator for=>` binds to store                | ✗      |      |         |
-| `<web-dropzone-progress for=>` binds to store                 | ✗      |      |         |
-| `mode="headless"` skips internal rendering                    | ✗      |      |         |
-| `mode="headless"` still fires every event                     | ✗      |      |         |
-| Multiple pickers contribute to one store (Mode B routing)     | ✗      |      |         |
-| Multiple independent stores on one page (Mode A)              | ✗      |      |         |
+| Feature                                                       | Status | Spec                   | Fixture             |
+| ------------------------------------------------------------- | :----: | ---------------------- | ------------------- |
+| `<web-dropzone-picker for=>` binds to store                   | ✓      | `architecture.spec.ts` | `architecture.html` |
+| `<web-dropzone-list for=>` binds to store                     | ✓      | `architecture.spec.ts` | `architecture.html` |
+| `<web-dropzone-list>` reflects programmatic adds              | ✓      | `architecture.spec.ts` | `architecture.html` |
+| `<web-dropzone-indicator for=>` binds to store                | ✗      |                        |                     |
+| `<web-dropzone-progress for=>` binds to store                 | ✗      |                        |                     |
+| `mode="headless"` skips internal rendering                    | ✓      | `architecture.spec.ts` | `architecture.html` |
+| `mode="headless"` still fires every event                     | ✓      | `architecture.spec.ts` | `architecture.html` |
+| Multiple pickers contribute to one store (Mode A: shared)     | ✓      | `architecture.spec.ts` | `architecture.html` |
+| Multiple independent stores on one page                       | ✓      | `architecture.spec.ts` | `architecture.html` |
 
 ## 8. Drag overlay
 
