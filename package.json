@@ -13,7 +13,11 @@
     "build:core": "npm run build -w @keenmate/web-dropzone-core",
     "build:renderer": "npm run build -w @keenmate/web-dropzone",
     "clean": "npm run clean -ws --if-present && rimraf node_modules/.vite",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:install": "playwright install chromium"
   },
   "author": "Keenmate",
   "license": "MIT",
@@ -26,6 +30,7 @@
     "url": "https://github.com/keenmate/web-dropzone/issues"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "rimraf": "^5.0.5",
     "typescript": "^5.3.3",
     "vite": "^5.0.8"

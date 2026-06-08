@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — selector appearance</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 360px; }
+    </style>
+</head>
+<body>
+    <h1>selector-appearance variants</h1>
+    <p>Targeted by <code>e2e/display.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">card (default)</div>
+        <web-dropzone id="card" selector-appearance="card" list-appearance="list" accept="*/*"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">button</div>
+        <web-dropzone id="button" selector-appearance="button" list-appearance="list" accept="*/*" select-files-text="Pick files"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">minimal</div>
+        <web-dropzone id="minimal" selector-appearance="minimal" list-appearance="list" accept="*/*" icon="📎"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">native (button + plain label, like &lt;input type="file"&gt;)</div>
+        <web-dropzone id="native" selector-appearance="native" list-appearance="none" accept="*/*" select-files-text="Choose Files"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">native + custom no-file-chosen-text</div>
+        <web-dropzone id="native-i18n" selector-appearance="native" list-appearance="none" accept="*/*" select-files-text="Vybrat soubory" no-file-chosen-text="Žádný soubor"></web-dropzone>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+    </script>
+</body>
+</html>

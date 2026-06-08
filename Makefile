@@ -1,4 +1,4 @@
-.PHONY: help setup dev build build-core build-renderer package publish publish-dry clean clean-dist test lint preview check-version update-deps install-dev
+.PHONY: help setup dev build build-core build-renderer package publish publish-dry clean clean-dist test test-e2e test-e2e-ui test-e2e-headed test-e2e-install lint preview check-version update-deps install-dev
 
 help: ## Show this help message
 	@echo "Available targets:"
@@ -75,9 +75,19 @@ lint: ## Run linter (if configured)
 	@echo "Linting is not configured yet"
 	@echo "Consider adding ESLint in the future"
 
-test: ## Run tests (if configured)
-	@echo "Tests are not configured yet"
-	@echo "Consider adding tests in the future"
+test: test-e2e ## Run all tests (currently just e2e)
+
+test-e2e: ## Run Playwright e2e tests (headless)
+	npm run test:e2e
+
+test-e2e-ui: ## Run Playwright e2e tests in UI mode
+	npm run test:e2e:ui
+
+test-e2e-headed: ## Run Playwright e2e tests headed (watch the browser)
+	npm run test:e2e:headed
+
+test-e2e-install: ## Install chromium browser binary (one-time)
+	npm run test:e2e:install
 
 check-version: ## Show current package versions
 	@echo "@keenmate/web-dropzone-core:"

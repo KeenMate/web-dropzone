@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — events</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 400px; }
+    </style>
+</head>
+<body>
+    <h1>event contract</h1>
+    <p>Targeted by <code>e2e/events.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">programmatic add → file-added + change + files-changed</div>
+        <web-dropzone id="events" accept="*/*" display-mode="detailed"></web-dropzone>
+        <button id="add-one" type="button">addFiles(one)</button>
+        <button id="add-two" type="button">addFiles(two)</button>
+        <button id="remove-first" type="button">removeFile(first)</button>
+        <button id="clear-all" type="button">clear()</button>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        // Specs read window.__events for assertion. Each entry is the event
+        // detail (or a snapshot) at the moment of dispatch — keeping it
+        // serializable so page.evaluate() can hand it back cleanly.
+        window.__events = {
+            'file-added': [],
+            'file-removed': [],
+            'files-rejected': [],
+            'change': [],
+            'files-changed': [],
+            'file-updated': []
+        };
+
+        const dz = document.getElementById('events');
+
+        for (const type of Object.keys(window.__events)) {
+            dz.addEventListener(type, (e) => {
+                const entry = {
+                    target: e.target?.tagName,
+                    detail: serialize(e.detail),
+                    snapshotCount: dz.files.length
+                };
+                window.__events[type].push(entry);
+            });
+        }
+
+        function serialize(d) {
+            // Detail can contain non-cloneable things (File objects), so we
+            // flatten what specs need to read. Per the 1.0 event contract,
+            // `change` carries an empty detail — when CustomEvent is built
+            // without a detail it actually arrives as null, but specs assert
+            // {} for that case, so we treat null/undefined as the empty
+            // object explicitly.
+            if (d == null) return {};
+            const out = {};
+            for (const [k, v] of Object.entries(d)) {
+                // FileState looks like { id, file, name, size, status, ... } —
+                // flatten to { name, size } so the test can assert directly
+                // on detail.file.name without an extra .file hop.
+                if (v && typeof v === 'object' && !Array.isArray(v)
+                    && 'id' in v && 'name' in v && 'size' in v) {
+                    out[k] = { name: v.name, size: v.size };
+                } else if (Array.isArray(v)) {
+                    out[k] = v.length;
+                } else {
+                    out[k] = v;
+                }
+            }
+            return out;
+        }
+
+        // Build a deterministic synthetic File for tests to drive via the
+        // buttons. We expose a helper too so specs can construct ad-hoc files
+        // via page.evaluate.
+        window.__makeFile = (name, content = 'hello', type = 'text/plain') =>
+            new File([content], name, { type });
+
+        document.getElementById('add-one').onclick = () => {
+            dz.addFiles([window.__makeFile('one.txt')]);
+        };
+        document.getElementById('add-two').onclick = () => {
+            dz.addFiles([window.__makeFile('a.txt'), window.__makeFile('b.txt')]);
+        };
+        document.getElementById('remove-first').onclick = () => {
+            const first = dz.files[0];
+            if (first) dz.removeFile(first.id);
+        };
+        document.getElementById('clear-all').onclick = () => {
+            dz.clear();
+        };
+    </script>
+</body>
+</html>

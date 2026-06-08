@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — validation</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 400px; }
+    </style>
+</head>
+<body>
+    <h1>validation gates</h1>
+    <p>Targeted by <code>e2e/validation.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">max-file-size="1024" (1 KB)</div>
+        <web-dropzone id="size" max-file-size="1024" accept="*/*" display-mode="detailed"></web-dropzone>
+        <div class="event-log" id="size-log"></div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">max-file-count="2"</div>
+        <web-dropzone id="count" max-file-count="2" accept="*/*" display-mode="detailed"></web-dropzone>
+        <div class="event-log" id="count-log"></div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">accept="image/*" (type filter)</div>
+        <web-dropzone id="type" accept="image/*" display-mode="detailed"></web-dropzone>
+        <div class="event-log" id="type-log"></div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">validateCallback rejects names containing "bad"</div>
+        <web-dropzone id="custom" accept="*/*" display-mode="detailed"></web-dropzone>
+        <div class="event-log" id="custom-log"></div>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        // Wire a deterministic rejection log onto every dropzone that has a
+        // sibling .event-log. Each rejection appends one line per file:
+        // "<code> <name>". Specs read .textContent and assert containment.
+        const wire = (id, logId) => {
+            const dz = document.getElementById(id);
+            const log = document.getElementById(logId);
+            dz.addEventListener('files-rejected', (e) => {
+                for (const r of e.detail.rejectedFiles) {
+                    log.textContent += `${r.validation.code} ${r.file.name}\n`;
+                }
+            });
+        };
+        wire('size', 'size-log');
+        wire('count', 'count-log');
+        wire('type', 'type-log');
+        wire('custom', 'custom-log');
+
+        customElements.whenDefined('web-dropzone').then(() => {
+            document.getElementById('custom').validateCallback = (file) => {
+                if (file.name.includes('bad')) {
+                    return { valid: false, error: 'Filename contains "bad"', code: 'custom' };
+                }
+                return { valid: true };
+            };
+        });
+    </script>
+</body>
+</html>
