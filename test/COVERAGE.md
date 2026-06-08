@@ -22,10 +22,11 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 | `selector-appearance="minimal"`                               | ✓      | `display.spec.ts` | `display.html` |
 | `selector-appearance="native"`                                | ✓      | `display.spec.ts` | `display.html` |
 | `no-file-chosen-text` empty-state label                       | ✓      | `display.spec.ts` | `display.html` |
-| `select-files-text` button label across variants              | △      | `display.spec.ts` | `display.html` |
-| `card-size="minimal" \| "compact" \| "big"`                   | ✗      |                  |                |
+| `select-files-text` button label across variants              | ✓      | `appearance.spec.ts` | `appearance.html` |
+| `card-size="minimal" \| "compact" \| "big"`                   | ✓      | `appearance.spec.ts` | `appearance.html` |
 | `icon` attribute on minimal selector                          | ✓      | `display.spec.ts` | `display.html` |
-| Count badge on button/minimal when files exist                | ✗      |                  |                |
+| Count badge on button when files exist                        | ✓      | `appearance.spec.ts` | `appearance.html` |
+| Count badge on minimal when files exist                       | ✗      |                  |                |
 
 ## 2. List appearance
 
