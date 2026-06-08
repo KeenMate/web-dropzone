@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — async confirmation gates</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 420px; }
+    </style>
+</head>
+<body>
+    <h1>beforeFilesAdded / beforeFilesRemoved gates</h1>
+    <p>Targeted by <code>e2e/gates.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">beforeFilesAddedCallback — auto-accept (resolve true)</div>
+        <web-dropzone id="add-accept" accept="*/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">beforeFilesAddedCallback — auto-reject (resolve false → code='cancelled')</div>
+        <web-dropzone id="add-reject" accept="*/*" max-file-count="10"></web-dropzone>
+        <div class="event-log" id="add-reject-log"></div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">beforeFilesAddedCallback — receives the surviving File[] batch + existing FileState[]</div>
+        <web-dropzone id="add-args" accept="*/*" max-file-count="10"></web-dropzone>
+        <div class="event-log" id="add-args-log"></div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">beforeFilesRemovedCallback — accept removal via removeFile({ confirm: true })</div>
+        <web-dropzone id="rm-accept" accept="*/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">beforeFilesRemovedCallback — reject removal keeps the file in store</div>
+        <web-dropzone id="rm-reject" accept="*/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        customElements.whenDefined('web-dropzone').then(() => {
+            document.getElementById('add-accept').beforeFilesAddedCallback = async () => true;
+
+            const rejectEl = document.getElementById('add-reject');
+            rejectEl.beforeFilesAddedCallback = async () => false;
+            rejectEl.addEventListener('files-rejected', (e) => {
+                const log = document.getElementById('add-reject-log');
+                for (const r of e.detail.rejectedFiles) {
+                    log.textContent += `${r.validation.code} ${r.file.name}\n`;
+                }
+            });
+
+            const argsEl = document.getElementById('add-args');
+            argsEl.beforeFilesAddedCallback = async (files, existing) => {
+                const log = document.getElementById('add-args-log');
+                log.textContent = `files=${files.length} existing=${existing.length} names=${files.map(f => f.name).join(',')}`;
+                return true;
+            };
+
+            document.getElementById('rm-accept').beforeFilesRemovedCallback = async () => true;
+            document.getElementById('rm-reject').beforeFilesRemovedCallback = async () => false;
+        });
+
+        window.__addNamed = (id, names) => {
+            const dz = document.getElementById(id);
+            const files = names.map(n => new File([new Uint8Array(8)], n, { type: 'text/plain' }));
+            return dz.addFiles(files);
+        };
+    </script>
+</body>
+</html>

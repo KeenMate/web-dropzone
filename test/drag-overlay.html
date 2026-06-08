@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — drag overlay</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        #target {
+            min-height: 120px;
+            border: 1px dashed #cbd5e0;
+            border-radius: 6px;
+            padding: 16px;
+            background: #f9fafb;
+        }
+        web-dropzone { display: none; } /* overlay-only mode hides the host */
+    </style>
+</head>
+<body>
+    <h1>drag overlay (overlay-target)</h1>
+    <p>Targeted by <code>e2e/drag-overlay.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">overlay-target="#target" — overlay covers the existing element on dragenter</div>
+        <div id="target">A normal-looking input target. Drag files over it to reveal the overlay.</div>
+        <web-dropzone id="overlay-dz" overlay-target="#target" accept="*/*" max-file-count="10"></web-dropzone>
+        <div class="event-log" id="overlay-log"></div>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        // Record overlay-enter / overlay-leave dispatches so specs can
+        // assert the lifecycle without poking at the overlay DOM directly.
+        customElements.whenDefined('web-dropzone').then(() => {
+            const dz = document.getElementById('overlay-dz');
+            const log = document.getElementById('overlay-log');
+            dz.addEventListener('overlay-enter', () => { log.textContent += 'enter\n'; });
+            dz.addEventListener('overlay-leave', () => { log.textContent += 'leave\n'; });
+        });
+    </script>
+</body>
+</html>

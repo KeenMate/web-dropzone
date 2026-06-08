@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — structural mode</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 420px; }
+    </style>
+</head>
+<body>
+    <h1>mode="structural" render callbacks</h1>
+    <p>Targeted by <code>e2e/structural.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">renderPromptCallback (card)</div>
+        <web-dropzone id="prompt-cb" mode="structural" display-mode="detailed"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">renderFileItemCallback (string return)</div>
+        <web-dropzone id="item-str" mode="structural" display-mode="list" accept="*/*"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">renderFileItemCallback (HTMLElement return) + file-row-update</div>
+        <web-dropzone id="item-el" mode="structural" display-mode="list" accept="*/*"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">renderListWrapperCallback (table layout)</div>
+        <web-dropzone id="wrapper" mode="structural" display-mode="list" accept="*/*"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">callbacks IGNORED when mode != "structural"</div>
+        <web-dropzone id="ignored" display-mode="list" accept="*/*"></web-dropzone>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        customElements.whenDefined('web-dropzone').then(() => {
+            // 1) renderPromptCallback — replaces the card's inner content
+            document.getElementById('prompt-cb').renderPromptCallback = () =>
+                `<div class="custom-prompt">CUSTOM PROMPT</div>`;
+
+            // 2) String-returning row callback
+            document.getElementById('item-str').renderFileItemCallback = (file) =>
+                `<div class="my-row" data-file-id="${file.id}">STR:${file.name}</div>`;
+
+            // 3) HTMLElement-returning row callback. Listeners attached during
+            //    initial render must survive across state ticks because the
+            //    framework caches the element and dispatches file-row-update
+            //    instead of re-rendering. We expose window.__updateCounts so
+            //    the spec can assert listener survival.
+            window.__updateCounts = new Map();
+            document.getElementById('item-el').renderFileItemCallback = (file) => {
+                const row = document.createElement('div');
+                row.className = 'my-row-el';
+                row.dataset.fileId = file.id;
+                row.textContent = `EL:${file.name}`;
+                window.__updateCounts.set(file.id, 0);
+                row.addEventListener('file-row-update', () => {
+                    window.__updateCounts.set(file.id, (window.__updateCounts.get(file.id) || 0) + 1);
+                });
+                return row;
+            };
+
+            // 4) renderListWrapperCallback — wrap rows in a <table>
+            const wrapEl = document.getElementById('wrapper');
+            wrapEl.renderListWrapperCallback = (rowsHtml) =>
+                `<table class="my-table"><tbody>${rowsHtml}</tbody></table>`;
+            wrapEl.renderFileItemCallback = (file) =>
+                `<tr data-file-id="${file.id}"><td>WRAP:${file.name}</td></tr>`;
+
+            // 5) Set the SAME callbacks on the non-structural dropzone — they
+            //    must be ignored (hard switch). Specs assert the normal
+            //    .dz__file-item--list rows still render instead.
+            document.getElementById('ignored').renderFileItemCallback = (file) =>
+                `<div class="should-be-ignored">${file.name}</div>`;
+        });
+
+        window.__addNamed = (id, names) => {
+            const dz = document.getElementById(id);
+            const files = names.map(n => new File([new Uint8Array(8)], n, { type: 'text/plain' }));
+            return dz.addFiles(files);
+        };
+    </script>
+</body>
+</html>

@@ -62,9 +62,12 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 | `accept` MIME / extension filter (code="type")                | ✓      | `validation.spec.ts` | `validation.html`  |
 | `validateCallback` (custom sync rule)                         | ✓      | `validation.spec.ts` | `validation.html`  |
 | Duplicate detection (`dedupe-mode`)                           | ✗      |                      |                    |
-| `beforeFilesAddedCallback` async gate (accept)                | ✗      |                      |                    |
-| `beforeFilesAddedCallback` async gate (cancel, code='cancelled') | ✗   |                      |                    |
-| `beforeFilesRemovedCallback` async gate (X click)             | ✗      |                      |                    |
+| `beforeFilesAddedCallback` async gate (accept)                | ✓      | `gates.spec.ts`      | `gates.html`       |
+| `beforeFilesAddedCallback` async gate (cancel, code='cancelled') | ✓   | `gates.spec.ts`      | `gates.html`       |
+| `beforeFilesAddedCallback` receives (files, existingFiles)    | ✓      | `gates.spec.ts`      | `gates.html`       |
+| `beforeFilesRemovedCallback` accepts removal via `{ confirm: true }` | ✓ | `gates.spec.ts`     | `gates.html`       |
+| `beforeFilesRemovedCallback` rejects removal — file stays     | ✓      | `gates.spec.ts`      | `gates.html`       |
+| Programmatic `removeFile()` skips the gate by default          | ✓      | `gates.spec.ts`      | `gates.html`       |
 
 ## 4. Events & API
 
@@ -114,14 +117,14 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 
 ## 6. Structural mode (`mode="structural"`)
 
-| Feature                                                       | Status | Spec | Fixture |
-| ------------------------------------------------------------- | :----: | ---- | ------- |
-| `renderPromptCallback` overrides card content                 | ✗      |      |         |
-| `renderFileItemCallback` (string return)                      | ✗      |      |         |
-| `renderFileItemCallback` (HTMLElement return + file-row-update) | ✗    |      |         |
-| `renderListWrapperCallback` (table layout)                    | ✗      |      |         |
-| `renderSummaryCallback` (popover summary)                     | ✗      |      |         |
-| Callbacks ignored when `mode!="structural"`                   | ✗      |      |         |
+| Feature                                                       | Status | Spec                | Fixture           |
+| ------------------------------------------------------------- | :----: | ------------------- | ----------------- |
+| `renderPromptCallback` overrides card content                 | ✓      | `structural.spec.ts` | `structural.html` |
+| `renderFileItemCallback` (string return)                      | ✓      | `structural.spec.ts` | `structural.html` |
+| `renderFileItemCallback` (HTMLElement return + file-row-update) | ✓    | `structural.spec.ts` | `structural.html` |
+| `renderListWrapperCallback` (table layout)                    | ✓      | `structural.spec.ts` | `structural.html` |
+| `renderSummaryCallback` (popover summary)                     | ✗      |                     |                   |
+| Callbacks ignored when `mode!="structural"` (hard switch)     | ✓      | `structural.spec.ts` | `structural.html` |
 
 ## 7. Architecture (satellites + headless)
 
@@ -139,11 +142,18 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 
 ## 8. Drag overlay
 
-| Feature                                                       | Status | Spec | Fixture |
-| ------------------------------------------------------------- | :----: | ---- | ------- |
-| `overlay-target` activates whole-area overlay                 | ✗      |      |         |
-| Two overlays don't steal each other's drags                   | ✗      |      |         |
-| Overlay enter / leave events                                  | ✗      |      |         |
+| Feature                                                       | Status | Spec                  | Fixture            |
+| ------------------------------------------------------------- | :----: | --------------------- | ------------------ |
+| Overlay NOT mounted at rest                                   | ✓      | `drag-overlay.spec.ts` | `drag-overlay.html` |
+| `overlay-target` activates whole-area overlay                 | △      | `drag-overlay.spec.ts` | `drag-overlay.html` |
+| Two overlays don't steal each other's drags                   | ✗      |                       |                    |
+| Overlay enter / leave events                                  | △      | `drag-overlay.spec.ts` | `drag-overlay.html` |
+
+> **Known limitation:** Browser security blocks JS from synthesizing
+> `DragEvent` objects whose `DataTransfer.types` includes `"Files"`.
+> Two drag-overlay scenarios are marked `.fixme()` until a CDP-level
+> drag-injection helper is wired up. The contract still works in real
+> browsers — examples-drag-overlay.html exercises it manually.
 
 ## 9. Form integration
 
