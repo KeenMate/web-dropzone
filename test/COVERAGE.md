@@ -36,13 +36,13 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 | `list-appearance="detailed"`                                  | ✓      | `list.spec.ts` | `list.html` |
 | `list-appearance="grid"` (image thumbnails)                   | ✓      | `list.spec.ts` | `list.html` |
 | `list-appearance="badges"`                                    | ✓      | `list.spec.ts` | `list.html` |
-| `list-appearance="badges"` + `show-thumbnails`                | ✗      |                |             |
-| `list-appearance="popover"` summary + popover                 | △      | `list.spec.ts` | `list.html` |
-| `list-appearance="rolling"`                                   | ✗      |                |             |
+| `list-appearance="badges"` + `show-thumbnails`                | ✓      | `list-extra.spec.ts` | `list-extra.html` |
+| `list-appearance="popover"` summary + popover open + rows     | ✓      | `list-extra.spec.ts` | `list-extra.html` |
+| `list-appearance="rolling"`                                   | ✓      | `list-extra.spec.ts` | `list-extra.html` |
 | `list-appearance="none"`                                      | ✓      | `list.spec.ts` | `list.html` |
 | `max-visible-files` "Show N more" toggle (in-class renderer)  | △      | `list.spec.ts` | `list.html` |
 | `max-visible-files` cap **in satellite renderer** — GAP       | ✗      |                |             |
-| `--dz-file-list-max-height` internal scroll                   | ✗      |                |             |
+| `--dz-file-list-max-height` (satellite propagation GAP)       | ✗      |                |             |
 | `files-inside` layout                                         | ✓      | `list.spec.ts` | `list.html` |
 | Legacy `display-mode` shorthand → orthogonal axes             | ✓      | `appearance.spec.ts` | `appearance.html`  |
 | Orthogonal attr overrides `display-mode` shorthand            | ✓      | `appearance.spec.ts` | `appearance.html`  |
@@ -81,15 +81,17 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 | `change` fires with empty detail (native input convention)    | ✓      | `events.spec.ts` | `events.html` |
 | `files-changed` rAF-coalesces a multi-file batch              | ✓      | `events.spec.ts` | `events.html` |
 | `files-rejected` carries grouped rejections                   | △      | `validation.spec.ts` | `validation.html` |
-| `file-progress` / `file-status-changed` during upload         | ✗      |                  |                |
-| `file-updated` after `previewUrl` / metadata write            | ✗      |                  |                |
-| `file-row-update` on element-returning row callbacks          | ✗      |                  |                |
-| `overlay-enter` / `overlay-leave` during drag                 | ✗      |                  |                |
+| `file-progress` / `file-status-changed` during upload         | ✓      | `upload.spec.ts` | `upload.html`  |
+| `file-updated` after handler post-merges metadata             | ✓      | `events-extra.spec.ts` | `events-extra.html` |
+| `file-row-update` on element-returning row callbacks (initial) | ✓     | `structural.spec.ts` | `structural.html` |
+| `file-row-update` on progress ticks (listener survival)       | ✓      | `events-extra.spec.ts` | `events-extra.html` |
+| `overlay-enter` / `overlay-leave` during drag (Playwright limit) | △    | `drag-overlay.spec.ts` | `drag-overlay.html` |
 | `el.target.files` snapshot in sync at dispatch                | ✓      | `events.spec.ts` | `events.html` |
 | Public methods: `addFiles`, `removeFile`, `clear`             | ✓      | `api.spec.ts`    | `api.html`    |
 | Public method: `getFile(id)` / `getFile(missing)`             | ✓      | `api.spec.ts`    | `api.html`    |
 | Public methods: `pauseFile` / `cancelFile`                    | ✓      | `api.spec.ts`    | `api.html`    |
-| Public methods: `resumeFile`, `retryFile`, `pauseAll`, `resumeAll`, `retryAll` | ✗ |                  |                |
+| Public methods: `resumeFile`, `retryFile`                     | ✓      | `upload-edge.spec.ts` | `upload-edge.html` |
+| Public methods: `pauseAll`, `resumeAll`, `retryAll`           | ✓      | `upload-edge.spec.ts` | `upload-edge.html` |
 | `uploadAll` returns + drives worker pool                      | ✓      | `api.spec.ts`    | `api.html`    |
 | `getStore().getFiles()` returns mutable copy                  | ✓      | `api.spec.ts`    | `api.html`    |
 | `getStore().getConfig()` returns merged config                | ✓      | `api.spec.ts`    | `api.html`    |
@@ -110,13 +112,13 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 | Worker slot rotates on completion                             | ✓      | `upload.spec.ts` | `upload.html` |
 | `file-progress` event fires per onProgress() pump             | ✓      | `upload.spec.ts` | `upload.html` |
 | `file-status-changed` event fires per status transition       | ✓      | `upload.spec.ts` | `upload.html` |
-| Resume from `context.startBytes` after pause                  | ✗      |                  |                |
-| Retry from error preserves progress                           | ✗      |                  |                |
-| Per-file pause / resume / cancel via X button                 | ✗      |                  |                |
-| `progress-throttle` caps emission rate                        | ✗      |                  |                |
-| `reorder-completed` reflows completed rows                    | ✗      |                  |                |
-| `progress-mode="pessimistic"` keeps bar from snapping back    | ✗      |                  |                |
-| Resume-aware progress on `file-progress`                      | ✗      |                  |                |
+| Resume from `context.startBytes` / `startPercent` after pause | ✓      | `upload-edge.spec.ts` | `upload-edge.html` |
+| Retry from error re-invokes the handler                       | ✓      | `upload-edge.spec.ts` | `upload-edge.html` |
+| Per-file pause / resume / cancel via X button (UI path)       | ✗      |                  |                |
+| `progress-throttle` caps emission rate                        | ✓      | `upload-edge.spec.ts` | `upload-edge.html` |
+| `reorder-completed` reflows completed files                   | ✓      | `upload-edge.spec.ts` | `upload-edge.html` |
+| `progress-mode="pessimistic"` preserves progress on failure   | ✓      | `upload-edge.spec.ts` | `upload-edge.html` |
+| Resume-aware progress on `file-progress`                      | △      | `upload-edge.spec.ts` | `upload-edge.html` |
 
 ## 6. Structural mode (`mode="structural"`)
 
@@ -126,7 +128,7 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 | `renderFileItemCallback` (string return)                      | ✓      | `structural.spec.ts` | `structural.html` |
 | `renderFileItemCallback` (HTMLElement return + file-row-update) | ✓    | `structural.spec.ts` | `structural.html` |
 | `renderListWrapperCallback` (table layout)                    | ✓      | `structural.spec.ts` | `structural.html` |
-| `renderSummaryCallback` (popover summary)                     | ✗      |                     |                   |
+| `renderSummaryCallback` (popover summary)                     | ✓      | `events-extra.spec.ts` | `events-extra.html` |
 | Callbacks ignored when `mode!="structural"` (hard switch)     | ✓      | `structural.spec.ts` | `structural.html` |
 
 ## 7. Architecture (satellites + headless)
@@ -136,8 +138,8 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 | `<web-dropzone-picker for=>` binds to store                   | ✓      | `architecture.spec.ts` | `architecture.html` |
 | `<web-dropzone-list for=>` binds to store                     | ✓      | `architecture.spec.ts` | `architecture.html` |
 | `<web-dropzone-list>` reflects programmatic adds              | ✓      | `architecture.spec.ts` | `architecture.html` |
-| `<web-dropzone-indicator for=>` binds to store                | ✗      |                        |                     |
-| `<web-dropzone-progress for=>` binds to store                 | ✗      |                        |                     |
+| `<web-dropzone-indicator for=>` binds + renders chip          | ✓      | `satellites-extra.spec.ts` | `satellites-extra.html` |
+| `<web-dropzone-progress for=>` binds + renders surface        | ✓      | `satellites-extra.spec.ts` | `satellites-extra.html` |
 | `mode="headless"` skips internal rendering                    | ✓      | `architecture.spec.ts` | `architecture.html` |
 | `mode="headless"` still fires every event                     | ✓      | `architecture.spec.ts` | `architecture.html` |
 | Multiple pickers contribute to one store (Mode A: shared)     | ✓      | `architecture.spec.ts` | `architecture.html` |

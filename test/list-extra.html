@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — remaining list variants</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 420px; }
+    </style>
+</head>
+<body>
+    <h1>badges + thumbnails · rolling · file-list-max-height · popover content</h1>
+    <p>Targeted by <code>e2e/list-extra.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">badges + show-thumbnails — image badges render a thumbnail slot</div>
+        <web-dropzone id="badges-thumb" list-appearance="badges" show-thumbnails accept="image/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">rolling — single "front file" row + queue button</div>
+        <web-dropzone id="rolling" list-appearance="rolling" accept="*/*" max-file-count="10" auto-upload="false"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">--dz-file-list-max-height — internal scroll cap</div>
+        <web-dropzone id="height-cap" list-appearance="detailed" accept="*/*" max-file-count="20"
+            style="--dz-file-list-max-height: 80px;"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">popover — summary click reveals popover content</div>
+        <web-dropzone id="popover-open" list-appearance="popover" accept="*/*" max-file-count="10"></web-dropzone>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+        window.__addNamed = (id, names, mime = 'text/plain') => {
+            const dz = document.getElementById(id);
+            const files = names.map(n => new File([new Uint8Array(64)], n, { type: mime }));
+            return dz.addFiles(files);
+        };
+        // Build a real 1x1 PNG so the thumbnail path can decode something.
+        // FileReader → data URL is async — the test waits for the badge img.
+        window.__addPng = (id, count) => {
+            const dz = document.getElementById(id);
+            const pngBytes = new Uint8Array([
+                137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82,
+                0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0,
+                0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 248, 207, 192, 0, 0,
+                0, 3, 0, 1, 86, 76, 142, 84, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+            ]);
+            const files = [];
+            for (let i = 0; i < count; i++) {
+                files.push(new File([pngBytes], `i${i}.png`, { type: 'image/png' }));
+            }
+            return dz.addFiles(files);
+        };
+    </script>
+</body>
+</html>

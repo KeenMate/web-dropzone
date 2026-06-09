@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — indicator + progress satellites</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 420px; }
+        web-dropzone-indicator,
+        web-dropzone-progress { display: block; margin-top: 8px; max-width: 420px; }
+    </style>
+</head>
+<body>
+    <h1>indicator + progress satellites</h1>
+    <p>Targeted by <code>e2e/satellites-extra.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">web-dropzone-indicator binds via for= and reads the store</div>
+        <web-dropzone id="store-ind" mode="headless" accept="*/*" max-file-count="10"></web-dropzone>
+        <web-dropzone-indicator for="store-ind"></web-dropzone-indicator>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">web-dropzone-progress binds via for= and reflects getOverallProgress</div>
+        <web-dropzone id="store-prog" mode="headless" accept="*/*" max-file-count="10"></web-dropzone>
+        <web-dropzone-progress for="store-prog"></web-dropzone-progress>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        // Synthetic upload pump for the progress fixture — drive an upload
+        // to see the satellites update.
+        const pending = new Map();
+        window.__pending = pending;
+        window.__pendingNames = () => Array.from(pending.keys());
+        window.__progress = (name, pct) => pending.get(name)?.onProgress(pct);
+        window.__resolve = (name) => {
+            const e = pending.get(name); pending.delete(name); e.resolve();
+        };
+        function handler(file, onProgress, signal) {
+            return new Promise((resolve, reject) => {
+                pending.set(file.name, { resolve, reject, onProgress, signal });
+                signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+            });
+        }
+
+        customElements.whenDefined('web-dropzone').then(() => {
+            for (const id of ['store-ind', 'store-prog']) {
+                document.getElementById(id).uploadFileCallback = handler;
+            }
+        });
+
+        window.__addNamed = (id, names) => {
+            const dz = document.getElementById(id);
+            const files = names.map(n => new File([new Uint8Array(64)], n, { type: 'text/plain' }));
+            return dz.addFiles(files);
+        };
+    </script>
+</body>
+</html>

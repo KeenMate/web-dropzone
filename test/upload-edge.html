@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — upload edge cases</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 420px; }
+    </style>
+</head>
+<body>
+    <h1>upload edge cases</h1>
+    <p>Targeted by <code>e2e/upload-edge.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">progress-throttle="200" — caps file-progress emission rate per file</div>
+        <web-dropzone id="throttle" accept="*/*" max-file-count="10" display-mode="detailed" progress-throttle="200"></web-dropzone>
+        <div class="event-log" id="throttle-log"></div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">progress-mode="pessimistic" — bar doesn't snap back on attempt failure</div>
+        <web-dropzone id="pessimistic" accept="*/*" max-file-count="10" display-mode="detailed" progress-mode="pessimistic"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">resume from startBytes after pause</div>
+        <web-dropzone id="resume" accept="*/*" max-file-count="10" display-mode="detailed"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">retry from error preserves progress</div>
+        <web-dropzone id="retry" accept="*/*" max-file-count="10" display-mode="detailed"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">reorder-completed — completed rows move to the bottom after delay</div>
+        <web-dropzone id="reorder" accept="*/*" max-file-count="10" display-mode="detailed" reorder-completed reorder-completed-delay="50"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">bulk methods — pauseAll / resumeAll / retryAll</div>
+        <web-dropzone id="bulk" accept="*/*" max-file-count="10" display-mode="detailed" concurrency="3"></web-dropzone>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        // Per-file pump map keyed by file.name. Specs control the lifecycle
+        // by resolving / failing / progressing each pump deterministically.
+        // Each entry tracks the startBytes from `context` so specs can
+        // verify resume-aware semantics.
+        const pending = new Map(); // name -> { resolve, reject, onProgress, signal, startBytes, startPercent }
+        window.__pending = pending;
+        window.__pendingNames = () => Array.from(pending.keys());
+        window.__resolve = (name, outcome = 'ok') => {
+            const e = pending.get(name);
+            if (!e) throw new Error(`No pending: ${name}`);
+            pending.delete(name);
+            if (outcome === 'ok') e.resolve();
+            else e.reject(new Error('simulated'));
+        };
+        window.__progress = (name, pct) => {
+            const e = pending.get(name);
+            if (!e) throw new Error(`No pending: ${name}`);
+            e.onProgress(pct);
+        };
+        window.__startInfo = (name) => {
+            const e = pending.get(name);
+            return e ? { startBytes: e.startBytes, startPercent: e.startPercent } : null;
+        };
+
+        function handler(file, onProgress, signal, context) {
+            return new Promise((resolve, reject) => {
+                pending.set(file.name, {
+                    resolve, reject, onProgress, signal,
+                    startBytes: context?.startBytes ?? 0,
+                    startPercent: context?.startPercent ?? 0
+                });
+                signal?.addEventListener('abort', () => {
+                    pending.delete(file.name);
+                    reject(new DOMException('Aborted', 'AbortError'));
+                });
+            });
+        }
+
+        customElements.whenDefined('web-dropzone').then(() => {
+            for (const id of ['throttle', 'pessimistic', 'resume', 'retry', 'reorder', 'bulk']) {
+                document.getElementById(id).uploadFileCallback = handler;
+            }
+
+            // Record file-progress count for the throttled fixture so we can
+            // verify how many events landed in a window.
+            const tlog = document.getElementById('throttle-log');
+            const tdz = document.getElementById('throttle');
+            window.__throttleCount = 0;
+            tdz.addEventListener('file-progress', () => {
+                window.__throttleCount += 1;
+                tlog.textContent = `count=${window.__throttleCount}`;
+            });
+        });
+
+        window.__addNamed = (id, names) => {
+            const dz = document.getElementById(id);
+            const files = names.map(n => new File([new Uint8Array(1000)], n, { type: 'text/plain' }));
+            return dz.addFiles(files);
+        };
+    </script>
+</body>
+</html>

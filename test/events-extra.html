@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test — extra events + render summary</title>
+    <link rel="stylesheet" href="test-fixtures.css">
+    <style>
+        web-dropzone { display: block; max-width: 420px; }
+    </style>
+</head>
+<body>
+    <h1>file-updated · file-row-update · renderSummaryCallback</h1>
+    <p>Targeted by <code>e2e/events-extra.spec.ts</code>.</p>
+
+    <div class="fixture">
+        <div class="fixture-label">file-updated — fires from generatePreview + handler post-merge</div>
+        <web-dropzone id="updated" accept="*/*" max-file-count="10" display-mode="detailed"></web-dropzone>
+        <div class="event-log" id="updated-log"></div>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">file-row-update — listener attached during initial render survives state ticks</div>
+        <web-dropzone id="row-update" mode="structural" accept="*/*" max-file-count="10" display-mode="detailed"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">renderSummaryCallback — replaces the popover summary line</div>
+        <web-dropzone id="summary-cb" mode="structural" accept="*/*" max-file-count="10" display-mode="compact"></web-dropzone>
+    </div>
+
+    <script type="module">
+        import '/src/index.ts';
+
+        // Synthetic upload pump for the file-updated fixture so we can drive
+        // a post-success merge (handler returns { metadata: {...} } which the
+        // store stamps onto the FileState and fires file-updated).
+        const pending = new Map();
+        window.__pending = pending;
+        window.__pendingNames = () => Array.from(pending.keys());
+        window.__resolve = (name, value) => {
+            const e = pending.get(name);
+            pending.delete(name);
+            e.resolve(value);
+        };
+        window.__progress = (name, pct) => pending.get(name)?.onProgress(pct);
+
+        function handler(file, onProgress, signal) {
+            return new Promise((resolve, reject) => {
+                pending.set(file.name, { resolve, reject, onProgress, signal });
+                signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+            });
+        }
+
+        customElements.whenDefined('web-dropzone').then(() => {
+            // ===== file-updated fixture =====
+            const u = document.getElementById('updated');
+            const ulog = document.getElementById('updated-log');
+            u.uploadFileCallback = handler;
+            u.addEventListener('file-updated', (e) => {
+                const f = e.detail.file;
+                ulog.textContent += `updated ${f.name}\n`;
+            });
+
+            // ===== row-update fixture (structural) =====
+            window.__rowUpdateLog = [];
+            const r = document.getElementById('row-update');
+            r.uploadFileCallback = handler;
+            r.renderFileItemCallback = (file) => {
+                const div = document.createElement('div');
+                div.className = 'row-el';
+                div.dataset.fileId = file.id;
+                div.textContent = `${file.name}`;
+                div.addEventListener('file-row-update', (e) => {
+                    window.__rowUpdateLog.push({ id: file.id, name: e.detail.file.name, progress: e.detail.file.progress });
+                });
+                return div;
+            };
+
+            // ===== summary callback fixture =====
+            const s = document.getElementById('summary-cb');
+            s.renderSummaryCallback = (files) => {
+                const span = document.createElement('span');
+                span.className = 'dz__summary__line custom-summary';
+                span.tabIndex = 0;
+                span.setAttribute('role', 'button');
+                span.textContent = `★ ${files.length} pinned`;
+                return span;
+            };
+        });
+
+        window.__addNamed = (id, names) => {
+            const dz = document.getElementById(id);
+            const files = names.map(n => new File([new Uint8Array(64)], n, { type: 'text/plain' }));
+            return dz.addFiles(files);
+        };
+    </script>
+</body>
+</html>
