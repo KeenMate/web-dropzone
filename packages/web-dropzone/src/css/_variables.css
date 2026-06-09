@@ -20,8 +20,15 @@
      All sizing values are based on this unit for consistent scaling.
      Default: 10px produces standard pixel values
      Pure Admin: Set to 1rem (inherits from html { font-size: 10px })
-     Custom: Set to any value to scale all sizes proportionally */
-  --dz-rem: 10px;
+     Custom: Set to any value to scale all sizes proportionally
+
+     NOTE: `--dz-rem` is NOT declared at :host on purpose. Every shadow
+     in the package shares the same CSS file (host + four satellites),
+     and a `:host { --dz-rem: 10px }` declaration would mask values
+     inherited from a parent <web-dropzone> on every satellite — making
+     parent-level theming impossible. Instead, every consumer site uses
+     `var(--dz-rem, 10px)` so the default kicks in only when nothing is
+     inherited. Set --dz-rem on the host (or any ancestor) to scale. */
 
   /* ==========================================================================
      FONT FAMILY (set at :host so all shadow DOM content inherits)
@@ -84,45 +91,45 @@
      ========================================================================== */
   --dz-dropzone-border: 2px dashed var(--dz-border-color);
   --dz-dropzone-border-active: 2px solid var(--dz-accent-color);
-  --dz-dropzone-border-radius: calc(var(--base-border-radius-lg, 0.8) * var(--dz-rem));
+  --dz-dropzone-border-radius: calc(var(--base-border-radius-lg, 0.8) * var(--dz-rem, 10px));
   --dz-dropzone-bg: var(--dz-background);
   --dz-dropzone-bg-hover: var(--dz-primary-bg);
   --dz-dropzone-bg-active: color-mix(in srgb, var(--dz-accent-color) 5%, transparent);
-  --dz-dropzone-padding: calc(3.2 * var(--dz-rem));
-  --dz-dropzone-min-height: calc(12 * var(--dz-rem));
+  --dz-dropzone-padding: calc(3.2 * var(--dz-rem, 10px));
+  --dz-dropzone-min-height: calc(12 * var(--dz-rem, 10px));
 
   /* Dropzone Icon */
-  --dz-dropzone-icon-size: calc(4 * var(--dz-rem));
+  --dz-dropzone-icon-size: calc(4 * var(--dz-rem, 10px));
   --dz-dropzone-icon-color: var(--dz-text-color-3);
 
   /* Dropzone Text */
-  --dz-dropzone-text-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-dropzone-text-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem, 10px));
   --dz-dropzone-text-color: var(--dz-text-color-1);
 
   /* Dropzone Hint */
-  --dz-dropzone-hint-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
+  --dz-dropzone-hint-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem, 10px));
   --dz-dropzone-hint-color: var(--dz-text-color-3);
 
   /* ==========================================================================
      CARD SIZE VARIANTS
      ========================================================================== */
   /* minimal — single thin horizontal row */
-  --dz-dropzone-card-minimal-min-height: calc(5 * var(--dz-rem));
-  --dz-dropzone-card-minimal-padding: calc(1 * var(--dz-rem)) calc(1.4 * var(--dz-rem));
-  --dz-dropzone-card-minimal-icon-size: calc(2 * var(--dz-rem));
-  --dz-dropzone-card-minimal-text-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-dropzone-card-minimal-min-height: calc(5 * var(--dz-rem, 10px));
+  --dz-dropzone-card-minimal-padding: calc(1 * var(--dz-rem, 10px)) calc(1.4 * var(--dz-rem, 10px));
+  --dz-dropzone-card-minimal-icon-size: calc(2 * var(--dz-rem, 10px));
+  --dz-dropzone-card-minimal-text-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem, 10px));
 
   /* big — tall vertical showcase */
-  --dz-dropzone-card-big-min-height: calc(20 * var(--dz-rem));
-  --dz-dropzone-card-big-padding: calc(4 * var(--dz-rem));
-  --dz-dropzone-card-big-icon-size: calc(6 * var(--dz-rem));
-  --dz-dropzone-card-big-text-font-size: calc(var(--base-font-size-lg, 1.8) * var(--dz-rem));
+  --dz-dropzone-card-big-min-height: calc(20 * var(--dz-rem, 10px));
+  --dz-dropzone-card-big-padding: calc(4 * var(--dz-rem, 10px));
+  --dz-dropzone-card-big-icon-size: calc(6 * var(--dz-rem, 10px));
+  --dz-dropzone-card-big-text-font-size: calc(var(--base-font-size-lg, 1.8) * var(--dz-rem, 10px));
 
   /* ==========================================================================
      BUTTON SELECTOR
      ========================================================================== */
-  --dz-button-padding: calc(0.8 * var(--dz-rem)) calc(1.6 * var(--dz-rem));
-  --dz-button-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-button-padding: calc(0.8 * var(--dz-rem, 10px)) calc(1.6 * var(--dz-rem, 10px));
+  --dz-button-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem, 10px));
 
   /* Button-selector count badge. The radius is rectangular by default
      (matches the parent button's corner) — set --dz-button-badge-border-radius
@@ -135,8 +142,8 @@
   /* ==========================================================================
      MINIMAL SELECTOR
      ========================================================================== */
-  --dz-minimal-size: calc(3.6 * var(--dz-rem));
-  --dz-minimal-icon-size: calc(2 * var(--dz-rem));
+  --dz-minimal-size: calc(3.6 * var(--dz-rem, 10px));
+  --dz-minimal-icon-size: calc(2 * var(--dz-rem, 10px));
 
   /* ==========================================================================
      ROLLING APPEARANCE — stable container + rotating front-file slot.
@@ -144,15 +151,15 @@
      (`--dz-rolling-queue-offset` from top-right).
      ========================================================================== */
   --dz-rolling-animation-duration: 0.35s;
-  --dz-rolling-queue-offset: calc(0.4 * var(--dz-rem));
-  --dz-rolling-queue-padding: calc(0.3 * var(--dz-rem)) calc(0.6 * var(--dz-rem));
+  --dz-rolling-queue-offset: calc(0.4 * var(--dz-rem, 10px));
+  --dz-rolling-queue-padding: calc(0.3 * var(--dz-rem, 10px)) calc(0.6 * var(--dz-rem, 10px));
   --dz-rolling-queue-bg: var(--dz-primary-bg);
   --dz-rolling-queue-bg-hover: var(--dz-primary-bg-hover);
   --dz-rolling-queue-color: var(--dz-text-color-2);
   --dz-rolling-queue-color-hover: var(--dz-accent-color);
   --dz-rolling-queue-border: 1px solid var(--dz-border-color);
   --dz-rolling-queue-border-radius: var(--dz-border-radius-sm);
-  --dz-rolling-queue-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
+  --dz-rolling-queue-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem, 10px));
   --dz-rolling-queue-count-bg: var(--dz-accent-color);
   --dz-rolling-queue-count-color: var(--dz-text-on-accent);
 
@@ -166,28 +173,28 @@
         web-dropzone { --dz-badge-border-radius: 999px; }   // pill
         web-dropzone { --dz-badge-border-radius: 0; }        // square
      Colors, padding, and width of each half are independently overridable. */
-  --dz-badges-gap: calc(0.6 * var(--dz-rem));
+  --dz-badges-gap: calc(0.6 * var(--dz-rem, 10px));
 
   /* Shape & sizing — badges share the dropzone card's radius by default so
      the whole component reads as one rounded surface. Override either knob to
      break the tie (e.g. `999px` for a pill, `0` for square). */
-  --dz-badge-height: calc(2.7 * var(--dz-rem));
+  --dz-badge-height: calc(2.7 * var(--dz-rem, 10px));
   --dz-badge-border-radius: var(--dz-dropzone-border-radius);
-  --dz-badge-max-width: calc(28 * var(--dz-rem));
+  --dz-badge-max-width: calc(28 * var(--dz-rem, 10px));
   /* Sized to match --ms-badge-font-size / font-weight: smaller, tighter glyphs
      read as "control chrome" rather than body text. */
-  --dz-badge-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
+  --dz-badge-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem, 10px));
   --dz-badge-font-weight: var(--base-font-weight-semibold, 600);
 
   /* Icon / thumbnail slot — fixed square box. Set --dz-badge-icon-size to 0 to
      remove the slot entirely (no icon, no thumbnail). */
-  --dz-badge-icon-size: calc(1.4 * var(--dz-rem));
-  --dz-badge-icon-font-size: calc(1.2 * var(--dz-rem));
+  --dz-badge-icon-size: calc(1.4 * var(--dz-rem, 10px));
+  --dz-badge-icon-font-size: calc(1.2 * var(--dz-rem, 10px));
   --dz-badge-icon-bg: transparent;
-  --dz-badge-icon-border-radius: calc(0.3 * var(--dz-rem));
+  --dz-badge-icon-border-radius: calc(0.3 * var(--dz-rem, 10px));
 
   /* Text half */
-  --dz-badge-text-padding: 0 calc(0.8 * var(--dz-rem));
+  --dz-badge-text-padding: 0 calc(0.8 * var(--dz-rem, 10px));
   --dz-badge-text-bg: var(--dz-accent-color-light);
   --dz-badge-text-color: var(--dz-accent-color);
   --dz-badge-text-border: 1px solid transparent;
@@ -198,17 +205,17 @@
      small inline controls sitting at the right edge of the text half.
      Sized smaller than the list/detailed/grid variants because badges
      themselves are compact inline pills. */
-  --dz-badge-action-size: calc(1.8 * var(--dz-rem));
-  --dz-badge-status-icon-size: calc(1.4 * var(--dz-rem));
+  --dz-badge-action-size: calc(1.8 * var(--dz-rem, 10px));
+  --dz-badge-status-icon-size: calc(1.4 * var(--dz-rem, 10px));
 
   /* Remove half — square pill end, equal width to badge height. */
-  --dz-badge-remove-width: calc(2.7 * var(--dz-rem));
+  --dz-badge-remove-width: calc(2.7 * var(--dz-rem, 10px));
   --dz-badge-remove-bg: var(--dz-accent-color);
   --dz-badge-remove-color: var(--dz-text-on-accent);
   --dz-badge-remove-border: 1px solid transparent;
   --dz-badge-remove-bg-hover: var(--dz-accent-color-hover);
   --dz-badge-remove-color-hover: var(--dz-badge-remove-color);
-  --dz-badge-remove-icon-size: calc(1 * var(--dz-rem));
+  --dz-badge-remove-icon-size: calc(1 * var(--dz-rem, 10px));
   --dz-badge-remove-box-shadow-focus: 0 0 0 2px color-mix(in srgb, var(--dz-accent-color) 50%, transparent);
 
   /* SVG X glyph rendered via -webkit-mask / mask so the X inherits whatever
@@ -219,19 +226,21 @@
   /* ==========================================================================
      FILE LIST
      ========================================================================== */
-  --dz-file-list-gap: calc(0.8 * var(--dz-rem));
-  --dz-file-list-margin-top: calc(1.2 * var(--dz-rem));
+  --dz-file-list-gap: calc(0.8 * var(--dz-rem, 10px));
+  --dz-file-list-margin-top: calc(1.2 * var(--dz-rem, 10px));
   /* Cap the inline file-list container height. Default `none` = grow with
      content. Set a length (e.g. `30rem`) and the list becomes scrollable
-     internally. The popover keeps its own knob — `--dz-popover-max-height`. */
-  --dz-file-list-max-height: none;
+     internally. The popover keeps its own knob — `--dz-popover-max-height`.
+     NOT declared at :host (see the same note on --dz-rem above) — usage
+     sites apply `var(--dz-file-list-max-height, none)` so values set on a
+     parent <web-dropzone> reach the satellite list. */
 
   /* "Show N more" / "Show less" toggle row that appears at the end of the
      inline list when `max-visible` caps the rendered items. The compact
      "+N" badge variant for badges mode is themed via the existing
      --dz-badge-* surface (with a few muted overrides below). */
-  --dz-show-more-padding: calc(0.6 * var(--dz-rem)) calc(1.2 * var(--dz-rem));
-  --dz-show-more-margin-top: calc(0.4 * var(--dz-rem));
+  --dz-show-more-padding: calc(0.6 * var(--dz-rem, 10px)) calc(1.2 * var(--dz-rem, 10px));
+  --dz-show-more-margin-top: calc(0.4 * var(--dz-rem, 10px));
   --dz-show-more-font-size: var(--dz-font-size-xs);
   --dz-show-more-font-weight: var(--base-font-weight-semibold, 600);
   --dz-show-more-color: var(--dz-accent-color);
@@ -249,79 +258,79 @@
   /* ==========================================================================
      FILE ITEM (List Mode)
      ========================================================================== */
-  --dz-item-padding: calc(0.8 * var(--dz-rem)) calc(1.2 * var(--dz-rem));
+  --dz-item-padding: calc(0.8 * var(--dz-rem, 10px)) calc(1.2 * var(--dz-rem, 10px));
   --dz-item-border: 1px solid var(--dz-border-color);
-  --dz-item-border-radius: calc(var(--base-border-radius-sm, 0.4) * var(--dz-rem));
+  --dz-item-border-radius: calc(var(--base-border-radius-sm, 0.4) * var(--dz-rem, 10px));
   --dz-item-bg: var(--dz-background);
   --dz-item-bg-hover: var(--dz-primary-bg);
 
   /* File Item Icon */
-  --dz-item-icon-size: calc(3.2 * var(--dz-rem));
-  --dz-item-icon-font-size: calc(2 * var(--dz-rem));
+  --dz-item-icon-size: calc(3.2 * var(--dz-rem, 10px));
+  --dz-item-icon-font-size: calc(2 * var(--dz-rem, 10px));
   --dz-item-icon-bg: color-mix(in srgb, var(--dz-accent-color) 10%, transparent);
   --dz-item-icon-color: var(--dz-accent-color);
 
   /* File Item Name */
-  --dz-item-name-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-item-name-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem, 10px));
   --dz-item-name-font-weight: var(--base-font-weight-semibold, 600);
   --dz-item-name-color: var(--dz-text-color-1);
 
   /* File Item Meta */
-  --dz-item-meta-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
+  --dz-item-meta-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem, 10px));
   --dz-item-meta-color: var(--dz-text-color-3);
 
   /* File Item Progress + Status — reserved widths so layout stays stable
      across status transitions on `list` / `detailed` modes. */
-  --dz-item-progress-width: calc(10 * var(--dz-rem));
-  --dz-item-progress-text-width: calc(3.6 * var(--dz-rem));
-  --dz-item-status-width: calc(2 * var(--dz-rem));
-  --dz-status-icon-size: calc(1.6 * var(--dz-rem));
+  --dz-item-progress-width: calc(10 * var(--dz-rem, 10px));
+  --dz-item-progress-text-width: calc(3.6 * var(--dz-rem, 10px));
+  --dz-item-status-width: calc(2 * var(--dz-rem, 10px));
+  --dz-status-icon-size: calc(1.6 * var(--dz-rem, 10px));
   --dz-status-spin-duration: 1s;
 
   /* File Item Remove Button — empty button with × glyph painted via CSS
      mask of --dz-icon-remove on the ::before (matches .dz__badge-remove
      and .ms__badge-remove). */
-  --dz-item-remove-size: calc(2.4 * var(--dz-rem));
+  --dz-item-remove-size: calc(2.4 * var(--dz-rem, 10px));
   --dz-item-remove-bg: transparent;
   --dz-item-remove-bg-hover: color-mix(in srgb, var(--dz-error-color) 10%, transparent);
   --dz-item-remove-color: var(--dz-text-color-3);
   --dz-item-remove-color-hover: var(--dz-error-color);
-  --dz-item-remove-icon-size: calc(1.2 * var(--dz-rem));
+  --dz-item-remove-icon-size: calc(1.2 * var(--dz-rem, 10px));
 
   /* File Item Action Button (pause / resume / retry) — same footprint
      as the remove button so list / detailed rows align cleanly. Color
      idles neutral and goes accent on hover; the status-icon column
      carries the state colour, the action button is just a control. */
-  --dz-item-action-size: calc(2.4 * var(--dz-rem));
+  --dz-item-action-size: calc(2.4 * var(--dz-rem, 10px));
   --dz-item-action-bg: transparent;
   --dz-item-action-bg-hover: color-mix(in srgb, var(--dz-accent-color) 10%, transparent);
   --dz-item-action-color: var(--dz-text-color-3);
   --dz-item-action-color-hover: var(--dz-accent-color);
-  --dz-item-action-icon-size: calc(1.4 * var(--dz-rem));
+  --dz-item-action-icon-size: calc(1.4 * var(--dz-rem, 10px));
 
   /* ==========================================================================
      PREVIEW (Grid Mode)
      ========================================================================== */
-  --dz-preview-grid-columns: repeat(auto-fill, minmax(calc(12 * var(--dz-rem)), 1fr));
-  --dz-preview-grid-gap: calc(1.2 * var(--dz-rem));
+  --dz-preview-grid-columns: repeat(auto-fill, minmax(calc(12 * var(--dz-rem, 10px)), 1fr));
+  --dz-preview-grid-gap: calc(1.2 * var(--dz-rem, 10px));
   --dz-preview-item-aspect-ratio: 1;
   --dz-preview-item-border: 1px solid var(--dz-border-color);
-  --dz-preview-item-border-radius: calc(var(--base-border-radius-md, 0.6) * var(--dz-rem));
+  --dz-preview-item-border-radius: calc(var(--base-border-radius-md, 0.6) * var(--dz-rem, 10px));
   --dz-preview-item-bg: var(--dz-primary-bg);
 
   /* Preview Overlay */
   --dz-preview-overlay-bg: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
-  --dz-preview-overlay-padding: calc(0.8 * var(--dz-rem));
+  --dz-preview-overlay-padding: calc(0.8 * var(--dz-rem, 10px));
   --dz-preview-overlay-color: #ffffff;
-  --dz-preview-overlay-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
+  --dz-preview-overlay-font-size: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem, 10px));
 
   /* Preview Remove Button — same mask glyph as the shared remove button. */
-  --dz-preview-remove-size: calc(2.4 * var(--dz-rem));
+  --dz-preview-remove-size: calc(2.4 * var(--dz-rem, 10px));
   --dz-preview-remove-bg: rgba(0, 0, 0, 0.5);
   --dz-preview-remove-bg-hover: var(--dz-error-color);
   --dz-preview-remove-color: #ffffff;
-  --dz-preview-remove-icon-size: calc(1 * var(--dz-rem));
-  --dz-preview-remove-offset: calc(0.6 * var(--dz-rem));
+  --dz-preview-remove-icon-size: calc(1 * var(--dz-rem, 10px));
+  --dz-preview-remove-offset: calc(0.6 * var(--dz-rem, 10px));
 
   /* Grid-tile hover scrim — dark full-cover overlay that fades in over
      the thumbnail so the action / remove buttons read cleanly without
@@ -334,92 +343,92 @@
      covering the thumbnail). Border-radius matches the grid cell so
      the controls read as part of the same geometry; override to 50%
      for a circular look. */
-  --dz-preview-action-button-size: calc(4.4 * var(--dz-rem));
-  --dz-preview-action-icon-size: calc(2.2 * var(--dz-rem));
-  --dz-preview-action-gap: calc(1.2 * var(--dz-rem));
+  --dz-preview-action-button-size: calc(4.4 * var(--dz-rem, 10px));
+  --dz-preview-action-icon-size: calc(2.2 * var(--dz-rem, 10px));
+  --dz-preview-action-gap: calc(1.2 * var(--dz-rem, 10px));
   --dz-preview-action-bg-hover: rgba(255, 255, 255, 0.15);
   --dz-preview-action-button-border-radius: var(--dz-preview-item-border-radius);
 
   /* ==========================================================================
      COMPACT MODE SUMMARY
      ========================================================================== */
-  --dz-summary-padding: calc(0.8 * var(--dz-rem)) calc(1.2 * var(--dz-rem));
+  --dz-summary-padding: calc(0.8 * var(--dz-rem, 10px)) calc(1.2 * var(--dz-rem, 10px));
   --dz-summary-bg: transparent;
   --dz-summary-bg-hover: var(--dz-primary-bg);
-  --dz-summary-border-radius: calc(var(--base-border-radius-sm, 0.4) * var(--dz-rem));
-  --dz-summary-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-summary-border-radius: calc(var(--base-border-radius-sm, 0.4) * var(--dz-rem, 10px));
+  --dz-summary-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem, 10px));
   --dz-summary-color: var(--dz-text-color-1);
 
   /* ==========================================================================
      POPOVER
      ========================================================================== */
-  --dz-popover-width: calc(48 * var(--dz-rem));
+  --dz-popover-width: calc(48 * var(--dz-rem, 10px));
   --dz-popover-max-width: 90vw;
-  --dz-popover-max-height: calc(40 * var(--dz-rem));
+  --dz-popover-max-height: calc(40 * var(--dz-rem, 10px));
   /* Floors for the user-resize handle — drag below these and the box
      stops shrinking. The viewport cap is set dynamically by Floating UI's
      `size` middleware, so the user can grow the popover up to the
      visible edge (minus 8px padding) without falling off-screen. */
-  --dz-popover-min-width: calc(28 * var(--dz-rem));
-  --dz-popover-min-height: calc(14 * var(--dz-rem));
+  --dz-popover-min-width: calc(28 * var(--dz-rem, 10px));
+  --dz-popover-min-height: calc(14 * var(--dz-rem, 10px));
   --dz-popover-resize: both;
   --dz-popover-bg: var(--dz-background);
   --dz-popover-border: 1px solid var(--dz-border-color);
-  --dz-popover-border-radius: calc(var(--base-border-radius-lg, 0.8) * var(--dz-rem));
+  --dz-popover-border-radius: calc(var(--base-border-radius-lg, 0.8) * var(--dz-rem, 10px));
   --dz-popover-box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   --dz-popover-z-index: 10000;
 
   /* Popover Header */
-  --dz-popover-header-padding: calc(1 * var(--dz-rem)) calc(1.2 * var(--dz-rem));
+  --dz-popover-header-padding: calc(1 * var(--dz-rem, 10px)) calc(1.2 * var(--dz-rem, 10px));
   --dz-popover-header-bg: color-mix(in srgb, var(--dz-accent-color) 5%, transparent);
   --dz-popover-header-border-bottom: 1px solid var(--dz-border-color);
-  --dz-popover-header-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-popover-header-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem, 10px));
   --dz-popover-header-font-weight: var(--base-font-weight-semibold, 600);
   --dz-popover-header-color: var(--dz-text-color-1);
-  --dz-popover-header-gap: calc(0.8 * var(--dz-rem));
+  --dz-popover-header-gap: calc(0.8 * var(--dz-rem, 10px));
 
   /* Popover Limits Hint — one-liner under the header that restates
      accept/max-size/max-files (the card's hint isn't visible in the popover). */
-  --dz-popover-limits-padding: 0 calc(1.2 * var(--dz-rem)) calc(0.8 * var(--dz-rem));
+  --dz-popover-limits-padding: 0 calc(1.2 * var(--dz-rem, 10px)) calc(0.8 * var(--dz-rem, 10px));
   --dz-popover-limits-font-size: var(--dz-font-size-xs);
   --dz-popover-limits-color: var(--dz-text-color-3);
   --dz-popover-limits-line-height: 1.35;
 
   /* Popover Action Buttons (Add more / Clear all) — flat text buttons in
      header (mirrors FluentUI's popover action buttons). */
-  --dz-popover-action-padding: calc(0.4 * var(--dz-rem)) calc(0.8 * var(--dz-rem));
+  --dz-popover-action-padding: calc(0.4 * var(--dz-rem, 10px)) calc(0.8 * var(--dz-rem, 10px));
   --dz-popover-action-font-size: var(--dz-font-size-xs);
   --dz-popover-action-font-weight: var(--base-font-weight-medium, 500);
   --dz-popover-action-color: var(--dz-accent-color);
   --dz-popover-action-bg-hover: color-mix(in srgb, var(--dz-accent-color) 10%, transparent);
   --dz-popover-action-border-radius: var(--dz-border-radius-sm);
-  --dz-popover-actions-gap: calc(0.4 * var(--dz-rem));
+  --dz-popover-actions-gap: calc(0.4 * var(--dz-rem, 10px));
 
   /* Popover Body */
-  --dz-popover-body-padding: calc(0.4 * var(--dz-rem));
+  --dz-popover-body-padding: calc(0.4 * var(--dz-rem, 10px));
 
   /* Popover Footer — overall totals (file count + total size). */
-  --dz-popover-footer-padding: calc(0.8 * var(--dz-rem)) calc(1.2 * var(--dz-rem));
+  --dz-popover-footer-padding: calc(0.8 * var(--dz-rem, 10px)) calc(1.2 * var(--dz-rem, 10px));
   --dz-popover-footer-bg: var(--dz-popover-bg);
   --dz-popover-footer-border-top: 1px solid var(--dz-border-color);
   --dz-popover-footer-font-size: var(--dz-font-size-xs);
   --dz-popover-footer-color: var(--dz-text-color-3);
 
   /* Popover Table */
-  --dz-popover-table-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
-  --dz-popover-cell-padding: calc(0.6 * var(--dz-rem)) calc(0.8 * var(--dz-rem));
+  --dz-popover-table-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem, 10px));
+  --dz-popover-cell-padding: calc(0.6 * var(--dz-rem, 10px)) calc(0.8 * var(--dz-rem, 10px));
   --dz-popover-row-hover-bg: var(--dz-primary-bg);
 
   /* Popover row icon / thumbnail slot — set --dz-popover-icon-size to 0 to
      collapse the icon cell entirely. */
-  --dz-popover-icon-size: calc(2.4 * var(--dz-rem));
-  --dz-popover-icon-font-size: calc(1.6 * var(--dz-rem));
+  --dz-popover-icon-size: calc(2.4 * var(--dz-rem, 10px));
+  --dz-popover-icon-font-size: calc(1.6 * var(--dz-rem, 10px));
   --dz-popover-icon-bg: transparent;
-  --dz-popover-icon-border-radius: calc(0.3 * var(--dz-rem));
+  --dz-popover-icon-border-radius: calc(0.3 * var(--dz-rem, 10px));
 
   /* Popover row remove button — same mask glyph as .dz__file-item__remove. */
-  --dz-popover-remove-size: calc(2 * var(--dz-rem));
-  --dz-popover-remove-icon-size: calc(1 * var(--dz-rem));
+  --dz-popover-remove-size: calc(2 * var(--dz-rem, 10px));
+  --dz-popover-remove-icon-size: calc(1 * var(--dz-rem, 10px));
   --dz-popover-remove-bg: transparent;
   --dz-popover-remove-bg-hover: color-mix(in srgb, var(--dz-error-color) 10%, transparent);
   --dz-popover-remove-color: var(--dz-text-color-3);
@@ -428,27 +437,27 @@
   /* ==========================================================================
      PROGRESS BAR
      ========================================================================== */
-  --dz-progress-height: calc(0.6 * var(--dz-rem));
+  --dz-progress-height: calc(0.6 * var(--dz-rem, 10px));
   --dz-progress-bg: color-mix(in srgb, var(--dz-accent-color) 20%, transparent);
   --dz-progress-fill-bg: var(--dz-accent-color);
-  --dz-progress-border-radius: calc(0.3 * var(--dz-rem));
+  --dz-progress-border-radius: calc(0.3 * var(--dz-rem, 10px));
   --dz-progress-transition: width 0.3s ease;
 
   /* ==========================================================================
      OVERALL PROGRESS STRIP — aggregate upload progress under the inline list
      and inside the popover footer. Matches FluentUI InputFile's overallFooter.
      ========================================================================== */
-  --dz-overall-progress-gap: calc(0.4 * var(--dz-rem));
-  --dz-overall-progress-padding: calc(0.6 * var(--dz-rem)) 0;
-  --dz-overall-progress-bar-height: calc(0.6 * var(--dz-rem));
+  --dz-overall-progress-gap: calc(0.4 * var(--dz-rem, 10px));
+  --dz-overall-progress-padding: calc(0.6 * var(--dz-rem, 10px)) 0;
+  --dz-overall-progress-bar-height: calc(0.6 * var(--dz-rem, 10px));
   --dz-overall-progress-stats-font-size: var(--dz-font-size-xs);
   --dz-overall-progress-stats-color: var(--dz-text-color-3);
   --dz-overall-progress-percent-color: var(--dz-text-color-1);
   --dz-overall-progress-percent-font-weight: var(--base-font-weight-medium, 500);
   /* Reserve width for the widest percent ("100%") so layout doesn't shift as
      digits roll over and buttons come and go. */
-  --dz-overall-progress-percent-min-width: calc(3.6 * var(--dz-rem));
-  --dz-overall-progress-action-padding: calc(0.2 * var(--dz-rem)) calc(0.8 * var(--dz-rem));
+  --dz-overall-progress-percent-min-width: calc(3.6 * var(--dz-rem, 10px));
+  --dz-overall-progress-action-padding: calc(0.2 * var(--dz-rem, 10px)) calc(0.8 * var(--dz-rem, 10px));
   --dz-overall-progress-action-font-size: var(--dz-font-size-xs);
   --dz-overall-progress-action-font-weight: var(--base-font-weight-medium, 500);
   --dz-overall-progress-action-color: var(--dz-accent-color);
@@ -458,17 +467,17 @@
   /* ==========================================================================
      EMPTY STATE
      ========================================================================== */
-  --dz-empty-padding: calc(1.6 * var(--dz-rem));
-  --dz-empty-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
+  --dz-empty-padding: calc(1.6 * var(--dz-rem, 10px));
+  --dz-empty-font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem, 10px));
   --dz-empty-color: var(--dz-text-color-3);
 
   /* ==========================================================================
      TYPOGRAPHY
      ========================================================================== */
-  --dz-font-size-xs: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem));
-  --dz-font-size-sm: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem));
-  --dz-font-size-base: calc(var(--base-font-size-base, 1.6) * var(--dz-rem));
-  --dz-font-size-lg: calc(var(--base-font-size-lg, 1.8) * var(--dz-rem));
+  --dz-font-size-xs: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem, 10px));
+  --dz-font-size-sm: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem, 10px));
+  --dz-font-size-base: calc(var(--base-font-size-base, 1.6) * var(--dz-rem, 10px));
+  --dz-font-size-lg: calc(var(--base-font-size-lg, 1.8) * var(--dz-rem, 10px));
 
   --dz-font-weight-normal: var(--base-font-weight-normal, 400);
   --dz-font-weight-medium: var(--base-font-weight-medium, 500);
@@ -480,9 +489,9 @@
   /* ==========================================================================
      BORDER RADIUS
      ========================================================================== */
-  --dz-border-radius-sm: calc(var(--base-border-radius-sm, 0.4) * var(--dz-rem));
-  --dz-border-radius-md: calc(var(--base-border-radius-md, 0.6) * var(--dz-rem));
-  --dz-border-radius-lg: calc(var(--base-border-radius-lg, 0.8) * var(--dz-rem));
+  --dz-border-radius-sm: calc(var(--base-border-radius-sm, 0.4) * var(--dz-rem, 10px));
+  --dz-border-radius-md: calc(var(--base-border-radius-md, 0.6) * var(--dz-rem, 10px));
+  --dz-border-radius-lg: calc(var(--base-border-radius-lg, 0.8) * var(--dz-rem, 10px));
 
   /* ==========================================================================
      TRANSITIONS
@@ -503,9 +512,9 @@
   --dz-overlay-border: 3px dashed var(--dz-text-on-accent);
   --dz-overlay-border-radius: var(--dz-dropzone-border-radius);
   --dz-overlay-color: var(--dz-text-on-accent);
-  --dz-overlay-icon-size: calc(4.8 * var(--dz-rem));
-  --dz-overlay-text-font-size: calc(var(--base-font-size-lg, 1.8) * var(--dz-rem));
+  --dz-overlay-icon-size: calc(4.8 * var(--dz-rem, 10px));
+  --dz-overlay-text-font-size: calc(var(--base-font-size-lg, 1.8) * var(--dz-rem, 10px));
   --dz-overlay-text-font-weight: var(--base-font-weight-medium, 500);
-  --dz-overlay-gap: calc(1.2 * var(--dz-rem));
+  --dz-overlay-gap: calc(1.2 * var(--dz-rem, 10px));
   --dz-overlay-z-index: 9999;
 }

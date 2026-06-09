@@ -81,6 +81,14 @@ export class DropzoneListElement extends SatelliteElement {
      * survive across ticks the same way the indicator satellite does.
      */
     private rollingSurface = new StatusSurface();
+    /**
+     * When `max-visible-files` is in effect and the queue exceeds it, the
+     * list collapses to the first N rows + a "Show N more" toggle. Click
+     * flips this flag and re-renders; further structural events (add /
+     * remove / clear) leave it sticky so the user's preference survives
+     * the next burst. Reset to false on a full clear in the change handler.
+     */
+    private showAll = false;
 
     constructor() {
         super();
@@ -150,6 +158,10 @@ export class DropzoneListElement extends SatelliteElement {
         const appearance = this.resolveAppearance();
 
         if (files.length === 0) {
+            // The queue was just cleared — reset the show-more flag so the
+            // next non-empty render starts capped again rather than
+            // surprising the user with the expanded view.
+            this.showAll = false;
             // Popover renders nothing when empty — the summary line only
             // appears once there are files, matching the in-class
             // behavior; if we showed an empty-state message the popover
@@ -187,10 +199,53 @@ export class DropzoneListElement extends SatelliteElement {
         const isNested = this.getAttribute('nested') === 'true';
         const base = isNested ? 'dz__files-inside' : 'dz__file-list';
         const containerClass = `${base} ${base}--${appearance}`;
-        const rows = files.map(f => this.renderRow(f, appearance)).join('');
-        this.container.innerHTML = `<div class="${containerClass}" data-list-appearance="${appearance}">${rows}</div>`;
+
+        // Apply the max-visible-files cap. Mirrors the in-class renderer:
+        // appearances with their own dedicated layout (rolling, popover)
+        // are excluded above — we only reach here for list/detailed/grid/
+        // badges. When the queue is empty we already returned.
+        const cap = this.store.getConfig().maxVisibleFiles ?? 0;
+        const visible = cap > 0 && !this.showAll ? files.slice(0, cap) : files;
+        const toggle = this.renderShowMoreToggle(files.length, cap, appearance);
+
+        const rows = visible.map(f => this.renderRow(f, appearance)).join('');
+        this.container.innerHTML = `<div class="${containerClass}" data-list-appearance="${appearance}">${rows}${toggle}</div>`;
         this.bindRowHandlers();
-        this.attachPreviewLoaders(files);
+        this.bindToggleHandler();
+        this.attachPreviewLoaders(visible);
+    }
+
+    /**
+     * Render the trailing "Show N more" / "Show less" toggle when the
+     * `max-visible-files` cap is in effect and the queue exceeds it.
+     * Mirrors the in-class renderer's `renderToggleButton` — badges
+     * surface uses a pill-shaped variant to fit the badge frame; the
+     * other inline appearances use a full-width text button.
+     */
+    private renderShowMoreToggle(total: number, cap: number, appearance: ListAppearance): string {
+        if (cap <= 0 || total <= cap) return '';
+        const isBadges = appearance === 'badges';
+        if (this.showAll) {
+            return isBadges
+                ? `<button type="button" class="dz__badge dz__badge--more" data-action="toggle-visible" aria-label="Show fewer">−</button>`
+                : `<button type="button" class="dz__show-more" data-action="toggle-visible">Show less</button>`;
+        }
+        const hidden = total - cap;
+        return isBadges
+            ? `<button type="button" class="dz__badge dz__badge--more" data-action="toggle-visible" aria-label="Show ${hidden} more">+${hidden}</button>`
+            : `<button type="button" class="dz__show-more" data-action="toggle-visible">Show ${hidden} more</button>`;
+    }
+
+    /** Bind the toggle button's click handler (only present when the
+     *  max-visible cap is active and over). */
+    private bindToggleHandler(): void {
+        const btn = this.container.querySelector<HTMLElement>('[data-action="toggle-visible"]');
+        if (!btn) return;
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.showAll = !this.showAll;
+            this.renderAll();
+        });
     }
 
     // ========================================================================

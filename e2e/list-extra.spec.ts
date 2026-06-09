@@ -54,11 +54,16 @@ test.describe('list-appearance="rolling"', () => {
 });
 
 test.describe('--dz-file-list-max-height', () => {
-    // The host's `--dz-file-list-max-height` inline-style doesn't reach the
-    // satellite renderer for the same reason --dz-rem doesn't — the
-    // `<web-dropzone-list>` satellite's :host rule masks values set on the
-    // parent. Real gap, tracked in COVERAGE §2 / §10.
-    test.fixme('list container caps height via --dz-file-list-max-height (satellite propagation gap)', async () => {});
+    test('list container caps its height; scrollHeight exceeds visible height', async ({ page }) => {
+        await addNamed(page, 'height-cap', ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+        const list = dz(page, 'height-cap').locator('.dz__file-list');
+        const heights = await list.evaluate((el: any) => ({
+            client: el.clientHeight,
+            scroll: el.scrollHeight
+        }));
+        expect(heights.client).toBeLessThan(heights.scroll);
+        expect(heights.client).toBeLessThanOrEqual(120);
+    });
 });
 
 test.describe('popover content', () => {

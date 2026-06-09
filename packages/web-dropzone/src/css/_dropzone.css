@@ -65,7 +65,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: calc(0.8 * var(--dz-rem));
+  gap: calc(0.8 * var(--dz-rem, 10px));
   pointer-events: none;
 }
 
@@ -109,7 +109,7 @@
 .dz__dropzone--card-minimal .dz__dropzone__content {
   flex-direction: row;
   flex-wrap: wrap;
-  gap: calc(0.6 * var(--dz-rem)) calc(1 * var(--dz-rem));
+  gap: calc(0.6 * var(--dz-rem, 10px)) calc(1 * var(--dz-rem, 10px));
   justify-content: center;
 }
 .dz__dropzone--card-minimal .dz__dropzone__icon {
@@ -127,7 +127,7 @@
   padding: var(--dz-dropzone-card-big-padding);
 }
 .dz__dropzone--card-big .dz__dropzone__content {
-  gap: calc(1.2 * var(--dz-rem));
+  gap: calc(1.2 * var(--dz-rem, 10px));
 }
 .dz__dropzone--card-big .dz__dropzone__icon {
   font-size: var(--dz-dropzone-card-big-icon-size);
@@ -142,7 +142,7 @@
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
-  padding: calc(0.7 * var(--dz-rem)) calc(1.6 * var(--dz-rem));
+  padding: calc(0.7 * var(--dz-rem, 10px)) calc(1.6 * var(--dz-rem, 10px));
   background: var(--dz-accent-color);
   color: var(--dz-text-on-accent);
   border-radius: var(--dz-border-radius-md);
@@ -200,16 +200,16 @@
    Falls back to the darker accent when no upload activity has started. */
 .dz__button__badge {
   position: absolute;
-  top: calc(-0.4 * var(--dz-rem));
-  right: calc(-0.4 * var(--dz-rem));
-  min-width: calc(1.8 * var(--dz-rem));
-  height: calc(1.8 * var(--dz-rem));
-  padding: 0 calc(0.4 * var(--dz-rem));
+  top: calc(-0.4 * var(--dz-rem, 10px));
+  right: calc(-0.4 * var(--dz-rem, 10px));
+  min-width: calc(1.8 * var(--dz-rem, 10px));
+  height: calc(1.8 * var(--dz-rem, 10px));
+  padding: 0 calc(0.4 * var(--dz-rem, 10px));
   background: var(--dz-accent-color-active);
   color: var(--dz-text-on-accent);
   border: 2px solid var(--dz-background);
   border-radius: var(--dz-button-badge-border-radius);
-  font-size: calc(1.1 * var(--dz-rem));
+  font-size: calc(1.1 * var(--dz-rem, 10px));
   font-weight: var(--dz-font-weight-semibold);
   line-height: 1;
   display: inline-flex;
@@ -264,16 +264,16 @@
 }
 .dz__minimal__badge {
   position: absolute;
-  top: calc(-0.4 * var(--dz-rem));
-  right: calc(-0.4 * var(--dz-rem));
-  min-width: calc(1.8 * var(--dz-rem));
-  height: calc(1.8 * var(--dz-rem));
-  padding: 0 calc(0.4 * var(--dz-rem));
+  top: calc(-0.4 * var(--dz-rem, 10px));
+  right: calc(-0.4 * var(--dz-rem, 10px));
+  min-width: calc(1.8 * var(--dz-rem, 10px));
+  height: calc(1.8 * var(--dz-rem, 10px));
+  padding: 0 calc(0.4 * var(--dz-rem, 10px));
   background: var(--dz-accent-color);
   color: var(--dz-text-on-accent);
   border: 2px solid var(--dz-background);
   border-radius: 999px;
-  font-size: calc(1.1 * var(--dz-rem));
+  font-size: calc(1.1 * var(--dz-rem, 10px));
   font-weight: var(--dz-font-weight-semibold);
   display: inline-flex;
   align-items: center;
@@ -291,7 +291,7 @@
 .dz__dropzone--native {
   display: inline-flex;
   align-items: center;
-  gap: calc(0.8 * var(--dz-rem));
+  gap: calc(0.8 * var(--dz-rem, 10px));
   max-width: 100%;
   align-self: start;
   cursor: default;
@@ -299,7 +299,7 @@
 .dz__native__button {
   display: inline-flex;
   align-items: center;
-  padding: calc(0.4 * var(--dz-rem)) calc(1 * var(--dz-rem));
+  padding: calc(0.4 * var(--dz-rem, 10px)) calc(1 * var(--dz-rem, 10px));
   background: var(--dz-primary-bg, var(--base-primary-bg, #efefef));
   color: var(--dz-text-color-1, var(--base-text-color-1, #000));
   border: 1px solid var(--dz-border-color);
@@ -334,18 +334,18 @@
    ========================================================================== */
 .dz__dropzone--files-inside {
   min-height: var(--dz-dropzone-min-height);
-  padding-bottom: calc(1.6 * var(--dz-rem));
+  padding-bottom: calc(1.6 * var(--dz-rem, 10px));
 }
 
 .dz__dropzone--files-inside.dz__dropzone--has-files .dz__dropzone__content {
-  margin-bottom: calc(1.2 * var(--dz-rem));
+  margin-bottom: calc(1.2 * var(--dz-rem, 10px));
 }
 
 /* Files inside container */
 .dz__files-inside {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(0.8 * var(--dz-rem));
+  gap: calc(0.8 * var(--dz-rem, 10px));
   justify-content: center;
   width: 100%;
   max-width: 100%;
@@ -360,7 +360,7 @@
 .dz__files-inside--list {
   flex-direction: column;
   align-items: center;
-  max-width: calc(40 * var(--dz-rem));
+  max-width: calc(40 * var(--dz-rem, 10px));
 }
 
 .dz__files-inside--list .dz__file-item--list {
@@ -368,21 +368,21 @@
   background: var(--dz-background);
   border: 1px solid var(--dz-border-color);
   border-radius: var(--dz-item-border-radius);
-  padding: calc(0.6 * var(--dz-rem)) calc(1 * var(--dz-rem));
+  padding: calc(0.6 * var(--dz-rem, 10px)) calc(1 * var(--dz-rem, 10px));
 }
 
 /* Detailed mode inside dropzone */
 .dz__files-inside--detailed {
   flex-direction: column;
   align-items: stretch;
-  max-width: calc(40 * var(--dz-rem));
+  max-width: calc(40 * var(--dz-rem, 10px));
 }
 
 .dz__files-inside--detailed .dz__file-item--detailed {
   background: var(--dz-background);
   border: 1px solid var(--dz-border-color);
   border-radius: var(--dz-item-border-radius);
-  padding: calc(0.8 * var(--dz-rem));
+  padding: calc(0.8 * var(--dz-rem, 10px));
 }
 
 /* Grid mode inside dropzone */

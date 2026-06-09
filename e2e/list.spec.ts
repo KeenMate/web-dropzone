@@ -85,14 +85,21 @@ test.describe('list-appearance="none"', () => {
 });
 
 test.describe('max-visible-files cap', () => {
-    // The cap is honored by the in-class renderer (dropzone.ts: getVisibleFiles
-    // + renderToggleButton) but the convenience-form path routes through the
-    // `<web-dropzone-list>` satellite, which does NOT apply the cap today. This
-    // is an architectural gap rather than a regression — see COVERAGE.md section
-    // 2. Skipping until the satellite reads `max-visible-files` from the store
-    // config the same way the in-class renderer does.
-    test.fixme('caps rendered rows + reveals a "Show N more" button (satellite gap)', async () => {});
-    test.fixme('clicking the toggle expands to show every file (satellite gap)', async () => {});
+    test('caps rendered rows; reveals a "Show N more" button when over the cap', async ({ page }) => {
+        await stage(page, 'capped', 7);
+        const p = dz(page, 'capped');
+        await expect(p.locator('.dz__file-item--detailed')).toHaveCount(3);
+        const toggle = p.locator('.dz__show-more');
+        await expect(toggle).toBeVisible();
+        await expect(toggle).toContainText('4');
+    });
+
+    test('clicking the toggle expands to show every file', async ({ page }) => {
+        await stage(page, 'capped', 7);
+        const p = dz(page, 'capped');
+        await p.locator('.dz__show-more').click();
+        await expect(p.locator('.dz__file-item--detailed')).toHaveCount(7);
+    });
 });
 
 test.describe('files-inside layout', () => {

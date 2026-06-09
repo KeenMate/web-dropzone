@@ -9,7 +9,7 @@
 .dz__file-item--list {
   display: flex;
   align-items: center;
-  gap: calc(0.8 * var(--dz-rem));
+  gap: calc(0.8 * var(--dz-rem, 10px));
   padding: var(--dz-item-padding);
   border: var(--dz-item-border);
   border-radius: var(--dz-item-border-radius);
@@ -38,7 +38,7 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: calc(0.4 * var(--dz-rem));
+  gap: calc(0.4 * var(--dz-rem, 10px));
   width: var(--dz-item-progress-width);
 }
 
@@ -133,7 +133,7 @@
 .dz__file-item--detailed {
   display: flex;
   align-items: center;
-  gap: calc(1.2 * var(--dz-rem));
+  gap: calc(1.2 * var(--dz-rem, 10px));
   padding: var(--dz-item-padding);
   border: var(--dz-item-border);
   border-radius: var(--dz-item-border-radius);
@@ -174,7 +174,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: calc(0.2 * var(--dz-rem));
+  gap: calc(0.2 * var(--dz-rem, 10px));
 }
 
 .dz__file-item--detailed .dz__file-item__name {
@@ -189,7 +189,7 @@
 /* File meta (size, type) */
 .dz__file-item__meta {
   display: flex;
-  gap: calc(0.8 * var(--dz-rem));
+  gap: calc(0.8 * var(--dz-rem, 10px));
   font-size: var(--dz-item-meta-font-size);
   color: var(--dz-item-meta-color);
 }
@@ -293,7 +293,7 @@
 .dz__badge-text {
   display: inline-flex;
   align-items: center;
-  gap: calc(0.4 * var(--dz-rem));
+  gap: calc(0.4 * var(--dz-rem, 10px));
   box-sizing: border-box;
   height: 100%;
   padding: var(--dz-badge-text-padding);
@@ -525,7 +525,7 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  font-size: calc(3.2 * var(--dz-rem));
+  font-size: calc(3.2 * var(--dz-rem, 10px));
   color: var(--dz-text-color-3);
 }
 

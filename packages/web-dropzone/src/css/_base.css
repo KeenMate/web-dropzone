@@ -28,7 +28,7 @@ web-dropzone:not(:defined) {
 .dz__container--compact {
   flex-direction: row;
   align-items: center;
-  gap: calc(1.2 * var(--dz-rem));
+  gap: calc(1.2 * var(--dz-rem, 10px));
 }
 
 .dz__container--compact .dz__dropzone {

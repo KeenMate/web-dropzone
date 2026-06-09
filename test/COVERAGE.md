@@ -40,17 +40,12 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 | `list-appearance="popover"` summary + popover open + rows     | ✓      | `list-extra.spec.ts` | `list-extra.html` |
 | `list-appearance="rolling"`                                   | ✓      | `list-extra.spec.ts` | `list-extra.html` |
 | `list-appearance="none"`                                      | ✓      | `list.spec.ts` | `list.html` |
-| `max-visible-files` "Show N more" toggle (in-class renderer)  | △      | `list.spec.ts` | `list.html` |
-| `max-visible-files` cap **in satellite renderer** — GAP       | ✗      |                |             |
-| `--dz-file-list-max-height` (satellite propagation GAP)       | ✗      |                |             |
+| `max-visible-files` "Show N more" toggle (satellite renderer) | ✓      | `list.spec.ts` | `list.html` |
+| `--dz-file-list-max-height` (works through satellite)         | ✓      | `list-extra.spec.ts` | `list-extra.html` |
 | `files-inside` layout                                         | ✓      | `list.spec.ts` | `list.html` |
 | Legacy `display-mode` shorthand → orthogonal axes             | ✓      | `appearance.spec.ts` | `appearance.html`  |
 | Orthogonal attr overrides `display-mode` shorthand            | ✓      | `appearance.spec.ts` | `appearance.html`  |
 
-> **Known gap:** `<web-dropzone-list>` (satellite) doesn't honor `max-visible-files`.
-> The cap is implemented in `dropzone.ts` (in-class renderer); the satellite
-> renders the full list regardless. Two tests in `list.spec.ts` are marked
-> `.fixme()` until the satellite reads the cap from store config.
 
 ## 3. Validation
 
@@ -175,19 +170,13 @@ When a row is marked `✓`/`△`, the **Spec** column points at the file under
 | Feature                                                       | Status | Spec              | Fixture        |
 | ------------------------------------------------------------- | :----: | ----------------- | -------------- |
 | `--dz-rem` value lands on the host element                    | ✓      | `theming.spec.ts` | `theming.html` |
-| `--dz-rem` propagates through satellite shadow — GAP          | ✗      |                   |                |
+| `--dz-rem` propagates through satellite shadow (icon scales)  | ✓      | `theming.spec.ts` | `theming.html` |
 | Individual `--dz-*` override on the host                      | ✓      | `theming.spec.ts` | `theming.html` |
 | `--base-*` integration variables readable on the host         | ✓      | `theming.spec.ts` | `theming.html` |
 | Disabled host carries `dz__dropzone--disabled` modifier       | ✓      | `theming.spec.ts` | `theming.html` |
 | Disabled host still accepts programmatic addFiles             | ✓      | `theming.spec.ts` | `theming.html` |
 | RTL (`dir="rtl"`) on parent inherits to the host              | ✓      | `theming.spec.ts` | `theming.html` |
 
-> **Known gap:** The picker satellite's own CSS sets `:host { --dz-rem: 10px }`
-> in its shadow root, which masks any value set on the parent `<web-dropzone>`
-> host element. Theming via `--dz-rem` only takes effect when set at a scope
-> ABOVE the satellite (body, a wrapper div). One test marked `.fixme()` until
-> the satellite reads `--dz-rem` from the parent properly (or stops re-defining
-> it).
 
 ## 11. Logging
 

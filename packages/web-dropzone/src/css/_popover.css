@@ -13,7 +13,7 @@
 .dz__summary__line {
   display: inline-flex;
   align-items: center;
-  gap: calc(0.6 * var(--dz-rem));
+  gap: calc(0.6 * var(--dz-rem, 10px));
   padding: var(--dz-summary-padding);
   background: var(--dz-summary-bg);
   border-radius: var(--dz-summary-border-radius);
@@ -164,7 +164,7 @@
 .dz__popover__footer {
   display: flex;
   flex-direction: column;
-  gap: calc(0.6 * var(--dz-rem));
+  gap: calc(0.6 * var(--dz-rem, 10px));
   padding: var(--dz-popover-footer-padding);
   background: var(--dz-popover-footer-bg);
   border-top: var(--dz-popover-footer-border-top);
@@ -260,7 +260,7 @@
   width: var(--dz-item-action-size);
   text-align: center;
   padding-left: 0;
-  padding-right: calc(0.2 * var(--dz-rem));
+  padding-right: calc(0.2 * var(--dz-rem, 10px));
 }
 
 .dz__popover__cell--status {
@@ -269,7 +269,7 @@
 }
 
 .dz__popover__cell--actions {
-  width: calc(3.2 * var(--dz-rem));
+  width: calc(3.2 * var(--dz-rem, 10px));
   text-align: center;
   padding-left: 0;
   padding-right: 0;
@@ -356,14 +356,14 @@
    PROGRESS COLUMN
    ========================================================================== */
 .dz__popover__cell--progress {
-  width: calc(10 * var(--dz-rem));
+  width: calc(10 * var(--dz-rem, 10px));
   white-space: nowrap;
 }
 
 .dz__popover__progress-bar {
   display: inline-block;
-  width: calc(6 * var(--dz-rem));
-  height: calc(0.6 * var(--dz-rem));
+  width: calc(6 * var(--dz-rem, 10px));
+  height: calc(0.6 * var(--dz-rem, 10px));
   background: var(--dz-progress-bg);
   border-radius: var(--dz-progress-border-radius);
   overflow: hidden;
@@ -379,11 +379,11 @@
 
 .dz__popover__progress-text {
   display: inline-block;
-  width: calc(3 * var(--dz-rem));
+  width: calc(3 * var(--dz-rem, 10px));
   text-align: right;
   font-size: var(--dz-font-size-xs);
   color: var(--dz-text-color-3);
-  margin-left: calc(0.4 * var(--dz-rem));
+  margin-left: calc(0.4 * var(--dz-rem, 10px));
   vertical-align: middle;
 }
 
@@ -391,7 +391,7 @@
    STATUS COLUMN
    ========================================================================== */
 .dz__popover__cell--status {
-  width: calc(2.4 * var(--dz-rem));
+  width: calc(2.4 * var(--dz-rem, 10px));
   text-align: center;
 }
 

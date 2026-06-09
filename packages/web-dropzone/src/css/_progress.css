@@ -5,7 +5,7 @@
 
 .dz__progress {
   width: 100%;
-  margin-top: calc(0.4 * var(--dz-rem));
+  margin-top: calc(0.4 * var(--dz-rem, 10px));
 }
 
 .dz__progress__bar {
@@ -34,7 +34,7 @@
 
 /* Status text */
 .dz__progress__status {
-  margin-top: calc(0.2 * var(--dz-rem));
+  margin-top: calc(0.2 * var(--dz-rem, 10px));
   font-size: var(--dz-font-size-xs);
   color: var(--dz-text-color-3);
 }
@@ -93,7 +93,7 @@
 .dz__overall-progress__stats {
   display: flex;
   align-items: center;
-  gap: calc(0.8 * var(--dz-rem));
+  gap: calc(0.8 * var(--dz-rem, 10px));
   font-size: var(--dz-overall-progress-stats-font-size);
   color: var(--dz-overall-progress-stats-color);
   /* Tabular figures so the percent doesn't jitter between 9% / 99% / 100% on
@@ -126,7 +126,7 @@
 .dz__overall-progress__actions {
   display: flex;
   align-items: center;
-  gap: calc(0.2 * var(--dz-rem));
+  gap: calc(0.2 * var(--dz-rem, 10px));
   flex: 0 0 auto;
 }
 

@@ -37,14 +37,22 @@ test.describe('--dz-rem scaling', () => {
         expect(await cssvar(page, 'scaled-big', '--dz-rem')).toBe('14px');
     });
 
-    // The satellite picker's own CSS carries `:host { --dz-rem: 10px }` in
-    // its shadow root, which masks any value set on the parent <web-dropzone>
-    // host element. Real-world theming via `--dz-rem` therefore only takes
-    // effect when set at a SCOPE ABOVE the satellite (e.g. body, a wrapper
-    // div). This is a known gap, tracked in COVERAGE §10. The cssvar set on
-    // the host IS confirmed by the earlier test in this block — only the
-    // propagation through the satellite is broken.
-    test.fixme('icon size scales with --dz-rem (satellite :host override gap)', async () => {});
+    test('icon size scales with --dz-rem through the satellite shadow', async ({ page }) => {
+        // The icon font-size is `calc(4 * var(--dz-rem, 10px))` after the
+        // CSS-var inheritance fix — values set on the parent <web-dropzone>
+        // now reach the picker satellite instead of being masked by its
+        // :host rule.
+        async function iconFontSize(id: string): Promise<number> {
+            return dz(page, id).locator('.dz__dropzone__icon').evaluate((el) =>
+                parseFloat(getComputedStyle(el).fontSize)
+            );
+        }
+        const small = await iconFontSize('scaled-small');
+        const def = await iconFontSize('scaled-default');
+        const big = await iconFontSize('scaled-big');
+        expect(small).toBeLessThan(def);
+        expect(def).toBeLessThan(big);
+    });
 });
 
 test.describe('individual --dz-* override', () => {

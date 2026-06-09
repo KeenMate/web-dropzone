@@ -11,7 +11,7 @@
   /* When --dz-file-list-max-height is `none` (default), max-height has no
      effect and overflow-y:auto does nothing since the box auto-sizes. Set
      the variable to a length to cap height and enable internal scroll. */
-  max-height: var(--dz-file-list-max-height);
+  max-height: var(--dz-file-list-max-height, none);
   overflow-y: auto;
 }
 
@@ -59,7 +59,7 @@
 
 /* Detailed mode - slightly more padding */
 .dz__file-list--detailed {
-  gap: calc(0.6 * var(--dz-rem));
+  gap: calc(0.6 * var(--dz-rem, 10px));
 }
 
 /* Badges mode — composite pills flowing horizontally */
@@ -107,7 +107,7 @@
   /* Reserve room on the right for the corner badge so the file-item's
      remove button doesn't end up underneath it. Width matches the badge's
      padding + count chip + a little breathing room. */
-  padding-right: calc(4.5 * var(--dz-rem));
+  padding-right: calc(4.5 * var(--dz-rem, 10px));
 }
 
 /* Slide-in (default): only the incoming slot is mounted; old one was
@@ -192,14 +192,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: calc(1.6 * var(--dz-rem));
-  height: calc(1.6 * var(--dz-rem));
-  padding: 0 calc(0.4 * var(--dz-rem));
+  min-width: calc(1.6 * var(--dz-rem, 10px));
+  height: calc(1.6 * var(--dz-rem, 10px));
+  padding: 0 calc(0.4 * var(--dz-rem, 10px));
   background: var(--dz-rolling-queue-count-bg);
   color: var(--dz-rolling-queue-count-color);
   border-radius: var(--dz-border-radius-sm);
   font-variant-numeric: tabular-nums;
-  font-size: calc(1.1 * var(--dz-rem));
+  font-size: calc(1.1 * var(--dz-rem, 10px));
 }
 
 /* Empty state */
