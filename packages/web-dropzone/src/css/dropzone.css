@@ -300,8 +300,8 @@
   display: inline-flex;
   align-items: center;
   padding: calc(0.4 * var(--dz-rem, 10px)) calc(1 * var(--dz-rem, 10px));
-  background: var(--dz-primary-bg, var(--base-primary-bg, #efefef));
-  color: var(--dz-text-color-1, var(--base-text-color-1, #000));
+  background: var(--dz-primary-bg);
+  color: var(--dz-text-color-1);
   border: 1px solid var(--dz-border-color);
   border-radius: var(--dz-border-radius-sm);
   font-family: inherit;
@@ -312,7 +312,7 @@
   flex-shrink: 0;
 }
 .dz__native__button:hover:not(:disabled) {
-  background: var(--dz-primary-bg-hover, var(--base-primary-bg-hover, #e0e0e0));
+  background: var(--dz-primary-bg-hover);
   border-color: var(--dz-accent-color);
 }
 .dz__native__button:disabled {
@@ -321,7 +321,7 @@
 }
 .dz__native__label {
   font-size: var(--dz-font-size-sm);
-  color: var(--dz-text-color-3, var(--base-text-color-3, #6b7280));
+  color: var(--dz-text-color-3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

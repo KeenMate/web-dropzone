@@ -31,45 +31,61 @@
      inherited. Set --dz-rem on the host (or any ancestor) to scale. */
 
   /* ==========================================================================
-     FONT FAMILY (set at :host so all shadow DOM content inherits)
-     ========================================================================== */
-  font-family: var(--dz-font-family, var(--base-font-family, inherit));
+     HOST ELEMENT SIZING + POSITIONING
+     ==========================================================================
+     `:host` is the theme container per guidelines/web-components/theme-container.md
+     — it owns layout, scopes offsetParent, and carries the variable block.
 
-  /* ==========================================================================
-     HOST ELEMENT SIZING
-     ========================================================================== */
+     `background` is INTENTIONALLY omitted. The dropzone host is a frame,
+     not a surface — the visible chrome (`.dz__dropzone--card`,
+     `.dz__file-item`, `.dz__indicator__chip`) paints its own background.
+     In `mode="headless"` and on the four satellites the host is meant to
+     be transparent so it can sit inline in a consumer layout. Documented
+     exception to theme-container.md → "Default background". */
   display: block;
+  position: relative;
+  box-sizing: border-box;
+  color: var(--dz-text-color-1);
+  font-family: var(--dz-font-family, var(--base-font-family, inherit));
+  font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem, 10px));
 
   /* ==========================================================================
      COLORS & THEME
-     ========================================================================== */
+     ==========================================================================
+     Two-layer pattern per guidelines/web-components/base-variables.md:
+     `--dz-*` is declared here against the canonical `--base-*` taxonomy.
+     Fallbacks use `light-dark(<light>, <dark>)` so a consumer who declares
+     `color-scheme` once at :root gets OS-aware dark mode for free; explicit
+     framework-class and per-instance overrides live in dark-mode.css. */
 
   /* Accent Colors */
-  --dz-accent-color: var(--base-accent-color, #3b82f6);
-  --dz-accent-color-hover: var(--base-accent-color-hover, #2563eb);
-  --dz-accent-color-active: var(--base-accent-color-active, #1d4ed8);
+  --dz-accent-color: var(--base-accent-color, light-dark(#3b82f6, #60a5fa));
+  --dz-accent-color-hover: var(--base-accent-color-hover, light-dark(#2563eb, #3b82f6));
+  --dz-accent-color-active: var(--base-accent-color-active, light-dark(#1d4ed8, #2563eb));
 
-  /* Accent Color Light Variants (for backgrounds) */
-  --dz-accent-color-light: var(--base-accent-color-light, #eff6ff);
-  --dz-accent-color-light-hover: var(--base-accent-color-light-hover, #e0f2fe);
+  /* Accent Light Tints (selected-row backgrounds, range highlights) */
+  --dz-accent-color-light: var(--base-accent-color-light,
+    color-mix(in srgb, var(--dz-accent-color) 15%, transparent));
+  --dz-accent-color-light-hover: color-mix(in srgb, var(--dz-accent-color) 22%, transparent);
 
   /* Text Color Levels (FluentUI-style hierarchy) */
-  --dz-text-color-1: var(--base-text-color-1, #111827);
-  --dz-text-color-2: var(--base-text-color-2, #353b47);
-  --dz-text-color-3: var(--base-text-color-3, #6b7280);
-  --dz-text-color-4: var(--base-text-color-4, #a0a3a9);
-  --dz-text-on-accent: var(--base-text-on-accent, #ffffff);
+  --dz-text-color-1: var(--base-text-color-1, light-dark(#111827, #f3f4f6));
+  --dz-text-color-2: var(--base-text-color-2, light-dark(#353b47, #d4d4d4));
+  --dz-text-color-3: var(--base-text-color-3, light-dark(#6b7280, #a3a3a3));
+  --dz-text-color-4: light-dark(#a0a3a9, #6b7280);  /* Component-local; no canonical 4th tier. */
+  --dz-text-on-accent: var(--base-text-color-on-accent, #ffffff);
 
-  /* Background Colors */
-  --dz-primary-bg: var(--base-primary-bg, #f3f4f6);
-  --dz-primary-bg-hover: var(--base-primary-bg-hover, #e5e7eb);
-  --dz-border-color: var(--base-border-color, #e5e7eb);
-  --dz-background: var(--base-input-background, #ffffff);
+  /* Surfaces */
+  --dz-background: var(--base-main-bg, light-dark(#ffffff, #1a1a1a));
+  --dz-primary-bg: var(--base-elevated-bg, light-dark(#f3f4f6, #2b2b2b));
+  --dz-primary-bg-hover: var(--base-hover-bg,
+    color-mix(in srgb, var(--dz-text-color-1) 8%, var(--dz-background)));
+  --dz-border-color: var(--base-border-color, light-dark(#e5e7eb, #3d3d3d));
 
   /* Semantic Colors */
-  --dz-success-color: var(--base-success-color, #10b981);
-  --dz-error-color: var(--base-danger-color, #ef4444);
-  --dz-warning-color: var(--base-warning-color, #f59e0b);
+  --dz-success-color: var(--base-success-color, light-dark(#10b981, #34d399));
+  --dz-error-color: var(--base-danger-color, light-dark(#ef4444, #f87c86));
+  --dz-warning-color: var(--base-warning-color, light-dark(#f59e0b, #fbbf24));
 
   /* Semantic-color tinted backgrounds — derived 10%-mix variants used by
      status surfaces (e.g. the indicator chip's data-status palette). One
@@ -123,7 +139,7 @@
   --dz-dropzone-card-big-min-height: calc(20 * var(--dz-rem, 10px));
   --dz-dropzone-card-big-padding: calc(4 * var(--dz-rem, 10px));
   --dz-dropzone-card-big-icon-size: calc(6 * var(--dz-rem, 10px));
-  --dz-dropzone-card-big-text-font-size: calc(var(--base-font-size-lg, 1.8) * var(--dz-rem, 10px));
+  --dz-dropzone-card-big-text-font-size: calc(1.8 * var(--dz-rem, 10px));
 
   /* ==========================================================================
      BUTTON SELECTOR
@@ -398,7 +414,7 @@
      header (mirrors FluentUI's popover action buttons). */
   --dz-popover-action-padding: calc(0.4 * var(--dz-rem, 10px)) calc(0.8 * var(--dz-rem, 10px));
   --dz-popover-action-font-size: var(--dz-font-size-xs);
-  --dz-popover-action-font-weight: var(--base-font-weight-medium, 500);
+  --dz-popover-action-font-weight: 500;
   --dz-popover-action-color: var(--dz-accent-color);
   --dz-popover-action-bg-hover: color-mix(in srgb, var(--dz-accent-color) 10%, transparent);
   --dz-popover-action-border-radius: var(--dz-border-radius-sm);
@@ -453,13 +469,13 @@
   --dz-overall-progress-stats-font-size: var(--dz-font-size-xs);
   --dz-overall-progress-stats-color: var(--dz-text-color-3);
   --dz-overall-progress-percent-color: var(--dz-text-color-1);
-  --dz-overall-progress-percent-font-weight: var(--base-font-weight-medium, 500);
+  --dz-overall-progress-percent-font-weight: 500;
   /* Reserve width for the widest percent ("100%") so layout doesn't shift as
      digits roll over and buttons come and go. */
   --dz-overall-progress-percent-min-width: calc(3.6 * var(--dz-rem, 10px));
   --dz-overall-progress-action-padding: calc(0.2 * var(--dz-rem, 10px)) calc(0.8 * var(--dz-rem, 10px));
   --dz-overall-progress-action-font-size: var(--dz-font-size-xs);
-  --dz-overall-progress-action-font-weight: var(--base-font-weight-medium, 500);
+  --dz-overall-progress-action-font-weight: 500;
   --dz-overall-progress-action-color: var(--dz-accent-color);
   --dz-overall-progress-action-border-radius: var(--dz-border-radius-sm);
   --dz-overall-progress-action-bg-hover: color-mix(in srgb, var(--dz-accent-color) 10%, transparent);
@@ -477,13 +493,13 @@
   --dz-font-size-xs: calc(var(--base-font-size-xs, 1.2) * var(--dz-rem, 10px));
   --dz-font-size-sm: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem, 10px));
   --dz-font-size-base: calc(var(--base-font-size-base, 1.6) * var(--dz-rem, 10px));
-  --dz-font-size-lg: calc(var(--base-font-size-lg, 1.8) * var(--dz-rem, 10px));
+  --dz-font-size-lg: calc(1.8 * var(--dz-rem, 10px));
 
   --dz-font-weight-normal: var(--base-font-weight-normal, 400);
-  --dz-font-weight-medium: var(--base-font-weight-medium, 500);
+  --dz-font-weight-medium: 500;
   --dz-font-weight-semibold: var(--base-font-weight-semibold, 600);
 
-  --dz-line-height-tight: var(--base-line-height-tight, 1.25);
+  --dz-line-height-tight: 1.25;
   --dz-line-height-normal: var(--base-line-height-normal, 1.5);
 
   /* ==========================================================================
@@ -513,8 +529,8 @@
   --dz-overlay-border-radius: var(--dz-dropzone-border-radius);
   --dz-overlay-color: var(--dz-text-on-accent);
   --dz-overlay-icon-size: calc(4.8 * var(--dz-rem, 10px));
-  --dz-overlay-text-font-size: calc(var(--base-font-size-lg, 1.8) * var(--dz-rem, 10px));
-  --dz-overlay-text-font-weight: var(--base-font-weight-medium, 500);
+  --dz-overlay-text-font-size: calc(1.8 * var(--dz-rem, 10px));
+  --dz-overlay-text-font-weight: 500;
   --dz-overlay-gap: calc(1.2 * var(--dz-rem, 10px));
   --dz-overlay-z-index: 9999;
 }

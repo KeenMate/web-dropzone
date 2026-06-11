@@ -1,0 +1,3 @@
+/* controls.css — no top-level cross-feature controls in this component.
+   Buttons and inputs (close, retry, pause, summary-line, file picker) live
+   inside their feature files (dropzone.css, file-item.css, popover.css). */

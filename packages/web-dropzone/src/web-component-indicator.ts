@@ -31,7 +31,7 @@
  */
 
 import styles from './css/main.css?inline';
-import indicatorStyles from './css/_indicator.css?inline';
+import indicatorStyles from './css/indicator.css?inline';
 import {
     SatelliteElement,
     subscribeStoreEvents,

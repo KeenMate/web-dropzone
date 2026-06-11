@@ -1,27 +1,39 @@
 /* ==============================================================================
-   WEB-DROPZONE COMPONENT - MAIN ENTRY POINT
+   WEB-DROPZONE COMPONENT — MAIN ENTRY POINT
    ==============================================================================
-   File upload dropzone with drag-drop, previews, and validation
+   Cascade layer order (later = higher priority):
+     variables  — :host { --dz-* } declarations
+     component  — base + feature rules
+     overrides  — dark mode, framework themes, per-instance overrides
 
-   File structure:
-   - _variables.css   : All CSS custom properties at :host level (for theming)
-   - _base.css        : FOUC prevention + host/container layout
-   - _dropzone.css    : Dropzone area, drag states, prompt
-   - _file-list.css   : File list container
-   - _file-item.css   : Individual file items (list, detailed, grid modes)
-   - _progress.css    : Progress bars (for future upload feature)
-   - _popover.css     : Compact mode popover
-   - _modifiers.css   : State modifiers (disabled, etc.)
-   - _rtl.css         : RTL (Right-to-Left) language support
+   Consumer override contract:
+   - Any unlayered consumer rule beats every rule below.
+   - Any :root --base-* declaration beats the variables layer.
+
+   NOTE: this CSS is inlined into the shadow root of every element in the
+   package (host + four satellites). `indicator.css` is loaded separately by
+   `<web-dropzone-indicator>` only, to avoid shipping its drawer chrome to
+   every satellite shadow root.
 */
 
-/* Import all partials in dependency order */
-@import '_variables.css';
-@import '_base.css';
-@import '_dropzone.css';
-@import '_file-list.css';
-@import '_file-item.css';
-@import '_progress.css';
-@import '_popover.css';
-@import '_modifiers.css';
-@import '_rtl.css';
+@layer variables, component, overrides;
+
+/* === SKELETON + CANONICAL CONCERNS === */
+@import url('./variables.css')   layer(variables);
+@import url('./base.css')        layer(component);
+@import url('./controls.css')    layer(component);
+@import url('./floating.css')    layer(component);
+@import url('./states.css')      layer(component);
+@import url('./animations.css')  layer(component);
+
+/* === COMPONENT-SPECIFIC FEATURES (alphabetized) === */
+@import url('./dropzone.css')    layer(component);
+@import url('./file-item.css')   layer(component);
+@import url('./file-list.css')   layer(component);
+@import url('./overlay.css')     layer(component);
+@import url('./popover.css')     layer(component);
+@import url('./progress.css')    layer(component);
+@import url('./rtl.css')         layer(component);
+
+/* === OVERRIDES === */
+@import url('./dark-mode.css')   layer(overrides);

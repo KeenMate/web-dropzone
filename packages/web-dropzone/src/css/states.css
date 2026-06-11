@@ -1,0 +1,59 @@
+/* ==============================================================================
+   STATES — cross-feature state modifiers
+   ==============================================================================
+   Disabled, focus rings, and file-status tinting. Per-feature visual states
+   stay in their feature file; this file owns rules that span features or
+   re-style the host. */
+
+/* ============================================================================
+   DISABLED
+   ============================================================================ */
+.dz__dropzone--disabled {
+  opacity: var(--dz-disabled-opacity);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.dz__dropzone--disabled .dz__dropzone__content {
+  opacity: var(--dz-disabled-opacity);
+}
+
+:host([disabled]) .dz__dropzone {
+  opacity: var(--dz-disabled-opacity);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ============================================================================
+   FILE STATUS TINTING
+   ============================================================================
+   Status-driven border accents on file rows. The progress-bar fill and icon
+   colors live with their feature file (file-item.css / progress.css). */
+.dz__file-item--uploading {
+  position: relative;
+}
+
+.dz__file-item--complete {
+  border-color: var(--dz-success-color);
+}
+
+.dz__file-item--error {
+  border-color: var(--dz-error-color);
+}
+
+/* ============================================================================
+   FOCUS RINGS
+   ============================================================================
+   `:focus-within` on the wrapper is the card family's keyboard-focus ring —
+   it outlines the entire card when its hidden input receives focus. For
+   button/minimal selectors the button already shows its own `:focus-visible`
+   outline, so wrapping it in a second ring would be a double-outline leak. */
+.dz__dropzone--card:focus-within {
+  outline: 2px solid var(--dz-accent-color);
+  outline-offset: 2px;
+}
+
+.dz__summary__line:focus-visible {
+  outline: 2px solid var(--dz-accent-color);
+  outline-offset: 2px;
+}

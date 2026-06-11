@@ -684,7 +684,7 @@
   left: 0;
   right: 0;
   height: var(--dz-progress-height);
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--dz-progress-bg);
   overflow: hidden;
 }
 

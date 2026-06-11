@@ -1,0 +1,39 @@
+/* ==============================================================================
+   DRAG OVERLAY — ultra-compact selectors
+   ==============================================================================
+   Rendered position:fixed when a drag enters a non-card selector (button /
+   minimal / indicator) — the overlay communicates the drop target without
+   needing the chrome to occupy real estate. Fade-in animation lives in
+   animations.css. */
+
+.dz__overlay {
+  position: fixed;
+  z-index: var(--dz-overlay-z-index);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dz-overlay-bg);
+  border: var(--dz-overlay-border);
+  border-radius: var(--dz-overlay-border-radius);
+  pointer-events: all;
+  animation: dz-overlay-fade-in 0.15s ease-out;
+}
+
+.dz__overlay__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--dz-overlay-gap);
+  color: var(--dz-overlay-color);
+  text-align: center;
+}
+
+.dz__overlay__icon {
+  font-size: var(--dz-overlay-icon-size);
+  line-height: 1;
+}
+
+.dz__overlay__text {
+  font-size: var(--dz-overlay-text-font-size);
+  font-weight: var(--dz-overlay-text-font-weight);
+}

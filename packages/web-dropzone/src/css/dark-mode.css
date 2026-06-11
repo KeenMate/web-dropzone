@@ -1,0 +1,112 @@
+/* ==============================================================================
+   DARK MODE — framework-class and per-instance overrides
+   ==============================================================================
+   The `light-dark()` fallbacks in variables.css already cover signals
+     1. OS preference (when the consumer declares `color-scheme`)
+     2. Browser-forced scheme
+     3. Page-level `color-scheme: dark` on :root / body
+   This file adds:
+     4. Framework theme class on any ancestor — :host-context()
+     5. Per-instance dz-data-theme attribute — :host([data-theme])
+   …and a symmetric LIGHT override so a dark page can force one instance
+   back to light without losing the dark-mode block's specificity.
+
+   NEVER declare `color-scheme` on :host — it blocks page inheritance.
+   See guidelines/web-components/color-scheme.md → "The #1 footgun". */
+
+/* ============================================================================
+   OS / page preference safety net
+   ============================================================================
+   `light-dark()` covers this when the consumer declares color-scheme. If
+   they only emulate dark via OS settings and never opt in to `color-scheme`,
+   the OS branch alone shouldn't auto-flip — that's the spec's intent. This
+   @media block is the *escape hatch* for consumers who want OS-aware mode
+   without writing `color-scheme: light dark` at :root. Active for the host
+   only; framework classes below override per-instance. */
+@media (prefers-color-scheme: dark) {
+  :host {
+    --dz-accent-color: #60a5fa;
+    --dz-accent-color-hover: #3b82f6;
+    --dz-accent-color-active: #2563eb;
+    --dz-text-color-1: #f3f4f6;
+    --dz-text-color-2: #d4d4d4;
+    --dz-text-color-3: #a3a3a3;
+    --dz-text-color-4: #6b7280;
+    --dz-background: #1a1a1a;
+    --dz-primary-bg: #2b2b2b;
+    --dz-border-color: #3d3d3d;
+    --dz-success-color: #34d399;
+    --dz-error-color: #f87c86;
+    --dz-warning-color: #fbbf24;
+  }
+}
+
+/* ============================================================================
+   Framework theme class on ANY ancestor (signal #4)
+   ============================================================================
+   Catches Bootstrap 5.3+ (`data-bs-theme`), Tailwind (`.dark`), generic
+   `[data-theme="dark"]`. `:host-context()` is the only way for shadow CSS
+   to see ancestor selectors in light DOM. */
+:host-context([data-theme="dark"]),
+:host-context([data-bs-theme="dark"]),
+:host-context(.dark) {
+  --dz-accent-color: #60a5fa;
+  --dz-accent-color-hover: #3b82f6;
+  --dz-accent-color-active: #2563eb;
+  --dz-text-color-1: #f3f4f6;
+  --dz-text-color-2: #d4d4d4;
+  --dz-text-color-3: #a3a3a3;
+  --dz-text-color-4: #6b7280;
+  --dz-background: #1a1a1a;
+  --dz-primary-bg: #2b2b2b;
+  --dz-border-color: #3d3d3d;
+  --dz-success-color: #34d399;
+  --dz-error-color: #f87c86;
+  --dz-warning-color: #fbbf24;
+}
+
+/* ============================================================================
+   Per-instance attribute on the host itself (signal #5)
+   ============================================================================
+   Highest-specificity dark override — beats framework class + OS preference
+   for the one component instance carrying the attribute. */
+:host([data-theme="dark"]) {
+  --dz-accent-color: #60a5fa;
+  --dz-accent-color-hover: #3b82f6;
+  --dz-accent-color-active: #2563eb;
+  --dz-text-color-1: #f3f4f6;
+  --dz-text-color-2: #d4d4d4;
+  --dz-text-color-3: #a3a3a3;
+  --dz-text-color-4: #6b7280;
+  --dz-background: #1a1a1a;
+  --dz-primary-bg: #2b2b2b;
+  --dz-border-color: #3d3d3d;
+  --dz-success-color: #34d399;
+  --dz-error-color: #f87c86;
+  --dz-warning-color: #fbbf24;
+}
+
+/* ============================================================================
+   Symmetric LIGHT overrides
+   ============================================================================
+   Without these, a dark page that wants ONE instance back to light has no
+   path: a per-instance `data-theme="light"` would match nothing and the
+   framework-class dark block above would still flow through. */
+:host-context([data-theme="light"]),
+:host-context([data-bs-theme="light"]),
+:host-context(.light),
+:host([data-theme="light"]) {
+  --dz-accent-color: #3b82f6;
+  --dz-accent-color-hover: #2563eb;
+  --dz-accent-color-active: #1d4ed8;
+  --dz-text-color-1: #111827;
+  --dz-text-color-2: #353b47;
+  --dz-text-color-3: #6b7280;
+  --dz-text-color-4: #a0a3a9;
+  --dz-background: #ffffff;
+  --dz-primary-bg: #f3f4f6;
+  --dz-border-color: #e5e7eb;
+  --dz-success-color: #10b981;
+  --dz-error-color: #ef4444;
+  --dz-warning-color: #f59e0b;
+}

@@ -16,6 +16,7 @@
     },
     "./style.css": "./dist/style.css",
     "./css": "./src/css/main.css",
+    "./manifest": "./component-variables.manifest.json",
     "./dist/*": "./dist/*",
     "./src/css/*": "./src/css/*",
     "./package.json": "./package.json"
@@ -27,7 +28,8 @@
   ],
   "files": [
     "dist",
-    "src/css"
+    "src/css",
+    "component-variables.manifest.json"
   ],
   "scripts": {
     "build": "npm run clean && vite build && tsc -b",
