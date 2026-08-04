@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A file upload web component with drag-drop support, file previews, validation, and multiple display modes. Published as **two** npm packages from a workspaces monorepo:
 
-- `@keenmate/web-dropzone-core` — headless store, file pipeline, upload loop, events. No DOM rendering, no CSS. ~53KB minified / ~16KB gzipped, zero runtime deps.
+- `@keenmate/web-dropzone-core` — headless store, file pipeline, upload loop, events. No DOM rendering, no CSS. ~53KB minified / ~16KB gzipped. One runtime dep: `@keenmate/web-components-core` (for the shared categorized `/logging` — see `logger.ts`).
 - `@keenmate/web-dropzone` — the `<web-dropzone>` custom element + four satellites + CSS. Bundles core for self-contained installs; declares `@keenmate/web-dropzone-core: ^1.0.0` as a hard dep for type re-exports.
 
 **Current Status**: At 1.0.0 (the core/renderer split was the marker). Still pre-stable in spirit — breaking API changes remain possible. The component family follows the KM house style (web-multiselect, web-daterangepicker).

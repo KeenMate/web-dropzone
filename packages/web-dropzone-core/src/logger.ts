@@ -1,141 +1,77 @@
 /**
- * Logging configuration using loglevel with categorized loggers
+ * Categorized loggers for the dropzone family, built on
+ * `@keenmate/web-components-core`'s `/logging` (`createLoggers`) — the shared,
+ * color-prefixed `loglevel` wrapper (web-components-core SPEC §12.1). This
+ * replaces the previously vendored `loglevel` + prefix-plugin copy: the ordering
+ * bug that vendored copy hand-worked-around in a `methodFactory` is exactly what
+ * core's implementation avoids, so the workaround is gone.
  *
- * Categories:
- * - DROPZONE:INIT: Component initialization and configuration
- * - DROPZONE:FILE: File operations, validation, preview generation
- * - DROPZONE:UI: UI updates, rendering, popover operations
- * - DROPZONE:INTERACTION: User interactions, drag-drop, clicks
+ * The public surface is unchanged — `initLogger` / `fileLogger` / `uiLogger` /
+ * `interactionLogger`, the `LOGGING_CATEGORIES` list, and the four control
+ * functions all keep their names and behaviour, so the renderer's global API
+ * (`window.components['web-dropzone'].logging`) and every `import { … } from
+ * '@keenmate/web-dropzone-core'` keep working.
  *
- * Usage:
- * - By default, all logging is disabled (silent mode) for production
- * - Enable logging in browser console:
- *   ```javascript
- *   import { enableLogging, setLogLevel, setCategoryLevel } from './logger';
+ * Categories: DROPZONE:INIT / FILE / UI / INTERACTION.
  *
- *   // Enable all logging at debug level
- *   enableLogging();
- *
- *   // Or set a specific log level for all categories
- *   setLogLevel('info');  // 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'silent'
- *
- *   // Or enable/disable specific categories
- *   disableLogging();  // First disable all
- *   setCategoryLevel('DROPZONE:UI', 'debug');  // Enable only UI logs
- *   setCategoryLevel('DROPZONE:FILE', 'info');  // Enable only FILE logs at info level
- *   setCategoryLevel('DROPZONE:INTERACTION', 'silent');  // Disable interaction logs
- *   ```
+ * Logging is silent by default (production). Enable it from the console via the
+ * global API or the exported helpers:
+ *   window.components['web-dropzone'].logging.enableLogging();
+ *   window.components['web-dropzone'].logging.setCategoryLevel('DROPZONE:UI', 'debug');
  */
 
-// Import vendored libraries via ES module wrappers
-// @ts-ignore - Vendored library without type definitions
-import log from './vendor/loglevel/index.js';
-// @ts-ignore - Vendored library without type definitions
-import prefix from './vendor/loglevel/prefix.js';
+import { createLoggers, type LogLevelDesc } from '@keenmate/web-components-core';
 
-// Define color scheme matching original logger
-const COLORS = {
-    debug: '#0ea5e9',  // Blue
-    info: '#10b981',   // Green
-    warn: '#f59e0b',   // Orange
-    error: '#ef4444'   // Red
-};
+const NAMESPACE = 'DROPZONE';
+const CATEGORIES = ['INIT', 'FILE', 'UI', 'INTERACTION'] as const;
+type Category = (typeof CATEGORIES)[number];
 
-// Register prefix plugin with the root logger
-prefix.reg(log);
+const bundle = createLoggers(NAMESPACE, CATEGORIES);
 
-// Configure prefix plugin with color-coded formatting
-prefix.apply(log, {
-    format(level: string, name: string | undefined, timestamp: string) {
-        // Get color for the current log level
-        const color = COLORS[level.toLowerCase() as keyof typeof COLORS] || '#666';
+// Core's createLoggers leaves each logger at loglevel's default; dropzone ships
+// quiet in production, so silence everything on load.
+bundle.disableLogging();
 
-        // Return formatted prefix with color styling
-        return `%c[${timestamp}]%c %c[${level}]%c ${name ? `%c[${name}]%c ` : ''}`;
-    },
-    timestampFormatter(date: Date) {
-        // Format: HH:MM:SS.mmm
-        return date.toTimeString().split(' ')[0] + '.' + date.getMilliseconds().toString().padStart(3, '0');
-    }
-});
-
-// Apply color styling to console output using a custom method factory
-const originalFactory = log.methodFactory;
-log.methodFactory = function(methodName: string, logLevel: number, loggerName: string) {
-    const rawMethod = originalFactory(methodName, logLevel, loggerName);
-
-    return function(...args: any[]) {
-        // If first arg contains %c color codes, inject the colors
-        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('%c')) {
-            const color = COLORS[methodName as keyof typeof COLORS] || '#666';
-            const coloredArgs = [
-                args[0],
-                `color: ${color}; font-weight: bold;`,  // timestamp color
-                'color: inherit;',                        // reset
-                `color: ${color}; font-weight: bold;`,  // level color
-                'color: inherit;',                        // reset
-                ...(loggerName ? [
-                    `color: ${color}; font-weight: bold;`,  // name color
-                    'color: inherit;',                        // reset
-                ] : []),
-                ...args.slice(1)
-            ];
-            rawMethod(...coloredArgs);
-        } else {
-            rawMethod(...args);
-        }
-    };
-};
-
-// Set default log level to silent (production mode)
-log.setLevel('silent');
-
-// Create category-specific loggers with hierarchical naming
-export const initLogger = log.getLogger('DROPZONE:INIT');
-export const fileLogger = log.getLogger('DROPZONE:FILE');
-export const uiLogger = log.getLogger('DROPZONE:UI');
-export const interactionLogger = log.getLogger('DROPZONE:INTERACTION');
-
-// Export the default logger
-export default log;
+// Category-specific loggers (real loglevel Loggers: .trace/.debug/.info/.warn/.error).
+export const initLogger = bundle.loggers.INIT;
+export const fileLogger = bundle.loggers.FILE;
+export const uiLogger = bundle.loggers.UI;
+export const interactionLogger = bundle.loggers.INTERACTION;
 
 /**
- * List of all logging categories for introspection
+ * All logging categories, kept as the full `NAMESPACE:CATEGORY` names so
+ * `loglevel` routes them independently from any other consumer that imports
+ * `loglevel`, and so `getCategories()` / `setCategoryLevel()` accept the same
+ * strings they always did.
  */
-export const LOGGING_CATEGORIES = [
-    'DROPZONE:INIT',
-    'DROPZONE:FILE',
-    'DROPZONE:UI',
-    'DROPZONE:INTERACTION'
-];
+export const LOGGING_CATEGORIES = CATEGORIES.map((c) => `${NAMESPACE}:${c}`);
 
-/**
- * Enable all logging (set to debug level)
- */
-export function enableLogging() {
-    log.setLevel('debug');
+/** Enable all logging (debug level). */
+export function enableLogging(): void {
+    bundle.enableLogging();
+}
+
+/** Disable all logging (silent). */
+export function disableLogging(): void {
+    bundle.disableLogging();
 }
 
 /**
- * Disable all logging (set to silent level)
+ * Set the log level for every category.
+ * @param level 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'silent'
  */
-export function disableLogging() {
-    log.setLevel('silent');
+export function setLogLevel(level: string): void {
+    bundle.setLogLevel(level as LogLevelDesc);
 }
 
 /**
- * Set log level for all loggers
- * @param level Log level to set ('trace' | 'debug' | 'info' | 'warn' | 'error' | 'silent')
+ * Set the log level for a single category. Accepts either the full
+ * `DROPZONE:UI` name or the bare `UI` category.
+ * @param level 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'silent'
  */
-export function setLogLevel(level: string) {
-    log.setLevel(level);
-}
-
-/**
- * Set log level for a specific category
- * @param category Category logger to configure (e.g., 'DROPZONE:UI')
- * @param level Log level to set ('trace' | 'debug' | 'info' | 'warn' | 'error' | 'silent')
- */
-export function setCategoryLevel(category: string, level: string) {
-    log.getLogger(category).setLevel(level);
+export function setCategoryLevel(category: string, level: string): void {
+    const short = (
+        category.startsWith(`${NAMESPACE}:`) ? category.slice(NAMESPACE.length + 1) : category
+    ) as Category;
+    bundle.setCategoryLevel(short, level as LogLevelDesc);
 }

@@ -1,11 +1,40 @@
 /**
- * DropzoneElement - Custom element wrapper for WebDropzone
+ * `<web-dropzone>` — the custom element, now built on
+ * `@keenmate/web-components-core` (`BlissElement`).
  *
- * Provides a web component interface with Shadow DOM encapsulation,
- * attribute observation via ATTRIBUTE_TABLE, form-association via
- * ElementInternals, and event dispatching.
+ * All the custom-element plumbing that used to live here by hand — the
+ * `ATTRIBUTE_TABLE`, `parseAttrValue`, `observedAttributes`,
+ * `attributeChangedCallback`, the pre-upgrade `upgradeProperties` rescue, and
+ * the ~40 property/callback getters/setters — is now declared ONCE as a core
+ * input table (`static inputs`). Core owns parsing, validation, reactivity
+ * coalescing, reflection, pre-upgrade property lifting, and form association
+ * (`this.internals` / `el.form`). This file keeps only what is genuinely
+ * dropzone-specific: the bridge from the merged `config` to the headless store
+ * (`WebDropzone` in `dropzone.ts`), the operating-mode resolution, form-value
+ * sync (real `File` blobs via `setFormValue`), custom-style injection, and the
+ * `store-ready` handshake the satellites depend on.
+ *
+ * Reactivity: the store applies EVERY config change in place (`updateConfig`
+ * always returns true), so almost every input is `on: 'update'`. The single
+ * exception is a change to the operating mode — toggling `mode` /
+ * `display-mode` / `selector-appearance` / `list-appearance` can flip which
+ * render path the store uses, which `updateConfig` can't express; `update()`
+ * detects that flip and does a full rebuild (a fresh `WebDropzone`, matching the
+ * pre-core behaviour). First connect is always a rebuild via `reinit()`.
  */
 
+import {
+    BlissElement,
+    toBool,
+    toEnum,
+    toInt,
+    toText,
+    toValue,
+    toFunction,
+    toCustom,
+    type InputDef,
+    type Converter,
+} from '@keenmate/web-components-core';
 import { WebDropzone } from './dropzone';
 import { initLogger, dispatchComposedEvent } from '@keenmate/web-dropzone-core';
 import type { DropzoneStoreAPI } from '@keenmate/web-dropzone-core';
@@ -24,53 +53,17 @@ import type {
 // Import CSS as inline string for Shadow DOM injection
 import styles from './css/main.css?inline';
 
-// Type declarations for build-time constants
-declare const __VERSION__: string;
-
-// SSR compatibility: provide stub HTMLElement if not in browser
-const BaseElement = (typeof HTMLElement !== 'undefined' ? HTMLElement : class {}) as typeof HTMLElement;
-
-// ============================================================================
-// ATTRIBUTE TABLE — single source of truth for HTML attribute → config option
-// ============================================================================
-// Drives:
-//   - static get observedAttributes()
-//   - initial parsing in parseAttributesFromTable()
-//   - attributeChangedCallback (to compute the partial config update)
-//
-// Boolean parser semantics:
-//   - 'bool-default-true':  attribute absent → true. Only the literal string
-//                           'false' makes it false. Present-but-empty = true.
-//   - 'bool-default-false': attribute absent → false. Present (any value
-//                           including '') makes it true, unless the value is
-//                           the literal 'false'. Matches HTML's standard
-//                           "boolean attribute" convention (e.g. <input disabled>).
-
-type AttrParser =
-    | 'string'
-    | 'string-or-undefined'
-    | 'enum'
-    | 'int'
-    // Byte count with optional unit suffix — accepts plain integers
-    // ("5242880") and human-readable forms ("5MB", "300kB", "1.5GB"). Binary
-    // (1024-based) units, matching formatFileSize() in dropzone.ts.
-    | 'bytes'
-    | 'bool-default-true'
-    | 'bool-default-false'
-    // Missing → undefined (so the component can decide an "auto" default per
-    // mode rather than committing to a global true/false at parse time).
-    // Present → true unless the value is the literal 'false'.
-    | 'bool-optional';
-
 /**
  * Parse a byte count from a string. Accepts plain integers ("5242880") and
  * human-readable forms with case-insensitive unit suffixes and optional
  * whitespace ("5MB", "300 kB", "1.5GB", "1024B"). Returns null if the input
- * doesn't match; the parser falls back to the spec's default in that case.
+ * doesn't match; the converter falls back to the spec's default in that case.
  *
  * Binary units (1024-based) — matches the display side in formatFileSize().
  * Aliases: K/KB, M/MB, G/GB, T/TB (no SI variants — `5MB` always means
- * 5 × 1024 × 1024).
+ * 5 × 1024 × 1024). This is intentionally wider than core's `toBytes`, which
+ * doesn't accept the single-letter aliases; that's why the size inputs wrap
+ * `parseBytes` in `toCustom` rather than using `toBytes` directly.
  */
 const BYTE_UNIT_MULTIPLIERS: Record<string, number> = {
     '':   1,
@@ -94,18 +87,6 @@ export function parseBytes(raw: string): number | null {
     return Math.round(value * mult);
 }
 
-interface AttrSpec {
-    /** External (kebab-case) attribute name */
-    attr: string;
-    /** Internal DropzoneConfig key */
-    key: keyof DropzoneConfig;
-    parser: AttrParser;
-    /** Used when attribute is missing/empty/unparseable. */
-    default?: any;
-    /** Allowed values for 'enum' parser. */
-    enumValues?: readonly string[];
-}
-
 const PLACEMENTS = [
     'top', 'top-start', 'top-end',
     'bottom', 'bottom-start', 'bottom-end',
@@ -113,154 +94,110 @@ const PLACEMENTS = [
     'right', 'right-start', 'right-end'
 ] as const;
 
-const ATTRIBUTE_TABLE: ReadonlyArray<AttrSpec> = [
-    // Core
-    { attr: 'accept',              key: 'accept',                parser: 'string-or-undefined' },
-    { attr: 'multiple',            key: 'isMultipleEnabled',     parser: 'bool-default-true' },
-    { attr: 'max-file-size',       key: 'maxFileSize',           parser: 'bytes', default: 0 },
-    { attr: 'min-file-size',       key: 'minFileSize',           parser: 'bytes', default: 0 },
-    { attr: 'max-total-size',      key: 'maxTotalSize',          parser: 'bytes', default: 0 },
-    { attr: 'max-file-count',      key: 'maxFileCount',          parser: 'int', default: 0 },
-    { attr: 'min-file-count',      key: 'minFileCount',          parser: 'int', default: 0 },
-    { attr: 'max-visible-files',   key: 'maxVisibleFiles',       parser: 'int', default: 7 },
-    { attr: 'dedupe-mode',         key: 'dedupeMode',            parser: 'enum',
-      enumValues: ['name', 'name-size', 'none'], default: 'name' },
-    { attr: 'disabled',            key: 'isDisabled',            parser: 'bool-default-false' },
+/** Byte-size input: preserves dropzone's `parseBytes` (single-letter aliases). */
+const bytes = (def: number): Converter<number> =>
+    toCustom<number>(
+        (raw) => (raw == null ? def : parseBytes(raw) ?? def),
+        {
+            validate: (v): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0,
+            toAttribute: (v) => (v == null ? null : String(v)),
+        },
+    );
 
-    // Operating mode — bulk / structural / headless. When absent, the
-    // mode is inferred from the presence of renderer-trigger attrs in
-    // `buildConfig` (display-mode / selector-appearance / list-appearance
-    // → 'bulk'; none → 'headless'). Setting `mode` explicitly overrides
-    // the inference; in particular, `mode="structural"` is the ONLY way
-    // to opt into render callbacks (hard switch).
-    { attr: 'mode',                key: 'mode',                  parser: 'enum',
-      enumValues: ['bulk', 'structural', 'headless'] },
-    { attr: 'progress-throttle',   key: 'progressThrottle',      parser: 'int', default: 0 },
+/** Optional string: absent / empty → null (normalized to "absent" for the store). */
+const text = (): Converter<string | null> => toText({ isNullable: true });
 
-    // Display — single-axis shorthand (defaults to 'list' when nothing else is set)
-    { attr: 'display-mode',        key: 'displayMode',           parser: 'enum',
-      enumValues: ['list', 'detailed', 'grid', 'compact'], default: 'list' },
+/** Any callback input (property-only). */
+const cb = (): ReturnType<typeof toFunction> => toFunction();
 
-    // Display — orthogonal axes (override the shorthand when set explicitly)
-    { attr: 'selector-appearance', key: 'selectorAppearance',    parser: 'enum',
-      enumValues: ['card', 'button', 'minimal', 'native'] },
-    { attr: 'list-appearance',     key: 'listAppearance',        parser: 'enum',
-      enumValues: ['list', 'detailed', 'grid', 'badges', 'rolling', 'popover', 'none'] },
-    { attr: 'rolling-rotation',    key: 'rollingRotation',       parser: 'enum',
-      enumValues: ['horizontal', 'vertical', 'slide-in'], default: 'slide-in' },
-    { attr: 'card-size',           key: 'cardSize',              parser: 'enum',
-      enumValues: ['minimal', 'compact', 'big'] },
+// ============================================================================
+// INPUT TABLE — the whole <web-dropzone> public surface, one row each.
+// `configKey` is the DropzoneConfig key, so the merged `config` bridges to the
+// store almost verbatim (see #assembleConfig). Everything is `on: 'update'`;
+// the store applies changes in place, and #update handles the mode-flip rebuild.
+// ============================================================================
+const INPUTS: readonly InputDef[] = [
+    // ── Core ──────────────────────────────────────────────────────────────────
+    { configKey: 'accept',                  attribute: 'accept',              converter: text(),                                                                       reflect: true, on: 'update', description: 'Accepted file types (MIME types / extensions), comma-separated.' },
+    { configKey: 'isMultipleEnabled',       attribute: 'multiple',            converter: toBool('default-true'),                                                       on: 'update', type: 'boolean', description: 'Allow selecting multiple files. Public property: `el.multiple`.' },
+    { configKey: 'maxFileSize',             attribute: 'max-file-size',       converter: bytes(0),                                                                     reflect: true, on: 'update', description: 'Maximum size per file in bytes (accepts "5MB", "1.5GB", …). 0 = unlimited.' },
+    { configKey: 'minFileSize',             attribute: 'min-file-size',       converter: bytes(0),                                                                     reflect: true, on: 'update', description: 'Minimum size per file in bytes. 0 = no minimum.' },
+    { configKey: 'maxTotalSize',            attribute: 'max-total-size',      converter: bytes(0),                                                                     reflect: true, on: 'update', description: 'Maximum combined size of all files in bytes. 0 = unlimited.' },
+    { configKey: 'maxFileCount',            attribute: 'max-file-count',      converter: toInt({ default: 0 }),                                                        reflect: true, on: 'update', description: 'Maximum number of files. 0 = unlimited.' },
+    { configKey: 'minFileCount',            attribute: 'min-file-count',      converter: toInt({ default: 0 }),                                                        reflect: true, on: 'update', description: 'Minimum number of files; reflected into the form validity (valueMissing).' },
+    { configKey: 'maxVisibleFiles',         attribute: 'max-visible-files',   converter: toInt({ default: 7 }),                                                        reflect: true, on: 'update', description: 'How many file rows are visible before the list scrolls.' },
+    { configKey: 'dedupeMode',              attribute: 'dedupe-mode',         converter: toEnum(['name', 'name-size', 'none'] as const, { default: 'name' }),          reflect: true, on: 'update', description: 'How duplicate files are detected: by name, name+size, or not at all.' },
+    { configKey: 'isDisabled',              attribute: 'disabled',            converter: toBool('default-false'),                                                      on: 'update', type: 'boolean', description: 'Disable the dropzone. Public property: `el.disabled`.' },
 
-    // Missing → undefined; the renderer resolves to "auto" (on for grid, off
-    // otherwise). Set explicitly to opt in/out for any list-appearance.
-    { attr: 'show-thumbnails',     key: 'isShowThumbnailsEnabled', parser: 'bool-optional' },
+    // ── Operating mode ────────────────────────────────────────────────────────
+    { configKey: 'mode',                    attribute: 'mode',                converter: toEnum(['bulk', 'structural', 'headless'] as const),                          on: 'update', description: 'Operating mode. When absent it is inferred from the presence of renderer-trigger attributes (display-mode / selector-appearance / list-appearance → bulk; none → headless). `structural` is the only way to opt into render callbacks.' },
+    { configKey: 'progressThrottle',        attribute: 'progress-throttle',   converter: toInt({ default: 0 }),                                                        reflect: true, on: 'update', description: 'Throttle interval in ms for file-progress events. 0 = every tick.' },
 
-    { attr: 'files-inside',        key: 'isFilesInsideEnabled',  parser: 'bool-default-false' },
-    { attr: 'icon',                key: 'icon',                  parser: 'string-or-undefined' },
-    { attr: 'prompt-text',         key: 'promptText',            parser: 'string-or-undefined' },
-    { attr: 'select-files-text',   key: 'selectFilesText',       parser: 'string-or-undefined' },
-    { attr: 'no-file-chosen-text', key: 'noFileChosenText',      parser: 'string-or-undefined' },
-    { attr: 'hint-text',           key: 'hintText',              parser: 'string-or-undefined' },
-    { attr: 'drag-active-text',    key: 'dragActiveText',        parser: 'string-or-undefined' },
-    { attr: 'empty-message',       key: 'emptyMessage',          parser: 'string-or-undefined' },
+    // ── Display ───────────────────────────────────────────────────────────────
+    { configKey: 'displayMode',             attribute: 'display-mode',        converter: toEnum(['list', 'detailed', 'grid', 'compact'] as const, { default: 'list' }), reflect: true, on: 'update', description: 'Single-axis display shorthand.' },
+    { configKey: 'selectorAppearance',      attribute: 'selector-appearance', converter: toEnum(['card', 'button', 'minimal', 'native'] as const),                    reflect: true, on: 'update', description: 'File-selector appearance (overrides the display shorthand when set).' },
+    { configKey: 'listAppearance',          attribute: 'list-appearance',     converter: toEnum(['list', 'detailed', 'grid', 'badges', 'rolling', 'popover', 'none'] as const), reflect: true, on: 'update', description: 'File-list appearance (overrides the display shorthand when set).' },
+    { configKey: 'rollingRotation',         attribute: 'rolling-rotation',    converter: toEnum(['horizontal', 'vertical', 'slide-in'] as const, { default: 'slide-in' }), reflect: true, on: 'update', description: 'Rotation style for the rolling list appearance.' },
+    { configKey: 'cardSize',                attribute: 'card-size',           converter: toEnum(['minimal', 'compact', 'big'] as const),                               reflect: true, on: 'update', description: 'Card size for the card selector appearance.' },
+    { configKey: 'isShowThumbnailsEnabled', attribute: 'show-thumbnails',     converter: toBool('tristate'),                                                           on: 'update', type: 'boolean', description: 'Force image thumbnails on/off. Property-only tristate: unset (undefined) means auto (on for grid, icons elsewhere). Public property: `el.showThumbnails`.' },
+    { configKey: 'isFilesInsideEnabled',    attribute: 'files-inside',        converter: toBool('default-false'),                                                      on: 'update', type: 'boolean', description: 'Render the file list inside the drop area. Public property: `el.filesInside`.' },
+    { configKey: 'icon',                    attribute: 'icon',                converter: text(),                                                                       reflect: true, on: 'update', description: 'Prompt icon (emoji or markup).' },
+    { configKey: 'promptText',              attribute: 'prompt-text',         converter: text(),                                                                       reflect: true, on: 'update', description: 'Primary prompt text shown in the drop area.' },
+    { configKey: 'selectFilesText',         attribute: 'select-files-text',   converter: text(),                                                                       reflect: true, on: 'update', description: 'Label for the browse/select-files action.' },
+    { configKey: 'noFileChosenText',        attribute: 'no-file-chosen-text', converter: text(),                                                                       reflect: true, on: 'update', description: 'Text shown when no file has been chosen.' },
+    { configKey: 'hintText',                attribute: 'hint-text',           converter: text(),                                                                       reflect: true, on: 'update', description: 'Secondary hint text under the prompt.' },
+    { configKey: 'dragActiveText',          attribute: 'drag-active-text',    converter: text(),                                                                       reflect: true, on: 'update', description: 'Text shown while a drag is over the drop area.' },
+    { configKey: 'emptyMessage',            attribute: 'empty-message',       converter: text(),                                                                       reflect: true, on: 'update', description: 'Message shown when the file list is empty.' },
 
-    // Compact mode
-    { attr: 'summary-template',    key: 'summaryTemplate',       parser: 'string-or-undefined' },
-    { attr: 'popover-placement',   key: 'popoverPlacement',      parser: 'enum',
-      enumValues: PLACEMENTS, default: 'bottom-start' },
+    // ── Compact mode ──────────────────────────────────────────────────────────
+    { configKey: 'summaryTemplate',         attribute: 'summary-template',    converter: text(),                                                                       reflect: true, on: 'update', description: 'Template string for the compact-mode summary line.' },
+    { configKey: 'popoverPlacement',        attribute: 'popover-placement',   converter: toEnum(PLACEMENTS, { default: 'bottom-start' }),                              reflect: true, on: 'update', description: 'Placement of the compact-mode popover relative to the summary (floating-ui placement).' },
 
-    // Drag overlay
-    { attr: 'overlay-target',      key: 'overlayTarget',         parser: 'string-or-undefined' },
-    { attr: 'overlay-text',        key: 'overlayText',           parser: 'string-or-undefined' },
-    { attr: 'overlay-icon',        key: 'overlayIcon',           parser: 'string-or-undefined' },
+    // ── Drag overlay ──────────────────────────────────────────────────────────
+    { configKey: 'overlayTarget',           attribute: 'overlay-target',      converter: toCustom<HTMLElement | string | null>(
+        (raw) => raw,
+        {
+            validate: (v): v is HTMLElement | string | null =>
+                v == null || typeof v === 'string' || (typeof HTMLElement !== 'undefined' && v instanceof HTMLElement),
+            // An HTMLElement can't live in an attribute — reflecting one removes
+            // the (now stale) string attribute so the store resolves the element.
+            toAttribute: (v) => (typeof v === 'string' && v !== '' ? v : null),
+        },
+    ), reflect: true, on: 'update', type: 'HTMLElement | string', description: 'Element (or selector string) that acts as the full-viewport drag-overlay target. Assign an HTMLElement via the property; a selector string via the `overlay-target` attribute.' },
+    { configKey: 'overlayText',             attribute: 'overlay-text',        converter: text(),                                                                       reflect: true, on: 'update', description: 'Text shown in the drag overlay.' },
+    { configKey: 'overlayIcon',             attribute: 'overlay-icon',        converter: text(),                                                                       reflect: true, on: 'update', description: 'Icon shown in the drag overlay.' },
 
-    // Form integration
-    { attr: 'name',                key: 'name',                  parser: 'string-or-undefined' },
-    { attr: 'value-format',        key: 'valueFormat',           parser: 'enum',
-      enumValues: ['json', 'csv', 'array'], default: 'json' },
+    // ── Form integration ──────────────────────────────────────────────────────
+    { configKey: 'name',                    attribute: 'name',                converter: text(),                                                                       reflect: true, on: 'update', description: 'Form field name. Files submit as real FormData blobs under this name.' },
+    { configKey: 'valueFormat',             attribute: 'value-format',        converter: toEnum(['json', 'csv', 'array'] as const, { default: 'json' }),               reflect: true, on: 'update', description: 'Fallback hidden-input serialization format hint (FormData blobs are always submitted for files).' },
 
-    // Upload pipeline (only meaningful when `uploadFileCallback` is set via JS)
-    { attr: 'concurrency',         key: 'concurrency',           parser: 'int', default: 1 },
-    { attr: 'auto-upload',         key: 'isAutoUploadEnabled',   parser: 'bool-default-true' },
-    { attr: 'uploaded-deletable',  key: 'isUploadedFileDeletable', parser: 'bool-default-true' },
-    { attr: 'reorder-completed',   key: 'isReorderCompletedEnabled', parser: 'bool-default-false' },
-    { attr: 'reorder-completed-delay', key: 'reorderCompletedDelay', parser: 'int', default: 1500 },
-    { attr: 'progress-mode',       key: 'progressMode',          parser: 'enum',
-      enumValues: ['optimistic', 'pessimistic'], default: 'optimistic' },
+    // ── Upload pipeline (meaningful once uploadFileCallback is set) ────────────
+    { configKey: 'concurrency',             attribute: 'concurrency',         converter: toInt({ default: 1 }),                                                        reflect: true, on: 'update', description: 'Maximum concurrent uploads through the worker pool.' },
+    { configKey: 'isAutoUploadEnabled',     attribute: 'auto-upload',         converter: toBool('default-true'),                                                       on: 'update', type: 'boolean', description: 'Auto-upload newly added files. Public property: `el.autoUpload`.' },
+    { configKey: 'isUploadedFileDeletable',  attribute: 'uploaded-deletable',  converter: toBool('default-true'),                                                       on: 'update', type: 'boolean', description: 'Whether already-uploaded files can be removed. Public property: `el.uploadedDeletable`.' },
+    { configKey: 'isReorderCompletedEnabled', attribute: 'reorder-completed', converter: toBool('default-false'),                                                      on: 'update', type: 'boolean', description: 'Slide completed files to the bottom of the list. Public property: `el.reorderCompleted`.' },
+    { configKey: 'reorderCompletedDelay',   attribute: 'reorder-completed-delay', converter: toInt({ default: 1500 }),                                                 reflect: true, on: 'update', description: 'Delay in ms before a completed file reorders. Only meaningful when reorder-completed is on.' },
+    { configKey: 'progressMode',            attribute: 'progress-mode',       converter: toEnum(['optimistic', 'pessimistic'] as const, { default: 'optimistic' }),   reflect: true, on: 'update', description: 'Progress reporting contract: optimistic (tick before ACK, snap back on failure) or pessimistic (tick only after ACK).' },
 
-    // Persistence — opaque key used to scope localStorage / persistStateCallback.
-    // Empty / unset disables persistence entirely.
-    { attr: 'storage-key',         key: 'storageKey',            parser: 'string-or-undefined' }
+    // ── Persistence ───────────────────────────────────────────────────────────
+    { configKey: 'storageKey',              attribute: 'storage-key',         converter: text(),                                                                       reflect: true, on: 'update', description: 'Opaque key scoping persisted UI state. Unset disables persistence.' },
+
+    // ── Callbacks (property-only) ─────────────────────────────────────────────
+    { configKey: 'validateCallback',            converter: cb(),      on: 'update', type: '(file: File, existingFiles: FileState[]) => ValidationResult', description: 'Custom per-file validation.' },
+    { configKey: 'beforeFilesAddedCallback',    converter: cb(),      on: 'update', type: '(files: File[]) => boolean | File[] | Promise<boolean | File[]>', description: 'Async confirmation / transform gate before files are added.' },
+    { configKey: 'beforeFilesRemovedCallback',  converter: cb(),      on: 'update', type: '(files: FileState[]) => boolean | Promise<boolean>', description: 'Async confirmation gate before files are removed.' },
+    { configKey: 'uploadFileCallback',          converter: cb(),      on: 'update', type: 'FileUploadHandler', description: 'Component-driven upload handler. When set, added files run through the worker pool.' },
+    { configKey: 'retryPolicy',                 converter: toValue(), on: 'update', type: 'RetryPolicy', description: 'Retry policy applied when uploadFileCallback rejects. Property-only object.' },
+    { configKey: 'renderFileItemCallback',      converter: cb(),      on: 'update', type: '(file: FileState, context: FileItemRenderContext) => string | HTMLElement', description: 'Custom render for a single file row (structural mode).' },
+    { configKey: 'renderListWrapperCallback',   converter: cb(),      on: 'update', type: '(rowsHtml: string, files: FileState[]) => string | HTMLElement', description: 'Custom wrapper around the rendered file rows.' },
+    { configKey: 'renderPromptCallback',        converter: cb(),      on: 'update', type: '() => string | HTMLElement', description: 'Custom render for the drop-area prompt.' },
+    { configKey: 'renderSummaryCallback',       converter: cb(),      on: 'update', type: '(files: FileState[]) => string | HTMLElement', description: 'Custom render for the compact-mode summary.' },
+    { configKey: 'customStylesCallback',        converter: cb(),      on: 'update', type: '() => string', description: 'Returns a CSS string injected into the shadow root (prepended so @import/@font-face work).' },
+    { configKey: 'persistStateCallback',        converter: cb(),      on: 'update', type: '(key: string, state: DropzoneState) => void | Promise<void>', description: 'Custom persistence sink (defaults to localStorage).' },
+    { configKey: 'loadStateCallback',           converter: cb(),      on: 'update', type: '(key: string) => DropzoneState | null | Promise<DropzoneState | null>', description: 'Custom persistence source paired with persistStateCallback.' },
 ];
 
-const ATTRIBUTE_TABLE_BY_ATTR = new Map(ATTRIBUTE_TABLE.map(s => [s.attr, s]));
-
-/**
- * Property names whose setters live on the DropzoneElement prototype and
- * therefore need pre-upgrade rescue (see `upgradeProperties` in the
- * constructor). Lists both JS-only callback props and attribute-reflected
- * props — the rescue is a no-op for anything that wasn't actually pre-set,
- * so over-listing is harmless.
- */
-const UPGRADEABLE_PROPS: ReadonlyArray<string> = [
-    // JS-only callbacks
-    'validateCallback', 'beforeFilesAddedCallback', 'beforeFilesRemovedCallback',
-    'uploadFileCallback', 'retryPolicy',
-    'renderFileItemCallback', 'renderListWrapperCallback',
-    'renderPromptCallback', 'renderSummaryCallback',
-    'customStylesCallback',
-    // Attribute-reflected (pre-upgrade JS assignment otherwise bypasses the
-    // setAttribute call inside the setter and the value never reaches the
-    // attribute / parseAttributesFromTable / config flow).
-    'accept', 'multiple', 'maxFileSize', 'minFileSize', 'maxTotalSize',
-    'maxFileCount', 'minFileCount', 'disabled', 'displayMode',
-    'selectorAppearance', 'listAppearance', 'rollingRotation', 'cardSize', 'selectFilesText',
-    'noFileChosenText',
-    'showThumbnails', 'filesInside', 'icon', 'promptText', 'hintText',
-    'dragActiveText', 'emptyMessage', 'summaryTemplate', 'popoverPlacement',
-    'overlayTarget', 'overlayText', 'overlayIcon', 'name', 'valueFormat',
-    'concurrency', 'autoUpload', 'uploadedDeletable', 'storageKey', 'progressMode',
-    'reorderCompleted', 'reorderCompletedDelay',
-    // Persistence callbacks
-    'persistStateCallback', 'loadStateCallback'
-];
-
-/** Parse a single attribute value through its spec. Used by both initial parse and live updates. */
-function parseAttrValue(spec: AttrSpec, raw: string | null): any {
-    // Missing attribute → fall back to the default-or-typed-zero for the parser.
-    if (raw === null) {
-        switch (spec.parser) {
-            case 'bool-default-true': return true;
-            case 'bool-default-false': return false;
-            case 'bool-optional': return undefined;
-            default: return spec.default;
-        }
-    }
-    switch (spec.parser) {
-        case 'string':
-        case 'string-or-undefined':
-            // Empty string is treated as "attribute reset" → fall back to default.
-            return raw === '' ? spec.default : raw;
-        case 'enum':
-            return spec.enumValues!.includes(raw) ? raw : spec.default;
-        case 'int': {
-            const n = parseInt(raw, 10);
-            return isNaN(n) ? spec.default : n;
-        }
-        case 'bytes': {
-            const n = parseBytes(raw);
-            return n === null ? spec.default : n;
-        }
-        // For all boolean variants: only the literal 'false' negates. Present
-        // (including empty string from `<el disabled>`) means true. This matches
-        // HTML's standard boolean-attribute behavior on native form controls.
-        case 'bool-default-true':  return raw !== 'false';
-        case 'bool-default-false': return raw !== 'false';
-        case 'bool-optional':      return raw !== 'false';
-    }
-}
-
-// Track instances for global API
+// Track instances for the global API (window.components['web-dropzone']).
 const instances = new Set<DropzoneElement>();
 
 export function getAllInstances(): DropzoneElement[] {
@@ -270,209 +207,162 @@ export function getAllInstances(): DropzoneElement[] {
 /**
  * DropzoneElement - <web-dropzone> custom element
  */
-export class DropzoneElement extends BaseElement {
+export class DropzoneElement extends BlissElement {
     // Opt into the form-associated custom element lifecycle so the surrounding
     // <form> sees this element in form.elements, form.reset(), and FormData
-    // submissions.
+    // submissions. Core owns the single attachInternals() (exposed lazily via
+    // the protected `internals` getter and the public `el.form`).
     static formAssociated = true;
 
-    private dropzone?: WebDropzone;
-    private container: HTMLElement | null = null;
-    private shadow: ShadowRoot;
-    private internals?: ElementInternals;
-    private customStyleSheet?: HTMLStyleElement;
-    // Holds an HTMLElement overlay target assigned via the JS property — the
-    // `overlay-target` HTML attribute can only carry strings, so passing
-    // `el.overlayTarget = document.body` is routed straight to updateConfig
-    // instead of being stringified by setAttribute.
-    private _overlayTargetEl: HTMLElement | null = null;
+    protected static override inputs = INPUTS;
 
-    /**
-     * Underlying store — exposed as the `DropzoneStoreAPI` contract so
-     * consumers stay decoupled from the concrete implementation (a Phase B
-     * prereq: the store can be the renderer-bound `WebDropzone` or the
-     * headless `DropzoneCore`; satellites and apps shouldn't care). Used by
-     * satellite renderers (`<web-dropzone-picker>`, `<web-dropzone-list>`,
-     * `<web-dropzone-indicator>`) to resolve their `for="<store-id>"`
-     * reference. Returns undefined before `connectedCallback` runs;
-     * satellites handle the timing race via `store-ready` re-resolution.
-     */
-    getStore(): DropzoneStoreAPI | undefined {
-        return this.dropzone;
-    }
-
-    // Callback properties (set via JavaScript only — no HTML attribute equivalent)
-    private _validateCallback: DropzoneConfig['validateCallback'] = null;
-    private _beforeFilesAddedCallback: DropzoneConfig['beforeFilesAddedCallback'] = null;
-    private _beforeFilesRemovedCallback: DropzoneConfig['beforeFilesRemovedCallback'] = null;
-    private _uploadFileCallback: DropzoneConfig['uploadFileCallback'] = null;
-    private _retryPolicy: DropzoneConfig['retryPolicy'] = undefined;
-    private _renderFileItemCallback: DropzoneConfig['renderFileItemCallback'] = null;
-    private _renderListWrapperCallback: DropzoneConfig['renderListWrapperCallback'] = null;
-    private _renderPromptCallback: DropzoneConfig['renderPromptCallback'] = null;
-    private _renderSummaryCallback: DropzoneConfig['renderSummaryCallback'] = null;
-    private _customStylesCallback: DropzoneConfig['customStylesCallback'] = null;
-    private _persistStateCallback: DropzoneConfig['persistStateCallback'] = null;
-    private _loadStateCallback: DropzoneConfig['loadStateCallback'] = null;
+    #shadow: ShadowRoot;
+    #dropzone?: WebDropzone;
+    #container: HTMLElement;
+    #customStyleSheet?: HTMLStyleElement;
+    #boundSyncFormValue = (): void => this.#syncFormValue();
 
     constructor() {
         super();
 
         // Shadow DOM + base stylesheet
-        this.shadow = this.attachShadow({ mode: 'open' });
+        this.#shadow = this.attachShadow({ mode: 'open' });
         const styleSheet = document.createElement('style');
         styleSheet.textContent = styles;
-        this.shadow.appendChild(styleSheet);
+        this.#shadow.appendChild(styleSheet);
 
-        // attachInternals() is only available in form-associated elements; older
-        // browsers (or jsdom) may lack it. Failing closed is better than throwing.
-        if (typeof (this as any).attachInternals === 'function') {
-            try {
-                this.internals = (this as any).attachInternals();
-            } catch {
-                // jsdom or sandboxed environments may reject; ignore.
-            }
-        }
-
-        // Container the core class renders into.
-        this.container = document.createElement('div');
-        this.container.className = 'dz__host';
-        this.shadow.appendChild(this.container);
-
-        // Rescue properties that were set on the element *before* the upgrade
-        // (e.g. `dz.uploadFileCallback = handler` when the wiring script ran
-        // before the customElements.define call). Without this, the
-        // pre-upgrade assignment lands as an instance property that shadows
-        // the prototype setter forever — the setter never runs, the backing
-        // _* field stays null, and the dropzone never sees the value.
-        // Standard custom-element upgrade pattern: snapshot, delete the
-        // instance prop, then reassign so the now-reachable setter fires.
-        this.upgradeProperties();
+        // Container the core store renders into.
+        this.#container = document.createElement('div');
+        this.#container.className = 'dz__host';
+        this.#shadow.appendChild(this.#container);
     }
 
-    /** Run upgrade-time rescue for every JS-settable property that has a
-     *  setter on the prototype. Cheap (one hasOwnProperty check per prop) so
-     *  we can safely include all of them — covers callback props (the
-     *  primary use case) and attribute-reflected props alike. */
-    private upgradeProperties(): void {
-        for (const prop of UPGRADEABLE_PROPS) {
-            if (Object.prototype.hasOwnProperty.call(this, prop)) {
-                const value = (this as any)[prop];
-                delete (this as any)[prop];
-                (this as any)[prop] = value;
-            }
-        }
+    /**
+     * Underlying store — exposed as the `DropzoneStoreAPI` contract so consumers
+     * stay decoupled from the concrete implementation. Used by satellite
+     * renderers (`<web-dropzone-picker>`, `<web-dropzone-list>`, …) to resolve
+     * their `for="<store-id>"` reference. Returns undefined before the store is
+     * built; satellites handle the timing race via `store-ready` re-resolution.
+     */
+    getStore(): DropzoneStoreAPI | undefined {
+        return this.#dropzone;
     }
-
-    // ========================================================================
-    // LIFECYCLE
-    // ========================================================================
-
-    connectedCallback(): void {
-        instances.add(this);
-        this.initializeDropzone();
-
-        // Single hookpoint for ElementInternals.setFormValue: the underlying
-        // store dispatches a composed `change` event after every mutation
-        // (add / remove / clear), which bubbles to the host. Replaces the
-        // previous pattern where buildConfig wrapped removeCallback /
-        // changeCallback to chain syncFormValue inline.
-        this.addEventListener('change', this.boundSyncFormValue);
-
-        // FOUC prevention — once initialized, expose [data-ready] so authors
-        // can target post-init styling without flashing default browser UA.
-        requestAnimationFrame(() => {
-            this.setAttribute('data-ready', '');
-        });
-
-        initLogger.debug('DropzoneElement connected');
-    }
-
-    disconnectedCallback(): void {
-        instances.delete(this);
-        this.removeEventListener('change', this.boundSyncFormValue);
-        this.dropzone?.destroy();
-        this.dropzone = undefined;
-        initLogger.debug('DropzoneElement disconnected');
-    }
-
-    private boundSyncFormValue = () => this.syncFormValue();
 
     /**
      * Called by the browser when the surrounding <form> is reset. Clears the
-     * dropzone selection so the component actually participates in the standard
-     * reset lifecycle.
+     * dropzone selection so the component participates in the standard reset.
      */
-    formResetCallback() {
-        this.dropzone?.clear();
+    formResetCallback(): void {
+        this.#dropzone?.clear();
     }
 
-    static get observedAttributes(): string[] {
-        return ATTRIBUTE_TABLE.map(s => s.attr);
+    // ── core lifecycle hooks ──────────────────────────────────────────────────
+
+    /** Structural change (or first connect): rebuild the store from scratch. */
+    protected override reinit(): void {
+        this.#rebuildStore();
     }
 
-    attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
-        if (oldValue === newValue) return;
-        if (!this.dropzone) return; // Pre-init: connectedCallback's parse will pick it up.
-
-        const spec = ATTRIBUTE_TABLE_BY_ATTR.get(name);
-        if (!spec) return;
-
-        // Mode resolution (see buildConfig) depends on the explicit `mode`
-        // attribute and the *presence* of the three renderer-trigger
-        // attrs. Toggling any of these can flip which path the store
-        // uses to render (satellite / in-class structural / nothing).
-        // updateConfig can't represent that — it patches config in place.
-        // Full reinit is the safe handler. Rare interaction in practice
-        // (apps don't typically toggle these dynamically) so the cost is
-        // negligible.
-        if (name === 'mode' || name === 'display-mode' || name === 'selector-appearance' || name === 'list-appearance') {
-            const prevMode = this.dropzone.getConfig().mode;
-            const nextMode = this.resolveMode();
-            if (prevMode !== nextMode) {
-                this.initializeDropzone();
+    /**
+     * In-place change: patch the live store via `updateConfig`. A change to any
+     * of the four mode-determining inputs can flip the operating mode, which the
+     * store can't apply in place — detect that and do a full rebuild instead
+     * (matching the pre-core behaviour, where a mode flip reset the selection).
+     */
+    protected override update(partial: Record<string, unknown>): void {
+        if (
+            'mode' in partial ||
+            'displayMode' in partial ||
+            'selectorAppearance' in partial ||
+            'listAppearance' in partial
+        ) {
+            const next = this.#resolveMode();
+            if (this.#dropzone && this.#dropzone.getConfig().mode !== next) {
+                this.#rebuildStore();
                 return;
             }
         }
 
-        const value = parseAttrValue(spec, newValue);
-        const partial = { [spec.key]: value } as Partial<DropzoneConfig>;
-        this.dropzone.updateConfig(partial);
+        // Custom styles are a shadow-root concern, not a store rebuild.
+        if ('customStylesCallback' in partial) this.#injectCustomStyles();
 
-        // Form-relevant changes need to re-stamp the FormData.
-        if (spec.key === 'name' || spec.key === 'valueFormat') {
-            this.syncFormValue();
+        const storePartial: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(partial)) {
+            if (key === 'customStylesCallback') continue; // handled above
+            storePartial[key] = value === null ? undefined : value;
+        }
+        if (this.#dropzone && Object.keys(storePartial).length > 0) {
+            this.#dropzone.updateConfig(storePartial as Partial<DropzoneConfig>);
         }
 
-        // minFileCount changes only the validity calculation — re-sync without
-        // rebuilding FormData.
-        if (spec.key === 'minFileCount') {
-            this.syncValidity(this.dropzone.getFiles().length);
+        // Form-relevant changes re-stamp the FormData; minFileCount alone only
+        // affects validity.
+        if ('name' in partial || 'valueFormat' in partial) {
+            this.#syncFormValue();
+        } else if ('minFileCount' in partial) {
+            this.#syncValidity(this.#dropzone?.getFiles().length ?? 0);
         }
     }
 
-    // ========================================================================
-    // INITIALIZATION
-    // ========================================================================
+    /** Activate: ensure the store exists (a DOM move destroyed it), start listeners. */
+    protected override connect(): void {
+        instances.add(this);
+        if (!this.#dropzone) this.#buildStore();
 
-    /** Parse all observed attributes via ATTRIBUTE_TABLE into a partial config. */
-    private parseAttributesFromTable(): Partial<DropzoneConfig> {
-        const out: Partial<DropzoneConfig> = {};
-        for (const spec of ATTRIBUTE_TABLE) {
-            const value = parseAttrValue(spec, this.getAttribute(spec.attr));
-            if (value !== undefined) (out as any)[spec.key] = value;
+        // The store dispatches a composed `change` event after every mutation
+        // (add / remove / clear); we re-stamp the form value off it.
+        this.addEventListener('change', this.#boundSyncFormValue);
+
+        // FOUC prevention — expose [data-ready] once initialized.
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => this.setAttribute('data-ready', ''));
+        } else {
+            this.setAttribute('data-ready', '');
         }
-        return out;
+
+        initLogger.debug('DropzoneElement connected');
+    }
+
+    /** Deactivate: stop listeners and tear the store down (rebuilt on next connect). */
+    protected override disconnect(): void {
+        instances.delete(this);
+        this.removeEventListener('change', this.#boundSyncFormValue);
+        this.#dropzone?.destroy();
+        this.#dropzone = undefined;
+        initLogger.debug('DropzoneElement disconnected');
+    }
+
+    // ── store lifecycle ───────────────────────────────────────────────────────
+
+    #rebuildStore(): void {
+        this.#dropzone?.destroy();
+        this.#dropzone = undefined;
+        this.#buildStore();
+    }
+
+    #buildStore(): void {
+        const config = this.#assembleConfig();
+        this.#injectCustomStyles();
+
+        this.#dropzone = new WebDropzone(this.#container, config);
+        this.#syncFormValue();
+
+        // Notify satellite renderers (`<web-dropzone-picker for=>`, …) that the
+        // store is now resolvable via `getStore()`. Bubbles + composed so
+        // listeners in other shadow roots pick it up.
+        dispatchComposedEvent(this, 'store-ready');
+
+        initLogger.debug('Dropzone initialized', { config });
     }
 
     /**
-     * Resolve the effective `mode` from explicit attribute + implicit
-     * detection. Explicit `mode="…"` always wins. Otherwise: presence of
-     * any renderer-trigger attribute → 'bulk'; absence → 'headless'. The
-     * implicit path never lands on 'structural' — opting into render
-     * callbacks requires an explicit `mode="structural"`.
+     * Resolve the effective `mode` from explicit attribute + implicit detection.
+     * Explicit `mode="…"` always wins. Otherwise: presence of any
+     * renderer-trigger attribute → 'bulk'; absence → 'headless'. The implicit
+     * path never lands on 'structural' — that requires an explicit
+     * `mode="structural"`.
      */
-    private resolveMode(): DropzoneMode {
+    #resolveMode(): DropzoneMode {
         const raw = this.getAttribute('mode');
         if (raw === 'bulk' || raw === 'structural' || raw === 'headless') return raw;
         const hasRendererAttr = this.hasAttribute('display-mode')
@@ -481,272 +371,127 @@ export class DropzoneElement extends BaseElement {
         return hasRendererAttr ? 'bulk' : 'headless';
     }
 
-    private buildConfig(): DropzoneConfig {
-        const mode = this.resolveMode();
-        const attrConfig = this.parseAttributesFromTable();
-        return {
-            ...attrConfig,
-            // HTMLElement assignments to `el.overlayTarget` made *before*
-            // initializeDropzone() runs are stashed on `_overlayTargetEl`;
-            // overlay-target attribute (string) parses through attrConfig.
-            // Element wins when both are present so a programmatic assignment
-            // isn't lost on a later reinit.
-            ...(this._overlayTargetEl ? { overlayTarget: this._overlayTargetEl } : {}),
-
-            mode,
-            isHeadless: mode === 'headless',
-
-            // Callbacks (programmatic only — no HTML attribute equivalent)
-            validateCallback: this._validateCallback,
-            beforeFilesAddedCallback: this._beforeFilesAddedCallback,
-            beforeFilesRemovedCallback: this._beforeFilesRemovedCallback,
-            uploadFileCallback: this._uploadFileCallback,
-            retryPolicy: this._retryPolicy,
-            renderFileItemCallback: this._renderFileItemCallback,
-            renderListWrapperCallback: this._renderListWrapperCallback,
-            renderPromptCallback: this._renderPromptCallback,
-            renderSummaryCallback: this._renderSummaryCallback,
-            customStylesCallback: this._customStylesCallback,
-            persistStateCallback: this._persistStateCallback,
-            loadStateCallback: this._loadStateCallback,
-
-            // Shadow DOM container for popover anchoring + form-element host
-            container: this.container!,
-            hostElement: this
-        };
-    }
-
-    private initializeDropzone(): void {
-        if (!this.container) return;
-
-        if (this.dropzone) {
-            this.dropzone.destroy();
+    /**
+     * Build the store config from the merged `this.config`: strip "unset" (null)
+     * keys so the store sees them as absent (it applies its own defaults), then
+     * add the runtime wiring (resolved mode, container, host element).
+     */
+    #assembleConfig(): DropzoneConfig {
+        const cfg: Record<string, unknown> = { ...this.config };
+        for (const key of Object.keys(cfg)) {
+            if (cfg[key] === null) delete cfg[key];
         }
 
-        const config = this.buildConfig();
-        this.injectCustomStyles();
+        const mode = this.#resolveMode();
+        cfg.mode = mode;
+        cfg.isHeadless = mode === 'headless';
 
-        this.dropzone = new WebDropzone(this.container, config);
-        this.syncFormValue();
-
-        // Notify satellite renderers (`<web-dropzone-picker for=>`, …) that
-        // the store is now resolvable via `getStore()`. Satellites that
-        // connected before the store called this listen for `store-ready`
-        // and complete their wiring then. Bubbles + composed so listeners
-        // in other shadow roots pick it up.
-        dispatchComposedEvent(this, 'store-ready');
-
-        initLogger.debug('Dropzone initialized', { config });
+        // Shadow DOM container for popover anchoring + form-element host.
+        cfg.container = this.#container;
+        cfg.hostElement = this;
+        return cfg as DropzoneConfig;
     }
 
     /**
-     * Inject styles from customStylesCallback into the shadow root. The
-     * stylesheet is *prepended* (inserted before the base stylesheet) so that
-     * `@import` and `@font-face` rules — which must appear at the top of a
-     * stylesheet — actually take effect. Replaces the previous custom-styles
-     * element if one was already injected.
+     * Inject styles from `customStylesCallback` into the shadow root. The
+     * stylesheet is *prepended* (before the base stylesheet) so `@import` /
+     * `@font-face` rules — which must appear at the top of a stylesheet — take
+     * effect. Replaces the previous custom-styles element if one was injected.
      */
-    private injectCustomStyles(): void {
-        if (this.customStyleSheet) {
-            this.customStyleSheet.remove();
-            this.customStyleSheet = undefined;
+    #injectCustomStyles(): void {
+        if (this.#customStyleSheet) {
+            this.#customStyleSheet.remove();
+            this.#customStyleSheet = undefined;
         }
-        if (!this._customStylesCallback) return;
+        const callback = this.config.customStylesCallback as (() => string) | null | undefined;
+        if (typeof callback !== 'function') return;
 
-        const css = this._customStylesCallback();
+        const css = callback();
         if (!css) return;
 
         const sheet = document.createElement('style');
         sheet.id = 'dz-custom-styles';
         sheet.textContent = css;
-        // Insert at the beginning of the shadow root so @import / @font-face work.
-        this.shadow.insertBefore(sheet, this.shadow.firstChild);
-        this.customStyleSheet = sheet;
+        this.#shadow.insertBefore(sheet, this.#shadow.firstChild);
+        this.#customStyleSheet = sheet;
     }
 
-    // ========================================================================
-    // FORM VALUE
-    // ========================================================================
+    // ── form value ────────────────────────────────────────────────────────────
 
     /**
      * Build a FormData containing every selected File under the configured
      * `name`, and hand it to `internals.setFormValue()`. This is what makes the
      * surrounding <form> submit real file blobs the same way `<input type="file">`
-     * would. If `internals` is unavailable (older browser, jsdom), this is a no-op
-     * and consumers can still read `this.files` programmatically.
-     *
-     * The `valueFormat` attribute (json/csv/array) is preserved as a state-only
-     * hint for callers building their own non-multipart form payloads; it
-     * doesn't affect what setFormValue submits because FormData with File
-     * blobs is the canonical browser-compatible format for file inputs.
+     * would. If `internals` is unavailable (older browser, jsdom), this is a
+     * no-op and consumers can still read `this.files` programmatically.
      */
-    private syncFormValue(): void {
-        if (!this.internals) return;
-        const files = this.dropzone?.getFiles() ?? [];
+    #syncFormValue(): void {
+        const internals = this.internals;
+        if (!internals) return;
+        const files = this.#dropzone?.getFiles() ?? [];
         const name = this.getAttribute('name');
 
         if (!name || files.length === 0) {
-            this.internals.setFormValue(null);
+            internals.setFormValue(null);
         } else {
             const formData = new FormData();
             for (const f of files) {
                 formData.append(name, f.file, f.name);
             }
-            this.internals.setFormValue(formData);
+            internals.setFormValue(formData);
         }
 
-        this.syncValidity(files.length);
+        this.#syncValidity(files.length);
     }
 
     /**
-     * Reflect `minFileCount` into the form's native validity. When the
-     * selection is short, the surrounding form's submit refuses with the
-     * native validation message instead of silently submitting an incomplete
-     * payload. Mirrors svelte-fluentui's `InputFile.minFiles` semantics — the
-     * minimum is a form-validity signal, not an add-time rejection.
+     * Reflect `minFileCount` into the form's native validity. When the selection
+     * is short, the surrounding form's submit refuses with the native validation
+     * message instead of silently submitting an incomplete payload.
      */
-    private syncValidity(fileCount: number): void {
-        if (!this.internals) return;
-        const min = this.dropzone?.getConfig().minFileCount ?? 0;
+    #syncValidity(fileCount: number): void {
+        const internals = this.internals;
+        if (!internals) return;
+        const min = this.#dropzone?.getConfig().minFileCount ?? 0;
         if (min > 0 && fileCount < min) {
-            this.internals.setValidity(
+            internals.setValidity(
                 { valueMissing: true },
                 `At least ${min} file${min === 1 ? '' : 's'} required`
             );
         } else {
-            this.internals.setValidity({});
+            internals.setValidity({});
         }
     }
 
-    // ========================================================================
-    // ATTRIBUTE PROPERTIES (HTML <-> JS reflection)
-    // ========================================================================
-
-    get accept(): string {
-        return this.getAttribute('accept') || '';
-    }
-    set accept(value: string) {
-        this.setAttribute('accept', value);
-    }
+    // ── back-compat property aliases ──────────────────────────────────────────
+    // Core installs accessors named after each `configKey` (e.g.
+    // `el.isMultipleEnabled`). These hand-written camelCase accessors preserve
+    // the historical public property names, operating on the attribute (which
+    // core observes) so the value still flows through the reactive pipeline.
 
     get multiple(): boolean {
-        const attr = this.getAttribute('multiple');
-        return attr !== 'false';
+        return this.config.isMultipleEnabled as boolean;
     }
     set multiple(value: boolean) {
         if (value) this.setAttribute('multiple', '');
         else this.setAttribute('multiple', 'false');
     }
 
-    /** The size getters parse the attribute the same way as the ATTRIBUTE_TABLE
-     *  so `<web-dropzone max-file-size="5MB">` and `.maxFileSize` agree.
-     *  Setting a number stores the raw byte count; callers wanting a unit
-     *  string can use `setAttribute('max-file-size', '5MB')` directly. */
-    get maxFileSize(): number {
-        const value = this.getAttribute('max-file-size');
-        if (!value) return 0;
-        return parseBytes(value) ?? 0;
-    }
-    set maxFileSize(value: number) {
-        this.setAttribute('max-file-size', String(value));
-    }
-
-    get minFileSize(): number {
-        const value = this.getAttribute('min-file-size');
-        if (!value) return 0;
-        return parseBytes(value) ?? 0;
-    }
-    set minFileSize(value: number) {
-        this.setAttribute('min-file-size', String(value));
-    }
-
-    get maxTotalSize(): number {
-        const value = this.getAttribute('max-total-size');
-        if (!value) return 0;
-        return parseBytes(value) ?? 0;
-    }
-    set maxTotalSize(value: number) {
-        this.setAttribute('max-total-size', String(value));
-    }
-
-    get maxFileCount(): number {
-        const value = this.getAttribute('max-file-count');
-        return value ? parseInt(value, 10) : 0;
-    }
-    set maxFileCount(value: number) {
-        this.setAttribute('max-file-count', String(value));
-    }
-
-    get minFileCount(): number {
-        const value = this.getAttribute('min-file-count');
-        return value ? parseInt(value, 10) : 0;
-    }
-    set minFileCount(value: number) {
-        this.setAttribute('min-file-count', String(value));
-    }
-
     get disabled(): boolean {
-        return this.hasAttribute('disabled') && this.getAttribute('disabled') !== 'false';
+        return this.config.isDisabled as boolean;
     }
     set disabled(value: boolean) {
         if (value) this.setAttribute('disabled', '');
         else this.removeAttribute('disabled');
     }
 
-    get displayMode(): DisplayMode {
-        return (this.getAttribute('display-mode') as DisplayMode) || 'list';
-    }
-    set displayMode(value: DisplayMode) {
-        this.setAttribute('display-mode', value);
-    }
-
-    get selectorAppearance(): SelectorAppearance | '' {
-        return (this.getAttribute('selector-appearance') as SelectorAppearance) || '';
-    }
-    set selectorAppearance(value: SelectorAppearance | '') {
-        if (value) this.setAttribute('selector-appearance', value);
-        else this.removeAttribute('selector-appearance');
-    }
-
-    get listAppearance(): ListAppearance | '' {
-        return (this.getAttribute('list-appearance') as ListAppearance) || '';
-    }
-    set listAppearance(value: ListAppearance | '') {
-        if (value) this.setAttribute('list-appearance', value);
-        else this.removeAttribute('list-appearance');
-    }
-
-    get rollingRotation(): RollingRotation | '' {
-        return (this.getAttribute('rolling-rotation') as RollingRotation) || '';
-    }
-    set rollingRotation(value: RollingRotation | '') {
-        if (value) this.setAttribute('rolling-rotation', value);
-        else this.removeAttribute('rolling-rotation');
-    }
-
-    get cardSize(): CardSize | '' {
-        return (this.getAttribute('card-size') as CardSize) || '';
-    }
-    set cardSize(value: CardSize | '') {
-        if (value) this.setAttribute('card-size', value);
-        else this.removeAttribute('card-size');
-    }
-
-    get selectFilesText(): string { return this.getAttribute('select-files-text') || ''; }
-    set selectFilesText(value: string) { this.setAttribute('select-files-text', value); }
-
-    get noFileChosenText(): string { return this.getAttribute('no-file-chosen-text') || ''; }
-    set noFileChosenText(value: string) { this.setAttribute('no-file-chosen-text', value); }
-
     /**
-     * Three-state reflection so JS can read "unset / explicit on / explicit off".
-     * Unset (returning undefined) means the renderer applies the auto default:
+     * Three-state: `undefined` (unset → auto), `true`, or `false`. Auto means
      * thumbnails for `list-appearance="grid"`, icons everywhere else.
      */
     get showThumbnails(): boolean | undefined {
-        const raw = this.getAttribute('show-thumbnails');
-        if (raw === null) return undefined;
-        return raw !== 'false';
+        const value = this.config.isShowThumbnailsEnabled as boolean | null;
+        return value == null ? undefined : value;
     }
     set showThumbnails(value: boolean | undefined) {
         if (value === undefined) this.removeAttribute('show-thumbnails');
@@ -754,336 +499,136 @@ export class DropzoneElement extends BaseElement {
     }
 
     get filesInside(): boolean {
-        return this.hasAttribute('files-inside') && this.getAttribute('files-inside') !== 'false';
+        return this.config.isFilesInsideEnabled as boolean;
     }
     set filesInside(value: boolean) {
         if (value) this.setAttribute('files-inside', '');
         else this.removeAttribute('files-inside');
     }
 
-    get icon(): string { return this.getAttribute('icon') || ''; }
-    set icon(value: string) { this.setAttribute('icon', value); }
-
-    get promptText(): string { return this.getAttribute('prompt-text') || ''; }
-    set promptText(value: string) { this.setAttribute('prompt-text', value); }
-
-    get hintText(): string { return this.getAttribute('hint-text') || ''; }
-    set hintText(value: string) { this.setAttribute('hint-text', value); }
-
-    get dragActiveText(): string { return this.getAttribute('drag-active-text') || ''; }
-    set dragActiveText(value: string) { this.setAttribute('drag-active-text', value); }
-
-    get emptyMessage(): string { return this.getAttribute('empty-message') || ''; }
-    set emptyMessage(value: string) { this.setAttribute('empty-message', value); }
-
-    get summaryTemplate(): string { return this.getAttribute('summary-template') || ''; }
-    set summaryTemplate(value: string) { this.setAttribute('summary-template', value); }
-
-    get popoverPlacement(): string { return this.getAttribute('popover-placement') || 'bottom-start'; }
-    set popoverPlacement(value: string) { this.setAttribute('popover-placement', value); }
-
-    get overlayTarget(): HTMLElement | string {
-        return this._overlayTargetEl ?? this.getAttribute('overlay-target') ?? '';
-    }
-    set overlayTarget(value: HTMLElement | string | null | undefined) {
-        if (value instanceof HTMLElement) {
-            this._overlayTargetEl = value;
-            // Drop any stale string attribute so the element resolution path
-            // in WebDropzone.setupOverlayTarget unambiguously sees the element.
-            if (this.hasAttribute('overlay-target')) this.removeAttribute('overlay-target');
-            // If the underlying store hasn't been constructed yet, the element
-            // is preserved on `_overlayTargetEl` and picked up by buildConfig
-            // when initializeDropzone runs.
-            this.dropzone?.updateConfig({ overlayTarget: value });
-            return;
-        }
-        this._overlayTargetEl = null;
-        if (value == null || value === '') {
-            this.removeAttribute('overlay-target');
-        } else {
-            this.setAttribute('overlay-target', value);
-        }
-    }
-
-    get overlayText(): string { return this.getAttribute('overlay-text') || ''; }
-    set overlayText(value: string) { this.setAttribute('overlay-text', value); }
-
-    get overlayIcon(): string { return this.getAttribute('overlay-icon') || ''; }
-    set overlayIcon(value: string) { this.setAttribute('overlay-icon', value); }
-
-    get name(): string { return this.getAttribute('name') || ''; }
-    set name(value: string) { this.setAttribute('name', value); }
-
-    get valueFormat(): ValueFormat { return (this.getAttribute('value-format') as ValueFormat) || 'json'; }
-    set valueFormat(value: ValueFormat) { this.setAttribute('value-format', value); }
-
-    // ========================================================================
-    // CALLBACK PROPERTIES
-    // ========================================================================
-
-    get validateCallback(): DropzoneConfig['validateCallback'] { return this._validateCallback; }
-    set validateCallback(value: DropzoneConfig['validateCallback']) {
-        this._validateCallback = value;
-        this.dropzone?.updateConfig({ validateCallback: value });
-    }
-
-    /** Async user-confirmation gate for additions. See
-     *  {@link DropzoneConfig.beforeFilesAddedCallback}. */
-    get beforeFilesAddedCallback(): DropzoneConfig['beforeFilesAddedCallback'] {
-        return this._beforeFilesAddedCallback;
-    }
-    set beforeFilesAddedCallback(value: DropzoneConfig['beforeFilesAddedCallback']) {
-        this._beforeFilesAddedCallback = value;
-        this.dropzone?.updateConfig({ beforeFilesAddedCallback: value });
-    }
-
-    /** Async user-confirmation gate for removals. See
-     *  {@link DropzoneConfig.beforeFilesRemovedCallback}. */
-    get beforeFilesRemovedCallback(): DropzoneConfig['beforeFilesRemovedCallback'] {
-        return this._beforeFilesRemovedCallback;
-    }
-    set beforeFilesRemovedCallback(value: DropzoneConfig['beforeFilesRemovedCallback']) {
-        this._beforeFilesRemovedCallback = value;
-        this.dropzone?.updateConfig({ beforeFilesRemovedCallback: value });
-    }
-
-    /**
-     * Component-driven upload handler. When set, the component takes over the
-     * upload lifecycle — files added to the dropzone are queued and run through
-     * a worker pool of size `concurrency`. The handler receives the File, an
-     * `onProgress(percent)` callback, and an `AbortSignal` that fires when the
-     * file is paused / cancelled / removed.
-     */
-    get uploadFileCallback(): DropzoneConfig['uploadFileCallback'] { return this._uploadFileCallback; }
-    set uploadFileCallback(value: DropzoneConfig['uploadFileCallback']) {
-        this._uploadFileCallback = value;
-        this.dropzone?.updateConfig({ uploadFileCallback: value });
-    }
-
-    /** Whether the user can remove already-uploaded files. False hides the
-     *  remove button on completed rows (layout space stays reserved). */
-    get uploadedDeletable(): boolean {
-        const attr = this.getAttribute('uploaded-deletable');
-        return attr !== 'false';
-    }
-    set uploadedDeletable(value: boolean) {
-        if (value) this.setAttribute('uploaded-deletable', '');
-        else this.setAttribute('uploaded-deletable', 'false');
-    }
-
-    /** Whether completed files slide to the bottom of the rendered list.
-     *  Reflects the `reorder-completed` HTML attribute. */
-    get reorderCompleted(): boolean {
-        return this.hasAttribute('reorder-completed') &&
-               this.getAttribute('reorder-completed') !== 'false';
-    }
-    set reorderCompleted(value: boolean) {
-        if (value) this.setAttribute('reorder-completed', '');
-        else this.removeAttribute('reorder-completed');
-    }
-
-    /** Delay in ms between a file completing and its row sliding to the
-     *  completed bucket. Reflects the `reorder-completed-delay` HTML
-     *  attribute. Default 1500ms; only meaningful when reorder is on. */
-    get reorderCompletedDelay(): number {
-        const v = this.getAttribute('reorder-completed-delay');
-        return v ? Math.max(0, parseInt(v, 10) || 0) : 1500;
-    }
-    set reorderCompletedDelay(value: number) {
-        this.setAttribute('reorder-completed-delay', String(Math.max(0, value)));
-    }
-
-    /** Retry policy applied when `uploadFileCallback` rejects. Defaults to a
-     *  single attempt (no retries). */
-    get retryPolicy(): DropzoneConfig['retryPolicy'] { return this._retryPolicy; }
-    set retryPolicy(value: DropzoneConfig['retryPolicy']) {
-        this._retryPolicy = value;
-        this.dropzone?.updateConfig({ retryPolicy: value });
-    }
-
-    /** Max concurrent uploads. Reflects the `concurrency` HTML attribute. */
-    get concurrency(): number {
-        const value = this.getAttribute('concurrency');
-        return value ? parseInt(value, 10) : 1;
-    }
-    set concurrency(value: number) {
-        this.setAttribute('concurrency', String(value));
-    }
-
-    /** Whether new files auto-upload through the worker pool. Reflects the
-     *  `auto-upload` HTML attribute (defaults to true). */
     get autoUpload(): boolean {
-        const attr = this.getAttribute('auto-upload');
-        return attr !== 'false';
+        return this.config.isAutoUploadEnabled as boolean;
     }
     set autoUpload(value: boolean) {
         if (value) this.setAttribute('auto-upload', '');
         else this.setAttribute('auto-upload', 'false');
     }
 
-    /** Progress reporting contract — `optimistic` (default) lets the
-     *  handler tick the bar before bytes are acknowledged and snaps back
-     *  on failure; `pessimistic` expects the handler to only tick after
-     *  server ACK and never snaps back. Reflects the `progress-mode`
-     *  HTML attribute. */
-    get progressMode(): 'optimistic' | 'pessimistic' {
-        const attr = this.getAttribute('progress-mode');
-        return attr === 'pessimistic' ? 'pessimistic' : 'optimistic';
+    get uploadedDeletable(): boolean {
+        return this.config.isUploadedFileDeletable as boolean;
     }
-    set progressMode(value: 'optimistic' | 'pessimistic') {
-        this.setAttribute('progress-mode', value);
+    set uploadedDeletable(value: boolean) {
+        if (value) this.setAttribute('uploaded-deletable', '');
+        else this.setAttribute('uploaded-deletable', 'false');
     }
 
-    /** Opaque key used to scope persisted UI state (popover dimensions,
-     *  future toggles). Reflects the `storage-key` HTML attribute; unset
-     *  means no persistence. */
-    get storageKey(): string | null {
-        return this.getAttribute('storage-key');
+    get reorderCompleted(): boolean {
+        return this.config.isReorderCompletedEnabled as boolean;
     }
-    set storageKey(value: string | null) {
-        if (value == null || value === '') this.removeAttribute('storage-key');
-        else this.setAttribute('storage-key', value);
+    set reorderCompleted(value: boolean) {
+        if (value) this.setAttribute('reorder-completed', '');
+        else this.removeAttribute('reorder-completed');
     }
 
-    /** Custom persistence sink. App-supplied (DB write, server PUT, etc.) —
-     *  receives the full DropzoneState snapshot on every change. When
-     *  unset, the component falls back to `localStorage`. */
-    get persistStateCallback(): DropzoneConfig['persistStateCallback'] { return this._persistStateCallback; }
-    set persistStateCallback(value: DropzoneConfig['persistStateCallback']) {
-        this._persistStateCallback = value;
-        this.dropzone?.updateConfig({ persistStateCallback: value });
-    }
+    // Typed views of the reflected enum inputs (core installs the accessors;
+    // these `declare`s only surface the precise TS types to consumers).
+    declare displayMode: DisplayMode;
+    declare selectorAppearance: SelectorAppearance | null;
+    declare listAppearance: ListAppearance | null;
+    declare rollingRotation: RollingRotation;
+    declare cardSize: CardSize | null;
+    declare valueFormat: ValueFormat;
+    declare overlayTarget: HTMLElement | string | null;
 
-    /** Custom persistence source paired with `persistStateCallback`. Called
-     *  once when the popover opens to restore the user's last-known
-     *  dimensions. When unset, the component reads from `localStorage`. */
-    get loadStateCallback(): DropzoneConfig['loadStateCallback'] { return this._loadStateCallback; }
-    set loadStateCallback(value: DropzoneConfig['loadStateCallback']) {
-        this._loadStateCallback = value;
-        this.dropzone?.updateConfig({ loadStateCallback: value });
-    }
+    // ── public API ────────────────────────────────────────────────────────────
 
-    get renderFileItemCallback(): DropzoneConfig['renderFileItemCallback'] { return this._renderFileItemCallback; }
-    set renderFileItemCallback(value: DropzoneConfig['renderFileItemCallback']) {
-        this._renderFileItemCallback = value;
-        this.dropzone?.updateConfig({ renderFileItemCallback: value });
-    }
-
-    get renderListWrapperCallback(): DropzoneConfig['renderListWrapperCallback'] { return this._renderListWrapperCallback; }
-    set renderListWrapperCallback(value: DropzoneConfig['renderListWrapperCallback']) {
-        this._renderListWrapperCallback = value;
-        this.dropzone?.updateConfig({ renderListWrapperCallback: value });
-    }
-
-    get renderPromptCallback(): DropzoneConfig['renderPromptCallback'] { return this._renderPromptCallback; }
-    set renderPromptCallback(value: DropzoneConfig['renderPromptCallback']) {
-        this._renderPromptCallback = value;
-        this.dropzone?.updateConfig({ renderPromptCallback: value });
-    }
-
-    get renderSummaryCallback(): DropzoneConfig['renderSummaryCallback'] { return this._renderSummaryCallback; }
-    set renderSummaryCallback(value: DropzoneConfig['renderSummaryCallback']) {
-        this._renderSummaryCallback = value;
-        this.dropzone?.updateConfig({ renderSummaryCallback: value });
-    }
-
-    get customStylesCallback(): DropzoneConfig['customStylesCallback'] { return this._customStylesCallback; }
-    set customStylesCallback(value: DropzoneConfig['customStylesCallback']) {
-        this._customStylesCallback = value;
-        // Style injection is a shadow-root concern, not a config update.
-        this.injectCustomStyles();
-    }
-
-    // ========================================================================
-    // PUBLIC API
-    // ========================================================================
-
-    /** Get all current files */
+    /** Get all current files. */
     get files(): FileState[] {
-        return this.dropzone?.getFiles() || [];
+        this.flush();
+        return this.#dropzone?.getFiles() || [];
     }
 
-    /** Add files programmatically. Returns a Promise that resolves once
-     *  the (possibly async) add gate has finished and the queue reflects
-     *  the result. Form value is synced from the host's own `change`
-     *  listener, so the explicit call after the await isn't needed. */
+    /** Add files programmatically. */
     addFiles(files: FileList | File[]): Promise<void> {
-        return this.dropzone?.addFiles(files) ?? Promise.resolve();
+        this.flush();
+        return this.#dropzone?.addFiles(files) ?? Promise.resolve();
     }
 
-    /** Remove a file by ID. Skips the `beforeFilesRemovedCallback` gate
-     *  unless `opts.confirm` is true — programmatic removals are treated
-     *  as intentional. */
+    /** Remove a file by ID. Skips the removal gate unless `opts.confirm` is set. */
     removeFile(id: string, opts?: { confirm?: boolean }): Promise<void> {
-        return this.dropzone?.removeFile(id, opts) ?? Promise.resolve();
+        this.flush();
+        return this.#dropzone?.removeFile(id, opts) ?? Promise.resolve();
     }
 
     /** Clear all files. Same gate semantics as `removeFile`. */
     clear(opts?: { confirm?: boolean }): Promise<void> {
-        return this.dropzone?.clear(opts) ?? Promise.resolve();
+        this.flush();
+        return this.#dropzone?.clear(opts) ?? Promise.resolve();
     }
 
-    /** Update file progress (for upload tracking) */
+    /** Update file progress (for upload tracking). */
     updateFileProgress(id: string, progress: number): void {
-        this.dropzone?.updateFileProgress(id, progress);
+        this.flush();
+        this.#dropzone?.updateFileProgress(id, progress);
     }
 
-    /** Set file status (pending, uploading, complete, error) */
+    /** Set file status (pending, uploading, complete, error). */
     setFileStatus(id: string, status: FileState['status'], error?: string): void {
-        this.dropzone?.setFileStatus(id, status, error);
+        this.flush();
+        this.#dropzone?.setFileStatus(id, status, error);
     }
 
-    /** Get a file by ID */
+    /** Get a file by ID. */
     getFile(id: string): FileState | undefined {
-        return this.dropzone?.getFile(id);
+        this.flush();
+        return this.#dropzone?.getFile(id);
     }
 
-    // ========================================================================
-    // UPLOAD PIPELINE — only meaningful when `uploadFileCallback` is set
-    // ========================================================================
+    // ── upload pipeline — only meaningful when uploadFileCallback is set ───────
 
     /** Drain the queue of pending files through the worker pool. */
     uploadAll(): Promise<void> {
-        return this.dropzone?.uploadAll() ?? Promise.resolve();
+        this.flush();
+        return this.#dropzone?.uploadAll() ?? Promise.resolve();
     }
 
     /** Upload a single file immediately, bypassing the queue. */
     uploadFile(id: string): Promise<void> {
-        return this.dropzone?.uploadFile(id) ?? Promise.resolve();
+        this.flush();
+        return this.#dropzone?.uploadFile(id) ?? Promise.resolve();
     }
 
-    /** Pause an in-flight upload — the handler's AbortSignal fires and the
-     *  file lands in the 'paused' status. */
-    pauseFile(id: string): void { this.dropzone?.pauseFile(id); }
+    /** Pause an in-flight upload. */
+    pauseFile(id: string): void { this.flush(); this.#dropzone?.pauseFile(id); }
 
     /** Resume a paused file and re-queue it. */
     resumeFile(id: string): Promise<void> {
-        return this.dropzone?.resumeFile(id) ?? Promise.resolve();
+        this.flush();
+        return this.#dropzone?.resumeFile(id) ?? Promise.resolve();
     }
 
-    /** Cancel an in-flight upload — like pause, but the file ends in
-     *  'cancelled' and won't auto-resume. */
-    cancelFile(id: string): void { this.dropzone?.cancelFile(id); }
+    /** Cancel an in-flight upload. */
+    cancelFile(id: string): void { this.flush(); this.#dropzone?.cancelFile(id); }
 
     /** Pause every uploading / pending file. */
-    pauseAll(): void { this.dropzone?.pauseAll(); }
+    pauseAll(): void { this.flush(); this.#dropzone?.pauseAll(); }
 
     /** Resume every paused file. */
     resumeAll(): Promise<void> {
-        return this.dropzone?.resumeAll() ?? Promise.resolve();
+        this.flush();
+        return this.#dropzone?.resumeAll() ?? Promise.resolve();
     }
 
     /** Retry every errored / cancelled file. */
-    retryAll(): void { this.dropzone?.retryAll(); }
+    retryAll(): void { this.flush(); this.#dropzone?.retryAll(); }
 
-    /** Retry a single file (resets status, fires `file-retry`, re-queues if
-     *  `uploadFileCallback` is set). */
-    retryFile(id: string): void { this.dropzone?.retryFile(id); }
+    /** Retry a single file. */
+    retryFile(id: string): void { this.flush(); this.#dropzone?.retryFile(id); }
 
-    /** Destroy the component */
+    /** Destroy the component. */
     destroy(): void {
-        this.dropzone?.destroy();
-        this.dropzone = undefined;
+        this.#dropzone?.destroy();
+        this.#dropzone = undefined;
     }
 }
 
@@ -1094,13 +639,11 @@ if (typeof window !== 'undefined' && typeof customElements !== 'undefined') {
     }
 }
 
-// NOTE: do NOT statically `import './web-component-picker'` etc. from
-// here. Satellite registration order is owned by index.ts, which
-// registers satellites BEFORE this module so that the synchronous
-// upgrade of `<web-dropzone>` elements (triggered by the define call
-// above) can construct satellite instances that already have their
-// `bindToStore` method. The reverse race (satellites parsed in HTML
-// upgrade before the store) is handled by `whenStoreReady` —
-// satellites tolerate an un-upgraded store and wait for `store-ready`.
-
-// Global API is registered in index.ts
+// NOTE: do NOT statically `import './web-component-picker'` etc. from here.
+// Satellite registration order is owned by index.ts, which registers
+// satellites BEFORE this module so that the synchronous upgrade of
+// `<web-dropzone>` elements (triggered by the define call above) can construct
+// satellite instances that already have their `bindToStore` method. The reverse
+// race (satellites parsed in HTML upgrade before the store) is handled by
+// `whenStoreReady` — satellites tolerate an un-upgraded store and wait for
+// `store-ready`.

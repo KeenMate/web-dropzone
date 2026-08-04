@@ -131,16 +131,15 @@ export interface GlobalDropzoneAPI {
     getInstances: () => HTMLElement[];
 }
 
-// Declare global namespace
-declare global {
-    interface Window {
-        components?: {
-            'web-dropzone'?: GlobalDropzoneAPI;
-        };
-    }
-}
+// The `window.components` registry is declared (and typed) by
+// `@keenmate/web-components-core` (SPEC §12.3): `Record<string,
+// RegisteredComponent>`. BlissElement writes live instances into it
+// automatically; below we publish this package's own registry entry, which
+// conforms to core's `RegisteredComponent` shape. (No local `declare global`
+// for `Window.components` — that would clash with core's augmentation.)
 
 // Import logging functions for global API
+import type { LogLevelDesc } from '@keenmate/web-components-core';
 import {
     setLogLevel,
     enableLogging,
@@ -166,8 +165,10 @@ if (typeof window !== 'undefined') {
         logging: {
             enableLogging,
             disableLogging,
-            setLogLevel,
-            setCategoryLevel,
+            // Core's registry types levels as `LogLevelDesc` (string | number);
+            // dropzone-core's controls take the string level name — widen here.
+            setLogLevel: (level: LogLevelDesc) => setLogLevel(level as string),
+            setCategoryLevel: (category: string, level: LogLevelDesc) => setCategoryLevel(category, level as string),
             getCategories: () => [...LOGGING_CATEGORIES]
         },
         register: () => {
