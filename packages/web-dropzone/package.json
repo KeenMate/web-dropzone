@@ -60,8 +60,7 @@
     "url": "https://github.com/keenmate/web-dropzone/issues"
   },
   "dependencies": {
-    "@floating-ui/dom": "^1.5.3",
-    "@keenmate/web-components-core": "1.0.0-rc02",
+    "@keenmate/web-components-core": "file:../../../web-components-core",
     "@keenmate/web-dropzone-core": "^1.0.0"
   }
 }

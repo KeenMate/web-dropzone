@@ -22,8 +22,8 @@
  * keep working.
  */
 
-import { computePosition, flip, shift, offset, size, autoUpdate } from '@floating-ui/dom';
-import type { Placement } from '@floating-ui/dom';
+import { anchor } from '@keenmate/web-components-core/positioning';
+import type { Placement } from '@keenmate/web-components-core/positioning';
 import {
     initLogger,
     uiLogger,
@@ -2148,47 +2148,31 @@ export class WebDropzone extends DropzoneCore {
 
     private positionPopover(): void {
         if (!this.popover) return;
-        const anchor = this.getPopoverAnchor();
-        if (!anchor) return;
+        const anchorEl = this.getPopoverAnchor();
+        if (!anchorEl) return;
 
         const placement = (this.config.popoverPlacement || DEFAULT_CONFIG.popoverPlacement) as Placement;
         const popover = this.popover;
 
-        // autoUpdate keeps the popover correctly placed whenever ANYTHING
-        // moves — scroll, anchor reflow, viewport resize, AND user-driven
-        // resize of the popover itself via the CSS `resize` handle. The
-        // returned cleanup detaches the observers; we hold onto it so
-        // closePopover() can call it when the popover goes away.
-        const update = async () => {
-            const { x, y } = await computePosition(anchor, popover, {
-                placement,
-                middleware: [
-                    offset(8),
-                    flip(),
-                    // size middleware caps maxWidth/maxHeight at the
-                    // viewport edge minus 8px padding. Without this, the
-                    // user can drag the resize handle past the viewport
-                    // and the bottom rows disappear off-screen.
-                    size({
-                        padding: 8,
-                        apply({ availableWidth, availableHeight, elements }) {
-                            Object.assign(elements.floating.style, {
-                                maxWidth:  `${Math.max(0, availableWidth)}px`,
-                                maxHeight: `${Math.max(0, availableHeight)}px`
-                            });
-                        }
-                    }),
-                    shift({ padding: 8 })
-                ]
-            });
-            Object.assign(popover.style, {
-                left: `${x}px`,
-                top: `${y}px`
-            });
-        };
-
+        // Core's `anchor()` positions the popover (offset → flip → shift) and
+        // keeps it there via floating-ui `autoUpdate` — repositioning on scroll,
+        // anchor reflow, viewport resize, AND user-driven resize of the popover
+        // itself (the CSS `resize` handle). `maxHeight`/`maxWidth` cap the panel
+        // to the space available on the resolved side (minus 8px), so dragging
+        // the resize handle can't push rows off-screen. `absolute` strategy
+        // matches the popover's shadow-root positioning context; anchor() writes
+        // `left`/`top` on the popover itself. The returned `destroy` detaches the
+        // observers; closePopover() calls it when the popover goes away.
         this.popoverPositionCleanup?.();
-        this.popoverPositionCleanup = autoUpdate(anchor, popover, update);
+        const handle = anchor(popover, anchorEl, {
+            placement,
+            strategy: 'absolute',
+            offset: 8,
+            shift: 8,
+            maxHeight: { padding: 8 },
+            maxWidth: { padding: 8 },
+        });
+        this.popoverPositionCleanup = handle.destroy;
     }
 
     private updatePopoverContent(): void {

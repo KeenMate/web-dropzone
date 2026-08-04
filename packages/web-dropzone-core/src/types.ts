@@ -2,7 +2,11 @@
  * Type definitions for the WebDropzone component
  */
 
-import type { Placement } from '@floating-ui/dom';
+// Placement comes from core's /positioning (which re-exports the pinned
+// @floating-ui/dom type) — this package no longer imports @floating-ui/dom
+// directly (it never declared it; it was resolving through the renderer's
+// hoisted copy).
+import type { Placement } from '@keenmate/web-components-core/positioning';
 
 /**
  * Display mode — single-axis legacy shorthand for the orthogonal

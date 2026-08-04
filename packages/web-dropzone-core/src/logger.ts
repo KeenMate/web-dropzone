@@ -20,7 +20,7 @@
  *   window.components['web-dropzone'].logging.setCategoryLevel('DROPZONE:UI', 'debug');
  */
 
-import { createLoggers, type LogLevelDesc } from '@keenmate/web-components-core';
+import { createLoggers, type Logger, type LogLevelDesc } from '@keenmate/web-components-core';
 
 const NAMESPACE = 'DROPZONE';
 const CATEGORIES = ['INIT', 'FILE', 'UI', 'INTERACTION'] as const;
@@ -33,10 +33,12 @@ const bundle = createLoggers(NAMESPACE, CATEGORIES);
 bundle.disableLogging();
 
 // Category-specific loggers (real loglevel Loggers: .trace/.debug/.info/.warn/.error).
-export const initLogger = bundle.loggers.INIT;
-export const fileLogger = bundle.loggers.FILE;
-export const uiLogger = bundle.loggers.UI;
-export const interactionLogger = bundle.loggers.INTERACTION;
+// Explicitly typed as core's re-exported `Logger` so the emitted .d.ts stays
+// portable (it must not name loglevel via core's nested node_modules path).
+export const initLogger: Logger = bundle.loggers.INIT;
+export const fileLogger: Logger = bundle.loggers.FILE;
+export const uiLogger: Logger = bundle.loggers.UI;
+export const interactionLogger: Logger = bundle.loggers.INTERACTION;
 
 /**
  * All logging categories, kept as the full `NAMESPACE:CATEGORY` names so

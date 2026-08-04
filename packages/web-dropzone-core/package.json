@@ -43,6 +43,6 @@
     "url": "https://github.com/keenmate/web-dropzone/issues"
   },
   "dependencies": {
-    "@keenmate/web-components-core": "1.0.0-rc02"
+    "@keenmate/web-components-core": "file:../../../web-components-core"
   }
 }
