@@ -35,6 +35,11 @@
         <div class="event-log" id="unnamed-log"></div>
     </div>
 
+    <div class="fixture">
+        <div class="fixture-label">host-framework delegation — <code>event.target.form</code> (targeted by <code>e2e/form-delegation.spec.ts</code>)</div>
+        <div class="event-log" id="delegation-log"></div>
+    </div>
+
     <script type="module">
         import '/src/index.ts';
 
@@ -57,6 +62,19 @@
         }
         wire('named-form', 'named-log');
         wire('unnamed-form', 'unnamed-log');
+
+        // Host-framework delegation: a single listener on an ancestor reads
+        // `event.target.form` to find which form changed — the exact shape
+        // Phoenix LiveView's `phx-change` uses. The dropzone's `change` event is
+        // composed + bubbles, so it reaches <body> and retargets to the host
+        // <web-dropzone>; `target.form` must resolve the owning <form>.
+        const delegationLog = document.getElementById('delegation-log');
+        document.body.addEventListener('change', (e) => {
+            const t = e.target;
+            if (t && t.tagName === 'WEB-DROPZONE') {
+                delegationLog.textContent = `${t.id} -> ${t.form ? t.form.id : 'null'}`;
+            }
+        });
 
         window.__stage = (id, names) => {
             const dz = document.getElementById(id);

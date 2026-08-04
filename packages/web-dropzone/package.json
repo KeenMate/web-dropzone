@@ -34,7 +34,9 @@
   "scripts": {
     "build": "npm run clean && vite build && tsc -b",
     "build:types": "tsc -b",
-    "clean": "rimraf dist tsconfig.tsbuildinfo"
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest"
   },
   "keywords": [
     "dropzone",
@@ -62,5 +64,9 @@
   "dependencies": {
     "@keenmate/web-components-core": "file:../../../web-components-core",
     "@keenmate/web-dropzone-core": "1.0.0-rc01"
+  },
+  "devDependencies": {
+    "happy-dom": "^15.11.7",
+    "vitest": "^2.1.9"
   }
 }
