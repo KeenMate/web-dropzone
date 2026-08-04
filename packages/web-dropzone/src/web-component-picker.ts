@@ -128,14 +128,13 @@ export class DropzonePickerElement extends SatelliteElement {
 
     protected onStoreReady(): void {
         this.render();
-        this.wireDragOverlayTarget();
+        this.wireDragResetSafetyNet();
     }
 
     disconnectedCallback(): void {
         super.disconnectedCallback();
-        document.removeEventListener('dragenter', this.handleDocDragEnter);
-        document.removeEventListener('dragleave', this.handleDocDragLeave);
-        document.removeEventListener('drop', this.handleDocDrop);
+        document.removeEventListener('drop', this.handleDocReset);
+        document.removeEventListener('dragend', this.handleDocReset);
         this.dragActive = false;
         this.dragCounter = 0;
     }
@@ -327,10 +326,24 @@ export class DropzonePickerElement extends SatelliteElement {
             e.preventDefault();
             e.stopPropagation();
         });
+        // The card highlight is scoped to THIS picker's surface via an
+        // enter/leave depth counter (children fire their own enter/leave, so a
+        // plain boolean would flicker). Previously the highlight was driven by
+        // document-level drag events, which lit up EVERY picker on the page at
+        // once — dragging over one bucket highlighted all of them.
         dropZone.addEventListener('dragenter', (e) => {
             if (this.isDisabled()) return;
             e.preventDefault();
             e.stopPropagation();
+            if (!e.dataTransfer?.types.includes('Files')) return;
+            this.dragCounter++;
+            this.setDragActive(true);
+        });
+        dropZone.addEventListener('dragleave', (e) => {
+            if (this.isDisabled()) return;
+            e.stopPropagation();
+            this.dragCounter = Math.max(0, this.dragCounter - 1);
+            if (this.dragCounter === 0) this.setDragActive(false);
         });
         dropZone.addEventListener('drop', (e) => {
             if (this.isDisabled()) return;
@@ -346,29 +359,20 @@ export class DropzonePickerElement extends SatelliteElement {
     }
 
     /**
-     * Hook document-level drag events so the card picker shows its drag
-     * overlay even when the user is dragging over the whole window. Mirrors
-     * the original `<web-dropzone>` behavior.
+     * Safety net for the per-picker highlight: a drag that ends or is dropped
+     * OUTSIDE this picker won't always fire our element-level `dragleave`
+     * (browsers are inconsistent when the drag terminates off-target), so reset
+     * defensively on any document-level drop / dragend. This does NOT activate
+     * the highlight — that is scoped to the picker's own surface (see
+     * `attachInteractionHandlers`); activating here is what used to light up
+     * every picker on the page at once.
      */
-    private wireDragOverlayTarget(): void {
-        document.addEventListener('dragenter', this.handleDocDragEnter);
-        document.addEventListener('dragleave', this.handleDocDragLeave);
-        document.addEventListener('drop', this.handleDocDrop);
+    private wireDragResetSafetyNet(): void {
+        document.addEventListener('drop', this.handleDocReset);
+        document.addEventListener('dragend', this.handleDocReset);
     }
 
-    private handleDocDragEnter = (e: DragEvent): void => {
-        if (this.isDisabled()) return;
-        if (!e.dataTransfer?.types.includes('Files')) return;
-        this.dragCounter++;
-        this.setDragActive(true);
-    };
-
-    private handleDocDragLeave = (_e: DragEvent): void => {
-        this.dragCounter = Math.max(0, this.dragCounter - 1);
-        if (this.dragCounter === 0) this.setDragActive(false);
-    };
-
-    private handleDocDrop = (_e: DragEvent): void => {
+    private handleDocReset = (): void => {
         this.dragCounter = 0;
         this.setDragActive(false);
     };
@@ -376,10 +380,20 @@ export class DropzonePickerElement extends SatelliteElement {
     private setDragActive(active: boolean): void {
         if (this.dragActive === active) return;
         this.dragActive = active;
-        // Re-render only the card variant — button / minimal don't use the
-        // active modifier so re-rendering them on every drag is wasted work.
-        if (this.resolveSelectorAppearance() === 'card') {
-            this.render();
+        // Only the card variant visualizes drag state (button / minimal don't).
+        if (this.resolveSelectorAppearance() !== 'card') return;
+        // Update the live DOM in place rather than re-rendering: rebuilding the
+        // drop target mid-drag destroys the element the pointer is over, which
+        // breaks the drag sequence and the enter/leave counter.
+        const dz = this.container.querySelector('.dz__dropzone--card') as HTMLElement | null;
+        if (!dz) { this.render(); return; }
+        dz.classList.toggle('dz__dropzone--active', active);
+        const textEl = dz.querySelector('.dz__dropzone__text');
+        if (textEl) {
+            const storeCfg = this.store?.getConfig() ?? {};
+            textEl.textContent = active
+                ? (storeCfg.dragActiveText ?? DEFAULT_DRAG_ACTIVE)
+                : (this.getAttribute('label') ?? storeCfg.promptText ?? DEFAULT_PROMPT);
         }
     }
 

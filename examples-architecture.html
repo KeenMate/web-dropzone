@@ -43,8 +43,10 @@
 
         .topology-diagram {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 0.6rem;
+            grid-template-columns: max-content 1fr;
+            column-gap: 2rem;
+            row-gap: 0.6rem;
+            align-items: center;
             padding: 1rem 1.25rem;
             background: #0f172a;
             color: #e2e8f0;
@@ -52,13 +54,18 @@
             font-family: 'SF Mono', 'Monaco', Consolas, monospace;
             font-size: 0.85rem;
             line-height: 1.5;
+            overflow-x: auto;
         }
+        /* Two columns: the code cell (max-content) + the comment cell (1fr),
+           so comments align in their own column regardless of tag width — no
+           hand-counted spaces, no overlap. */
+        .topology-diagram .code { white-space: pre; }
         .topology-diagram .arrow { color: #64748b; }
         .topology-diagram .tag-store { color: #60a5fa; }
         .topology-diagram .tag-picker { color: #4ade80; }
         .topology-diagram .tag-list { color: #fbbf24; }
         .topology-diagram .tag-indicator { color: #c084fc; }
-        .topology-diagram .note { color: #94a3b8; font-style: italic; }
+        .topology-diagram .note { color: #94a3b8; font-style: italic; white-space: nowrap; }
 
         .satellite-stage {
             padding: 1.25rem;
@@ -237,10 +244,17 @@
             <h2>The topology in one diagram</h2>
             <p>Every renderer binds to <em>exactly one</em> store via <code>for="&lt;store-id&gt;"</code>. The store dispatches <code>CustomEvent</code>s with <code>bubbles + composed</code>, so satellites in their own shadow roots receive them without polling.</p>
             <div class="topology-diagram">
-                <div><span class="tag-store">&lt;web-dropzone id="uploads"&gt;</span>   <span class="note">// the store — FileState[], upload loop, persistence</span></div>
-                <div><span class="arrow">  ├──</span> <span class="tag-picker">&lt;web-dropzone-picker for="uploads"&gt;</span>   <span class="note">// drag/click target</span></div>
-                <div><span class="arrow">  ├──</span> <span class="tag-list">&lt;web-dropzone-list for="uploads"&gt;</span>     <span class="note">// list / detailed / grid / badges</span></div>
-                <div><span class="arrow">  └──</span> <span class="tag-indicator">&lt;web-dropzone-indicator for="uploads"&gt;</span> <span class="note">// floating chip + slide-out drawer</span></div>
+                <span class="code"><span class="tag-store">&lt;web-dropzone id="uploads"&gt;</span></span>
+                <span class="note">// the store — FileState[], upload loop, persistence</span>
+
+                <span class="code"><span class="arrow">├──</span> <span class="tag-picker">&lt;web-dropzone-picker for="uploads"&gt;</span></span>
+                <span class="note">// drag/click target</span>
+
+                <span class="code"><span class="arrow">├──</span> <span class="tag-list">&lt;web-dropzone-list for="uploads"&gt;</span></span>
+                <span class="note">// list / detailed / grid / badges</span>
+
+                <span class="code"><span class="arrow">└──</span> <span class="tag-indicator">&lt;web-dropzone-indicator for="uploads"&gt;</span></span>
+                <span class="note">// floating chip + slide-out drawer</span>
             </div>
         </section>
 
