@@ -1,6 +1,6 @@
 {
   "name": "@keenmate/web-dropzone",
-  "version": "1.0.0",
+  "version": "1.0.0-rc01",
   "description": "Lightweight file dropzone web component with drag-drop, previews, validation, and multiple display modes.",
   "type": "module",
   "main": "./dist/dropzone.umd.js",
@@ -61,6 +61,6 @@
   },
   "dependencies": {
     "@keenmate/web-components-core": "file:../../../web-components-core",
-    "@keenmate/web-dropzone-core": "^1.0.0"
+    "@keenmate/web-dropzone-core": "1.0.0-rc01"
   }
 }

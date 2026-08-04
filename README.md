@@ -5,6 +5,20 @@
 
 A lightweight, accessible file upload web component with drag-drop support, file previews, validation, and multiple display modes.
 
+## What's New in v1.0.0-rc01
+
+First public release candidate. `<web-dropzone>` ships as **two packages** from a workspaces monorepo — `@keenmate/web-dropzone` (the element + four satellite renderers + CSS) and `@keenmate/web-dropzone-core` (the headless store: file pipeline, validation, upload worker pool, events).
+
+- **Built on [`@keenmate/web-components-core`](https://www.npmjs.com/package/@keenmate/web-components-core) (`BlissElement`).** Shared, tested custom-element plumbing — attribute parsing, reactivity, reflection, form association (`el.form`), floating-panel positioning, and categorized logging — so `<web-dropzone>` behaves consistently with `web-multiselect` / `web-daterangepicker`.
+- **Display modes + orthogonal appearance axes** — list / detailed / grid (image previews) / compact popover, with independent `selector-appearance` and `list-appearance`, a rolling list, and a full-viewport drag overlay.
+- **Upload pipeline** — set `uploadFileCallback` and files run through a concurrency-capped worker pool with progress, pause / resume / cancel / retry, and optimistic or pessimistic progress reporting.
+- **Validation** — per-file and aggregate size caps, file-count bounds, type filtering, dedupe modes, and a custom `validateCallback`.
+- **Form-associated** — participates in `<form>` (submits real `FormData` file blobs), exposes `el.form` / `event.target.form`, and reflects `min-file-count` into native form validity.
+- **Themeable** — `--dz-*` variables, dark mode, `--base-*` Theme Designer integration, RTL, and a `customStylesCallback`.
+- **Satellite renderers** — `<web-dropzone-picker>` / `<web-dropzone-list>` / `<web-dropzone-indicator>` / `<web-dropzone-progress>` bind to a store via `for="<id>"` for decoupled layouts.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full list.
+
 ## Features
 
 - **Drag & Drop** - Visual feedback on drag over with click-to-browse fallback

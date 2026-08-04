@@ -1,6 +1,6 @@
 {
   "name": "@keenmate/web-dropzone-core",
-  "version": "1.0.0",
+  "version": "1.0.0-rc01",
   "description": "Headless store for @keenmate/web-dropzone — file state, validation, upload pipeline, events. No DOM rendering, no CSS.",
   "type": "module",
   "main": "./dist/core.umd.js",
