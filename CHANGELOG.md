@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc01] - 2026-08-05 [PUBLISHED]
+
 ### Changed
 
 - **Built on `@keenmate/web-components-core` (`BlissElement`).** `<web-dropzone>` now extends core's `BlissElement`: the hand-rolled `ATTRIBUTE_TABLE`, `parseAttrValue`, `observedAttributes`, `attributeChangedCallback`, the pre-upgrade property rescue, and ~40 property/callback accessors collapse into one `static inputs` table (`web-component.ts` 1107 → 649 LOC). Parsing, validation, reactivity coalescing, reflection, and form association now come from core. The public attributes, events, and imperative method API are unchanged; three behaviours shift, as in the sibling `web-multiselect` / `web-daterangepicker` migrations:
