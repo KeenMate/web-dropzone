@@ -1,4 +1,4 @@
-.PHONY: help setup dev build build-core build-renderer package publish publish-dry clean clean-dist test test-e2e test-e2e-ui test-e2e-headed test-e2e-install lint preview check-version update-deps install-dev
+.PHONY: help setup dev build build-core build-renderer package publish publish-rc publish-dry clean clean-dist test test-e2e test-e2e-ui test-e2e-headed test-e2e-install lint preview check-version update-deps install-dev
 
 help: ## Show this help message
 	@echo "Available targets:"
@@ -30,31 +30,45 @@ build-renderer: ## Build only @keenmate/web-dropzone
 
 package: build ## Pack both packages (creates .tgz tarballs in each package dir)
 	@echo "Packing @keenmate/web-dropzone-core..."
-	cd packages/web-dropzone-core && npm pack
+	npm pack -w @keenmate/web-dropzone-core
 	@echo "Packing @keenmate/web-dropzone..."
-	cd packages/web-dropzone && npm pack
+	npm pack -w @keenmate/web-dropzone
 	@echo "Packages created - see packages/*/keenmate-*.tgz"
 
 publish-dry: build ## Dry-run publish for both packages
 	@echo "Dry-run publish: @keenmate/web-dropzone-core"
-	cd packages/web-dropzone-core && npm publish --dry-run
+	npm publish --dry-run -w @keenmate/web-dropzone-core
 	@echo ""
 	@echo "Dry-run publish: @keenmate/web-dropzone"
-	cd packages/web-dropzone && npm publish --dry-run
+	npm publish --dry-run -w @keenmate/web-dropzone
 	@echo ""
 	@echo "Dry-runs complete - review both tarballs above"
 
-publish: build ## Publish BOTH packages to npm (core first, then renderer)
-	@echo "WARNING: This will publish BOTH packages to npm registry"
+publish: build ## Publish BOTH packages to npm as 'latest' (core first, then renderer) - use for release/patch/minor/major
+	@echo "WARNING: This will publish BOTH packages to npm registry as the 'latest' dist-tag"
 	@echo "  1. @keenmate/web-dropzone-core"
 	@echo "  2. @keenmate/web-dropzone"
+	@echo "Use 'make publish-rc' instead if you're shipping a pre-release version."
 	@echo "Press Ctrl+C to cancel, or Enter to continue..."
 	@powershell -Command "Read-Host | Out-Null"
 	@echo "Publishing @keenmate/web-dropzone-core..."
-	cd packages/web-dropzone-core && npm publish
+	npm publish -w @keenmate/web-dropzone-core
 	@echo "Publishing @keenmate/web-dropzone..."
-	cd packages/web-dropzone && npm publish
+	npm publish -w @keenmate/web-dropzone
 	@echo "Both packages published successfully"
+
+publish-rc: build ## Publish BOTH packages under the 'rc' dist-tag (core first, then renderer) - does NOT touch 'latest'
+	@echo "WARNING: This will publish BOTH packages to npm registry under the 'rc' dist-tag"
+	@echo "  1. @keenmate/web-dropzone-core"
+	@echo "  2. @keenmate/web-dropzone"
+	@echo "The 'latest' tag will be untouched - consumers must opt in with @rc or @<version>."
+	@echo "Press Ctrl+C to cancel, or Enter to continue..."
+	@powershell -Command "Read-Host | Out-Null"
+	@echo "Publishing @keenmate/web-dropzone-core under 'rc' tag..."
+	npm publish --tag rc -w @keenmate/web-dropzone-core
+	@echo "Publishing @keenmate/web-dropzone under 'rc' tag..."
+	npm publish --tag rc -w @keenmate/web-dropzone
+	@echo "Both packages published successfully under 'rc' tag"
 
 clean: ## Clean build artifacts in all packages
 	@echo "Cleaning build artifacts..."
@@ -63,8 +77,8 @@ clean: ## Clean build artifacts in all packages
 
 clean-dist: ## Clean only dist folders in both packages
 	@echo "Cleaning dist folders..."
-	cd packages/web-dropzone-core && npm run clean
-	cd packages/web-dropzone && npm run clean
+	npm run clean -w @keenmate/web-dropzone-core
+	npm run clean -w @keenmate/web-dropzone
 	@echo "Dist cleaned"
 
 preview: build ## Preview production build
