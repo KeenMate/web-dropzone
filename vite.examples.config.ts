@@ -1,6 +1,33 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { resolve } from 'path';
 import { readFileSync, readdirSync } from 'fs';
+
+// The renderer registers its satellite custom elements (<web-dropzone-picker>,
+// -list, -progress, -indicator) as a side effect of index.ts importing their
+// modules. The package's `sideEffects` allowlist only names the built dist/
+// files, so building the examples FROM SOURCE makes Vite's resolver annotate
+// those src modules as side-effect-free — and Rollup then tree-shakes the
+// customElements.define() registrations away (satellites render empty, height 0).
+// (The published library build is immune: lib mode preserves all public exports.)
+// This plugin re-marks the renderer's own source modules as side-effectful so the
+// registrations always survive. Scoped to the examples build; leaves the
+// published package's sideEffects field untouched.
+function keepRendererSideEffects(): Plugin {
+  // Vite normalizes module ids to forward slashes; normalize our marker too so
+  // the prefix test works on Windows (where resolve() yields backslashes).
+  const rendererSrc = resolve(__dirname, 'packages/web-dropzone/src').replace(/\\/g, '/') + '/';
+  return {
+    name: 'keep-renderer-side-effects',
+    enforce: 'pre',
+    async resolveId(source, importer, options) {
+      const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+      if (resolved && resolved.id.replace(/\\/g, '/').startsWith(rendererSrc)) {
+        return { ...resolved, moduleSideEffects: true };
+      }
+      return resolved;
+    }
+  };
+}
 
 // Static multi-page build of the examples-*.html demos + index.html landing page.
 // Produces `dist-examples/` for serving behind a plain static file server (see
@@ -21,6 +48,7 @@ const htmlInputs = Object.fromEntries(
 );
 
 export default defineConfig({
+  plugins: [keepRendererSideEffects()],
   define: {
     '__VERSION__': JSON.stringify(rendererPkg.version),
     '__PACKAGE_NAME__': JSON.stringify(rendererPkg.name),
