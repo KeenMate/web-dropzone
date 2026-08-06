@@ -12,6 +12,7 @@
     "build": "npm run build -ws --if-present",
     "build:core": "npm run build -w @keenmate/web-dropzone-core",
     "build:renderer": "npm run build -w @keenmate/web-dropzone",
+    "build:examples": "vite build --config vite.examples.config.ts",
     "clean": "npm run clean -ws --if-present && rimraf node_modules/.vite",
     "preview": "vite preview",
     "test": "npm run test:unit && npm run test:e2e",

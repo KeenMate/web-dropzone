@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+**/dist
+dist-examples
+.git
+.vite
+node_modules/.vite
+*.tgz
+packages/*/*.tgz
+playwright-report
+test-results
+.DS_Store

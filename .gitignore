@@ -44,3 +44,6 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+
+# Static examples build output (vite.examples.config.ts)
+dist-examples/

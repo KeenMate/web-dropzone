@@ -1,0 +1,16 @@
+# Serves the statically-built examples (dist-examples/) on port 12200 — the
+# production counterpart to `make dev`. Plain static file serving with gzip.
+
+# Global options — turn off the admin API (localhost:2019); this is a static
+# file server with no need for runtime config reloads.
+{
+	admin off
+}
+
+:12200 {
+	root * /srv
+	encode gzip
+	file_server
+	# Landing page for the bare host.
+	try_files {path} /index.html
+}
