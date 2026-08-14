@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc02] - 2026-08-14 [PUBLISHED]
+
+### Added
+
+- **Plyr-style composable `controls` / `item-controls` allowlists** (comma-separated): `controls` picks which top-level surfaces render (picker / list / overall-progress); `item-controls` picks which per-row parts render (icon / name / size / type / progress / status / action / remove). When an attribute is absent, everything renders (the default). Count- or state-based progress rules become external recipes over these primitives plus the `change` event, rather than dedicated attributes.
+- **`grid-layout` axis for `list-appearance="grid"`** — `uniform` (default, responsive equal-size tiles) or `natural` (a justified photo gallery: rows share one height via `--dz-preview-row-height` and each tile keeps its image's own aspect ratio, so mixed portrait/landscape photos sit together with nothing cropped or stretched).
+- **`grid-status` axis** — `badge` (default, small corner glyph) or `overlay` (a light veil over the finished tile with a big centred check/error glyph, like a photo-upload confirmation). Themeable via `--dz-preview-status-overlay-bg` and `--dz-preview-status-overlay-icon-size`. Only terminal states trigger it; uploading keeps its corner spinner, and the veil is click-through.
+- **`--dz-preview-item-object-fit` token** — choose crop (`cover`, default) vs fit (`contain`) for uniform grid thumbnails.
+- **`show-thumbnails` support for the badges and detailed appearances** (previously grid-only) — the icon slot shows the real image preview instead of a file-type glyph.
+- **`dz-config-changed` event** — dispatched by `updateConfig()` so satellites re-render on config changes without firing the public `change` event (prevents a feedback loop when a consumer mutates config from a `change` handler).
+
+### Fixed
+
+- **`--dz-*` custom properties set on `<web-dropzone>` now reach the internal satellites.** In the default (bulk) render path the list/picker/progress mount as satellite elements, each with its own shadow root that re-injects `variables.css`. That stylesheet declared every token in a `:host` block, and a `:host` declaration outranks a value inherited from an outer ancestor — so `--dz-*` set on `<web-dropzone>` silently never reached the grid/badges/detailed inside the satellite. The `:host` block is now split: host-layout properties stay unconditional, the token defaults move to `:host(:not([managed]))`, and auto-mounted satellites are tagged `managed` so they declare nothing and inherit straight from the store host. Standalone satellites still self-theme. (Same technique already used for `--dz-rem` / `--dz-file-list-max-height`, generalised to the whole token set.)
+- **Badge/detailed thumbnails with `show-thumbnails`** rendered the file-type icon instead of the image. The preview URL arrives asynchronously (FileReader → data URL); the row now repaints via a `file-updated` store subscription once the thumbnail is ready.
+
+### Changed
+
+- **`@keenmate/web-components-core` bumped to `^1.0.0-rc04`** (vendored logger) — drops the transitive `loglevel` dependency and the CJS/ESM interop crash it caused under Node's native ESM loader, which had been breaking the unit-test run.
+
 ## [1.0.0-rc01] - 2026-08-05 [PUBLISHED]
 
 ### Changed
