@@ -95,7 +95,8 @@ export type {
     FileItemPart,
     RollingRotation,
     CardSize,
-    GridLayout
+    GridLayout,
+    GridStatus
 } from './types';
 export { FILE_TYPE_ICONS } from './types';
 

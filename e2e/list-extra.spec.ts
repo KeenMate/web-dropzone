@@ -98,6 +98,39 @@ test.describe('grid-layout="natural" (equal-height justified gallery)', () => {
     });
 });
 
+test.describe('grid-status="overlay" (finished-tile veil + big glyph)', () => {
+    test('a completed tile gets a full-cover light veil with a big centred glyph', async ({ page }) => {
+        await page.waitForFunction(() => typeof (window as any).__addSizedImages === 'function');
+        await page.evaluate(() => (window as any).__addSizedImages('grid-overlay', [[200, 200]]));
+        // #grid-overlay resolves uploads immediately (see fixture) → complete.
+        await page.waitForFunction(() => {
+            const el: any = document.getElementById('grid-overlay');
+            return !!el?.shadowRoot?.querySelector('web-dropzone-list')?.shadowRoot
+                ?.querySelector('.dz__preview-item[data-status="complete"]');
+        }, null, { timeout: 4000 });
+        const m = await dz(page, 'grid-overlay').evaluate((el: any) => {
+            const grid = el.shadowRoot.querySelector('web-dropzone-list').shadowRoot.querySelector('.dz__file-list--grid');
+            const tile = grid.querySelector('.dz__preview-item[data-status="complete"]');
+            const status = tile.querySelector('.dz__preview-item__status');
+            const svg = status.querySelector('svg');
+            const tr = tile.getBoundingClientRect(), sr = status.getBoundingClientRect();
+            const scs = getComputedStyle(status);
+            return {
+                gridStatusAttr: grid.getAttribute('data-grid-status'),
+                coverRatio: (sr.width * sr.height) / (tr.width * tr.height),
+                hasVeil: scs.backgroundColor !== 'rgba(0, 0, 0, 0)',
+                pointer: scs.pointerEvents,
+                iconW: Math.round(svg.getBoundingClientRect().width),
+            };
+        });
+        expect(m.gridStatusAttr).toBe('overlay');
+        expect(m.coverRatio).toBeGreaterThan(0.9);   // veil spans (nearly) the whole tile
+        expect(m.hasVeil).toBe(true);                 // light veil painted
+        expect(m.pointer).toBe('none');               // doesn't swallow hover controls
+        expect(m.iconW).toBeGreaterThan(30);          // big centred glyph, not the ~16px badge
+    });
+});
+
 test.describe('list-appearance="rolling"', () => {
     test('renders a single front-file slot + a queue indicator', async ({ page }) => {
         await addNamed(page, 'rolling', ['a.txt', 'b.txt', 'c.txt']);

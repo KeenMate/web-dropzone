@@ -382,6 +382,13 @@
      each one needing its own pill backdrop. */
   --dz-preview-scrim-bg: rgba(0, 0, 0, 0.72);
 
+  /* Status-overlay variant (`grid-status="overlay"`) — a light veil that
+     washes the finished thumbnail so the big centred check/error glyph reads
+     as a confirmation. Defaults to a translucent light tint (theme surface);
+     override to a dark veil if your gallery sits on light imagery. */
+  --dz-preview-status-overlay-bg: color-mix(in srgb, var(--dz-background) 65%, transparent);
+  --dz-preview-status-overlay-icon-size: calc(4.8 * var(--dz-rem, 10px));
+
   /* Grid-tile hover action buttons — big, centered controls that live
      inside the hover scrim. Much bigger than the corner remove glyph
      (which previously had to fit in the top-right corner without

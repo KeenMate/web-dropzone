@@ -372,6 +372,8 @@ export class WebDropzone extends DropzoneCore {
             // Grid tile layout (uniform | natural). Only meaningful for
             // list-appearance="grid" but harmless to forward always.
             list.setAttribute('grid-layout', this.config.gridLayout ?? 'uniform');
+            // Grid finished-file flag (badge | overlay).
+            list.setAttribute('grid-status', this.config.gridStatus ?? 'badge');
             if (insideMode) {
                 // Switch the list's container class family to
                 // `.dz__files-inside--*` so the existing files-inside CSS

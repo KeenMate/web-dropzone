@@ -138,6 +138,14 @@ export type CardSize = 'minimal' | 'compact' | 'big';
 export type GridLayout = 'uniform' | 'natural';
 
 /**
+ * How a finished (complete / error) file is flagged on a grid tile.
+ * - 'badge'   — small status glyph in the top-left corner (default).
+ * - 'overlay' — a light veil over the whole tile with a big centred glyph
+ *   (green check / red error), like a photo-upload confirmation.
+ */
+export type GridStatus = 'badge' | 'overlay';
+
+/**
  * File upload status.
  * - `pending`   — accepted but no upload attempt yet
  * - `uploading` — `uploadFileCallback` is currently running
@@ -524,6 +532,12 @@ export interface DropzoneConfig {
      * ratio. See {@link GridLayout}.
      */
     gridLayout?: GridLayout;
+    /**
+     * How finished files are flagged on a grid tile (HTML attr: `grid-status`).
+     * `badge` (default) = small corner glyph; `overlay` = full-tile veil with a
+     * big centred check/error glyph. See {@link GridStatus}.
+     */
+    gridStatus?: GridStatus;
     /**
      * Plyr-style allowlist of top-level surfaces to render (HTML attr:
      * `controls`, comma-separated). See {@link DropzoneControl}. Unset → every

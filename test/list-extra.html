@@ -45,8 +45,19 @@
             style="--dz-preview-row-height: 120px;"></web-dropzone>
     </div>
 
+    <div class="fixture">
+        <div class="fixture-label">grid-status="overlay" — finished tile gets a light veil + big centred glyph</div>
+        <web-dropzone id="grid-overlay" list-appearance="grid" grid-status="overlay" accept="image/*" max-file-count="10"></web-dropzone>
+    </div>
+
     <script type="module">
         import '/src/index.ts';
+        // Resolve uploads immediately so grid tiles reach `complete` — lets the
+        // grid-status="overlay" variant be asserted without a real backend.
+        customElements.whenDefined('web-dropzone').then(() => {
+            const ov = document.getElementById('grid-overlay');
+            if (ov) ov.uploadFileCallback = () => Promise.resolve();
+        });
         window.__addNamed = (id, names, mime = 'text/plain') => {
             const dz = document.getElementById(id);
             const files = names.map(n => new File([new Uint8Array(64)], n, { type: mime }));

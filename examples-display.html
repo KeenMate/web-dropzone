@@ -304,7 +304,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
         <div class="card">
             <h2>Grid tuning — live controls</h2>
             <p>Grid mode is almost entirely CSS-variable driven. Drop a few images below, then move the sliders to reshape the grid in real time. The panel writes the same <code>--dz-*</code> custom properties you'd set in your own CSS — the live readout is copy-pasteable.</p>
-            <p>Switch <code>grid-layout</code> to <strong>natural</strong> for a justified photo gallery: mixed portrait/landscape images share one row height (<code>--dz-preview-row-height</code>) and keep their own aspect ratio — nothing cropped or stretched. In <strong>uniform</strong> layout, <code>object-fit</code> chooses crop (<code>cover</code>) vs. fit (<code>contain</code>).</p>
+            <p>Switch <code>grid-layout</code> to <strong>natural</strong> for a justified photo gallery: mixed portrait/landscape images share one row height (<code>--dz-preview-row-height</code>) and keep their own aspect ratio — nothing cropped or stretched. In <strong>uniform</strong> layout, <code>object-fit</code> chooses crop (<code>cover</code>) vs. fit (<code>contain</code>). Set <code>grid-status="overlay"</code> and let a file finish uploading to see the light veil + big centred check/error glyph.</p>
 
             <div class="grid">
                 <div class="form-group">
@@ -387,6 +387,14 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
                             <span>row-height</span>
                             <input type="range" id="gt-rowh" min="60" max="320" step="10" value="160">
                             <output id="gt-rowh-v">160px</output>
+                        </div>
+                        <div class="tune-row">
+                            <span>grid-status</span>
+                            <select id="gt-status">
+                                <option value="badge" selected>badge (corner glyph)</option>
+                                <option value="overlay">overlay (veil + big glyph)</option>
+                            </select>
+                            <output></output>
                         </div>
                     </fieldset>
 
@@ -822,7 +830,7 @@ const files = el.files       // current FileState[]</code></pre>
         const gtEls = {
             mode: $('gt-mode'), min: $('gt-min'), cols: $('gt-cols'),
             gap: $('gt-gap'), aspect: $('gt-aspect'), radius: $('gt-radius'),
-            layout: $('gt-layout'), fit: $('gt-fit'), rowh: $('gt-rowh'),
+            layout: $('gt-layout'), fit: $('gt-fit'), rowh: $('gt-rowh'), status: $('gt-status'),
             visible: $('gt-visible'), height: $('gt-height'),
         }
         const gtSyncModeRows = () => {
@@ -860,6 +868,7 @@ const files = el.files       // current FileState[]</code></pre>
             if (height > 0) gt.style.setProperty('--dz-file-list-max-height', `${height}px`)
             else gt.style.removeProperty('--dz-file-list-max-height')
             gt.setAttribute('grid-layout', layout)
+            gt.setAttribute('grid-status', gtEls.status.value)
             gt.setAttribute('max-visible-files', gtEls.visible.value)
 
             // Value labels
@@ -885,7 +894,7 @@ const files = el.files       // current FileState[]</code></pre>
                 lines.push(`--dz-preview-item-object-fit: ${fit};`)
             }
             if (height > 0) lines.push(`--dz-file-list-max-height: ${height}px;`)
-            lines.push(`\ngrid-layout="${layout}"  max-visible-files="${gtEls.visible.value}"`)
+            lines.push(`\ngrid-layout="${layout}"  grid-status="${gtEls.status.value}"  max-visible-files="${gtEls.visible.value}"`)
             $('gt-readout').textContent = lines.join('\n')
         }
         for (const el of Object.values(gtEls)) {

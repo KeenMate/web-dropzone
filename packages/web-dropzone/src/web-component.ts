@@ -45,6 +45,7 @@ import type {
     SelectorAppearance,
     ListAppearance,
     GridLayout,
+    GridStatus,
     RollingRotation,
     CardSize,
     ValueFormat,
@@ -168,6 +169,7 @@ const INPUTS: readonly InputDef[] = [
     { configKey: 'selectorAppearance',      attribute: 'selector-appearance', converter: toEnum(['card', 'button', 'minimal', 'native'] as const),                    reflect: true, on: 'update', description: 'File-selector appearance (overrides the display shorthand when set).' },
     { configKey: 'listAppearance',          attribute: 'list-appearance',     converter: toEnum(['list', 'detailed', 'grid', 'badges', 'rolling', 'popover', 'none'] as const), reflect: true, on: 'update', description: 'File-list appearance (overrides the display shorthand when set).' },
     { configKey: 'gridLayout',              attribute: 'grid-layout',         converter: toEnum(['uniform', 'natural'] as const, { default: 'uniform' }),               reflect: true, on: 'update', description: 'Tile layout for list-appearance="grid": uniform equal-size tiles, or natural (equal-height rows that keep each image aspect ratio).' },
+    { configKey: 'gridStatus',              attribute: 'grid-status',         converter: toEnum(['badge', 'overlay'] as const, { default: 'badge' }),                   reflect: true, on: 'update', description: 'How finished grid files are flagged: badge (corner glyph) or overlay (full-tile veil + big centred check/error glyph).' },
     { configKey: 'controls',                attribute: 'controls',            converter: list(CONTROL_TOKENS),                                                         reflect: true, on: 'update', type: 'DropzoneControl[]', description: 'Plyr-style allowlist of top-level surfaces (comma-separated): picker, list, overall-progress. Unset = render all.' },
     { configKey: 'itemControls',            attribute: 'item-controls',       converter: list(ITEM_PART_TOKENS),                                                       reflect: true, on: 'update', type: 'FileItemPart[]', description: 'Plyr-style allowlist of per-row parts (comma-separated): icon, name, size, type, progress, status, action, remove. Unset = render all.' },
     { configKey: 'rollingRotation',         attribute: 'rolling-rotation',    converter: toEnum(['horizontal', 'vertical', 'slide-in'] as const, { default: 'slide-in' }), reflect: true, on: 'update', description: 'Rotation style for the rolling list appearance.' },
@@ -569,6 +571,7 @@ export class DropzoneElement extends BlissElement {
     declare selectorAppearance: SelectorAppearance | null;
     declare listAppearance: ListAppearance | null;
     declare gridLayout: GridLayout | null;
+    declare gridStatus: GridStatus | null;
     declare rollingRotation: RollingRotation;
     declare cardSize: CardSize | null;
     declare valueFormat: ValueFormat;
