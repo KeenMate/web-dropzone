@@ -300,6 +300,7 @@ export class DropzoneIndicatorElement extends SatelliteElement {
             'file-added':           () => this.scheduleRefresh(),
             'file-removed':         () => this.scheduleRefresh(),
             'change':               () => this.scheduleRefresh(),
+            'dz-config-changed':    () => this.scheduleRefresh(),
             'file-progress':        () => this.scheduleRefresh(),
             'file-status-changed':  () => this.scheduleRefresh()
         });

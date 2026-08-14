@@ -345,13 +345,22 @@ export class DropzoneCore {
         // (this.files, this.dragActive, this.isPopoverOpen) intact so the
         // user-visible selection survives. `attachEventListeners` also
         // re-subscribes the renderer's substrate-event listeners; we fire
-        // `change` after re-render so the listeners refresh summary /
-        // overall progress / selector badge against the new DOM.
+        // `dz-config-changed` after re-render so those listeners (and any
+        // standalone satellites) refresh summary / overall progress / selector
+        // badge / rows against the new DOM.
+        //
+        // IMPORTANT: this dispatches `dz-config-changed`, NOT the public
+        // `change`. `change` means "the file selection changed" — emitting it
+        // on a config update conflated the two and, worse, let a consumer that
+        // mutates config inside a `change` handler feed back into `updateConfig`
+        // forever (infinite loop / frozen tab). Renderers + satellites listen
+        // to BOTH events; external `change` listeners only hear real selection
+        // changes.
         this.detachEventListeners();
         this.render();
         this.attachEventListeners();
         this.renderFileList();
-        this.emitChangeEvent();
+        this.emitConfigChangedEvent();
 
         // Overlay target replumb only if the target actually changed —
         // listeners on document are cheap but the cleanup is observable
@@ -1297,6 +1306,18 @@ export class DropzoneCore {
 
     protected emitChangeEvent(): void {
         dispatchComposedEvent(this.element, 'change');
+    }
+
+    /**
+     * Internal re-render signal fired by `updateConfig` (a config/attribute
+     * change), kept distinct from the public `change` (a file-selection
+     * change). Renderers and satellites listen to it to refresh their surfaces
+     * against the rebuilt DOM; external consumers listening to `change` are not
+     * disturbed — which is what prevents a config-mutating `change` handler from
+     * looping back into `updateConfig`. Composed so cross-shadow satellites hear it.
+     */
+    protected emitConfigChangedEvent(): void {
+        dispatchComposedEvent(this.element, 'dz-config-changed');
     }
 
     protected emitRejectEvent(rejectedFiles: RejectedFile[]): void {

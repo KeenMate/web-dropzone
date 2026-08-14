@@ -122,7 +122,9 @@ export class DropzonePickerElement extends SatelliteElement {
         return subscribeStoreEvents(storeEl, {
             'file-added':   () => this.render(),
             'file-removed': () => this.render(),
-            'change':       () => this.render()
+            'change':       () => this.render(),
+            // Config re-render (e.g. accept / multiple / disabled changed).
+            'dz-config-changed': () => this.render()
         });
     }
 

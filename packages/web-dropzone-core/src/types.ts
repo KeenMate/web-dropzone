@@ -74,6 +74,42 @@ export type SelectorAppearance = 'card' | 'button' | 'minimal' | 'native';
 export type ListAppearance = 'list' | 'detailed' | 'grid' | 'badges' | 'rolling' | 'popover' | 'none';
 
 /**
+ * Top-level surfaces the convenience `<web-dropzone>` form renders — a
+ * Plyr-style composition list. When `config.controls` is set it acts as an
+ * allowlist: only the named surfaces render; anything omitted is hidden. When
+ * unset (the default) every applicable surface renders as before.
+ * - 'picker'           — the file selector (card / button / minimal / native)
+ * - 'list'             — the inline file list (per `listAppearance`)
+ * - 'overall-progress' — the aggregate progress strip below the list
+ */
+export type DropzoneControl = 'picker' | 'list' | 'overall-progress';
+
+/**
+ * Per-row parts a file item can render — the item-level counterpart to
+ * {@link DropzoneControl}. When `config.itemControls` is set it acts as an
+ * allowlist filtered against whatever the current `listAppearance` actually
+ * supports (e.g. grid has no `size`/`type`; badges have no `progress`) — parts
+ * the appearance doesn't have are simply ignored. Unset → every part renders.
+ * - 'icon'     — leading file-type icon or image thumbnail
+ * - 'name'     — file name
+ * - 'size'     — human-readable file size (detailed)
+ * - 'type'     — MIME type (detailed)
+ * - 'progress' — per-row progress bar + percent
+ * - 'status'   — status icon (pending / uploading / complete / error)
+ * - 'action'   — pause / resume / retry button
+ * - 'remove'   — remove (×) button
+ */
+export type FileItemPart =
+    | 'icon'
+    | 'name'
+    | 'size'
+    | 'type'
+    | 'progress'
+    | 'status'
+    | 'action'
+    | 'remove';
+
+/**
  * Rotation style for `listAppearance='rolling'`. Controls how the front
  * file transitions when a new one takes the slot.
  * - 'horizontal' — old slides out left, new slides in from right (conveyor)
@@ -471,6 +507,20 @@ export interface DropzoneConfig {
     selectorAppearance?: SelectorAppearance;
     /** List appearance — list | detailed | grid | badges | popover | none */
     listAppearance?: ListAppearance;
+    /**
+     * Plyr-style allowlist of top-level surfaces to render (HTML attr:
+     * `controls`, comma-separated). See {@link DropzoneControl}. Unset → every
+     * applicable surface renders (default). Visibility-only: omitting a token
+     * hides that surface; it does not reorder the layout.
+     */
+    controls?: DropzoneControl[];
+    /**
+     * Plyr-style allowlist of per-row parts to render (HTML attr:
+     * `item-controls`, comma-separated). See {@link FileItemPart}. Unset →
+     * every part the current `listAppearance` supports renders (default).
+     * Tokens the appearance doesn't support are ignored.
+     */
+    itemControls?: FileItemPart[];
     /**
      * Rotation style for `listAppearance='rolling'` (HTML attr: `rolling-rotation`).
      * Default: `'slide-in'`.

@@ -110,6 +110,35 @@ const text = (): Converter<string | null> => toText({ isNullable: true });
 /** Any callback input (property-only). */
 const cb = (): ReturnType<typeof toFunction> => toFunction();
 
+/**
+ * Comma-separated allowlist input (Plyr-style `controls`). Parses
+ * `"a, b ,c"` → `['a','b','c']`, lower-cased, de-duplicated, and filtered to
+ * the supplied valid tokens (unknown tokens are dropped). Absent / empty →
+ * null, which the store reads as "unset" (render everything). Reflects back as
+ * the joined string.
+ */
+const list = <T extends string>(valid: readonly T[]): Converter<T[] | null> =>
+    toCustom<T[] | null>(
+        (raw) => {
+            if (raw == null) return null;
+            const allowed = new Set<string>(valid);
+            const seen = new Set<string>();
+            const tokens = raw
+                .split(',')
+                .map((s) => s.trim().toLowerCase())
+                .filter((t) => t && allowed.has(t) && !seen.has(t) && seen.add(t)) as T[];
+            return tokens.length ? tokens : null;
+        },
+        {
+            validate: (v): v is T[] | null =>
+                v == null || (Array.isArray(v) && v.every((x) => typeof x === 'string')),
+            toAttribute: (v) => (Array.isArray(v) && v.length ? v.join(',') : null),
+        },
+    );
+
+const CONTROL_TOKENS = ['picker', 'list', 'overall-progress'] as const;
+const ITEM_PART_TOKENS = ['icon', 'name', 'size', 'type', 'progress', 'status', 'action', 'remove'] as const;
+
 // ============================================================================
 // INPUT TABLE — the whole <web-dropzone> public surface, one row each.
 // `configKey` is the DropzoneConfig key, so the merged `config` bridges to the
@@ -137,6 +166,8 @@ const INPUTS: readonly InputDef[] = [
     { configKey: 'displayMode',             attribute: 'display-mode',        converter: toEnum(['list', 'detailed', 'grid', 'compact'] as const, { default: 'list' }), reflect: true, on: 'update', description: 'Single-axis display shorthand.' },
     { configKey: 'selectorAppearance',      attribute: 'selector-appearance', converter: toEnum(['card', 'button', 'minimal', 'native'] as const),                    reflect: true, on: 'update', description: 'File-selector appearance (overrides the display shorthand when set).' },
     { configKey: 'listAppearance',          attribute: 'list-appearance',     converter: toEnum(['list', 'detailed', 'grid', 'badges', 'rolling', 'popover', 'none'] as const), reflect: true, on: 'update', description: 'File-list appearance (overrides the display shorthand when set).' },
+    { configKey: 'controls',                attribute: 'controls',            converter: list(CONTROL_TOKENS),                                                         reflect: true, on: 'update', type: 'DropzoneControl[]', description: 'Plyr-style allowlist of top-level surfaces (comma-separated): picker, list, overall-progress. Unset = render all.' },
+    { configKey: 'itemControls',            attribute: 'item-controls',       converter: list(ITEM_PART_TOKENS),                                                       reflect: true, on: 'update', type: 'FileItemPart[]', description: 'Plyr-style allowlist of per-row parts (comma-separated): icon, name, size, type, progress, status, action, remove. Unset = render all.' },
     { configKey: 'rollingRotation',         attribute: 'rolling-rotation',    converter: toEnum(['horizontal', 'vertical', 'slide-in'] as const, { default: 'slide-in' }), reflect: true, on: 'update', description: 'Rotation style for the rolling list appearance.' },
     { configKey: 'cardSize',                attribute: 'card-size',           converter: toEnum(['minimal', 'compact', 'big'] as const),                               reflect: true, on: 'update', description: 'Card size for the card selector appearance.' },
     { configKey: 'isShowThumbnailsEnabled', attribute: 'show-thumbnails',     converter: toBool('tristate'),                                                           on: 'update', type: 'boolean', description: 'Force image thumbnails on/off. Property-only tristate: unset (undefined) means auto (on for grid, icons elsewhere). Public property: `el.showThumbnails`.' },

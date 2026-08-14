@@ -91,6 +91,8 @@ export type {
     FilesChangedEventDetail,
     SelectorAppearance,
     ListAppearance,
+    DropzoneControl,
+    FileItemPart,
     RollingRotation,
     CardSize
 } from './types';

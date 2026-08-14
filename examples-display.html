@@ -28,6 +28,26 @@
             margin-bottom: 0.75rem;
             font-family: monospace;
         }
+        .ctrl-panel {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 0.5rem 1rem 0.85rem;
+            margin: 0 0 1rem;
+        }
+        .ctrl-panel legend {
+            font-size: 0.8rem;
+            color: #374151;
+            padding: 0 0.4rem;
+        }
+        .ctrl-panel label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin: 0.3rem 0.9rem 0.1rem 0;
+            font-size: 0.85rem;
+            font-family: monospace;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -48,6 +68,90 @@
                 <li><code>card-size</code> — minimal · <strong>compact</strong> · big · <em>(density of the card selector)</em></li>
             </ul>
             <p>The legacy single-axis <code>display-mode</code> attribute is still supported as a shorthand — see the bottom of this page.</p>
+        </div>
+
+        <!-- COMPOSABLE CONTROLS (Plyr-style) -->
+        <div class="card">
+            <h2>Composable controls (<code>controls</code> + <code>item-controls</code>)</h2>
+            <p>Two Plyr-style allowlists. <code>controls</code> picks which top-level <strong>surfaces</strong> render; <code>item-controls</code> picks which <strong>parts of each file row</strong> render. Both are comma-separated; when an attribute is absent everything renders. Toggle the boxes and watch the dropzone recompose live — add a file to see the progress parts animate.</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <web-dropzone id="controls-demo"
+                        selector-appearance="card"
+                        list-appearance="detailed"
+                        accept="*/*"
+                        multiple
+                        max-file-count="8"></web-dropzone>
+                    <small class="form-text">Live: <code id="controls-demo-attrs"></code></small>
+                </div>
+
+                <div class="form-group">
+                    <fieldset class="ctrl-panel">
+                        <legend><code>controls</code> — surfaces</legend>
+                        <label><input type="checkbox" data-ctrl="picker" checked> picker</label>
+                        <label><input type="checkbox" data-ctrl="list" checked> list</label>
+                        <label><input type="checkbox" data-ctrl="overall-progress" checked> overall-progress</label>
+                    </fieldset>
+
+                    <fieldset class="ctrl-panel">
+                        <legend><code>item-controls</code> — row parts</legend>
+                        <label><input type="checkbox" data-item="icon" checked> icon</label>
+                        <label><input type="checkbox" data-item="name" checked> name</label>
+                        <label><input type="checkbox" data-item="size" checked> size</label>
+                        <label><input type="checkbox" data-item="type" checked> type</label>
+                        <label><input type="checkbox" data-item="progress" checked> progress</label>
+                        <label><input type="checkbox" data-item="status" checked> status</label>
+                        <label><input type="checkbox" data-item="action" checked> action</label>
+                        <label><input type="checkbox" data-item="remove" checked> remove</label>
+                    </fieldset>
+                    <small class="form-text">Unchecking every box in a group is the same as removing the attribute — the default (render all) applies. Count- or state-based progress rules aren't extra attributes — compose them from these primitives; see the recipes below.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- RECIPES: progress rules in userland -->
+        <div class="card">
+            <h2>Recipes — progress rules in userland</h2>
+            <p>Count- or state-based progress behaviour doesn't need dedicated attributes — compose it from the primitives above plus the <code>change</code> event and <code>auto-upload</code>. Two common asks:</p>
+
+            <h3 style="margin: 1rem 0 0.5rem;">Per-row bars only at 4+ files <em>(count-based)</em></h3>
+            <div class="grid">
+                <div class="form-group">
+                    <web-dropzone id="recipe-count" list-appearance="detailed" accept="*/*" multiple max-file-count="8"></web-dropzone>
+                    <small class="form-text">1–3 files → global strip only. 4+ → both bars. The global strip is untouched; only the per-row <code>progress</code> token toggles.</small>
+                </div>
+                <div class="code-block">
+                    <pre><code>const dz = document.getElementById('recipe-count')
+const LEAN = 'icon,name,size,type,status,action,remove' // no progress
+
+dz.addEventListener('change', () =&gt; {
+  const want = dz.files.length &gt;= 4 ? null : LEAN
+  // skip no-op writes; `change` fires on selection changes only, so no loop
+  if (dz.getAttribute('item-controls') === want) return
+  want === null ? dz.removeAttribute('item-controls')
+                : dz.setAttribute('item-controls', want)
+})</code></pre>
+                </div>
+            </div>
+
+            <h3 style="margin: 1.5rem 0 0.5rem;">Global strip only after upload starts <em>(state-based)</em></h3>
+            <div class="grid">
+                <div class="form-group">
+                    <web-dropzone id="recipe-onstart" auto-upload="false" list-appearance="detailed" accept="*/*" multiple max-file-count="8"></web-dropzone>
+                    <div class="controls" style="margin-top: 0.75rem;">
+                        <button type="button" id="recipe-onstart-go">Start upload</button>
+                    </div>
+                    <small class="form-text">With <code>auto-upload="false"</code> files sit <code>pending</code> and the strip stays hidden (<code>hasActivity</code> is false) until you kick off the upload — no extra config, it's the default gate.</small>
+                </div>
+                <div class="code-block">
+                    <pre><code>&lt;web-dropzone auto-upload="false" ...&gt;&lt;/web-dropzone&gt;
+
+// files added → pending → global strip hidden (hasActivity = false)
+startBtn.addEventListener('click', () =&gt; dz.uploadAll())
+// upload starts → strip appears on its own</code></pre>
+                </div>
+            </div>
         </div>
 
         <!-- SELECTOR APPEARANCE -->
@@ -503,6 +607,74 @@ const files = el.files       // current FileState[]</code></pre>
             const files = apiEl.files
             append(`getFiles() -> ${files.length} file(s): ${files.map(f => f.name).join(', ') || '(none)'}`)
         }
+
+        // ── Composable controls demo ──────────────────────────────────────
+        // Drive the `controls` / `item-controls` attributes from the checkbox
+        // panel. When every box in a group is checked we DROP the attribute
+        // (absent = render all, the natural default) rather than spell out the
+        // full list — so the live readout mirrors how you'd actually author it.
+        // Selections persist in localStorage so a reload restores the panel.
+        const cd = document.getElementById('controls-demo')
+        const cdAttrs = document.getElementById('controls-demo-attrs')
+        const cdPanel = cd.closest('.card')
+        const CD_STORE_KEY = 'wzd:examples:controls-demo'
+        const ALL_CTRL = ['picker', 'list', 'overall-progress']
+        const ALL_ITEM = ['icon', 'name', 'size', 'type', 'progress', 'status', 'action', 'remove']
+        const cdBoxes = () => cdPanel.querySelectorAll('[data-ctrl], [data-item]')
+        const boxKey = (c) => (c.dataset.ctrl ? 'ctrl:' : 'item:') + (c.dataset.ctrl ?? c.dataset.item)
+        const checked = (attr) => Array.from(cdPanel.querySelectorAll(`[data-${attr}]`))
+            .filter(c => c.checked).map(c => c.dataset[attr])
+        const apply = (name, chosen, all) => {
+            if (chosen.length === all.length) cd.removeAttribute(name)
+            else cd.setAttribute(name, chosen.join(','))
+        }
+        const saveControls = () => {
+            const state = {}
+            for (const c of cdBoxes()) state[boxKey(c)] = c.checked
+            try { localStorage.setItem(CD_STORE_KEY, JSON.stringify(state)) } catch {}
+        }
+        const restoreControls = () => {
+            let state
+            try { state = JSON.parse(localStorage.getItem(CD_STORE_KEY) || 'null') } catch {}
+            if (!state) return
+            for (const c of cdBoxes()) {
+                const k = boxKey(c)
+                if (k in state) c.checked = !!state[k]
+            }
+        }
+        const syncControls = () => {
+            apply('controls', checked('ctrl'), ALL_CTRL)
+            apply('item-controls', checked('item'), ALL_ITEM)
+            cdAttrs.textContent =
+                `controls="${cd.getAttribute('controls') ?? '(all)'}"  item-controls="${cd.getAttribute('item-controls') ?? '(all)'}"`
+        }
+        for (const box of cdBoxes()) {
+            box.addEventListener('change', () => { saveControls(); syncControls() })
+        }
+        restoreControls()
+        syncControls()
+
+        // ── Recipe: count-based per-row progress (S1) ─────────────────────
+        // Show per-row bars only once the queue reaches 4 files — purely
+        // external, driven by the `change` event + the `item-controls`
+        // primitive. No dedicated attribute involved.
+        const recipeCount = document.getElementById('recipe-count')
+        const LEAN = 'icon,name,size,type,status,action,remove' // everything but progress
+        recipeCount.addEventListener('change', () => {
+            const want = recipeCount.files.length >= 4 ? null : LEAN
+            // Skip no-op writes (avoids a redundant re-render). `change` fires
+            // only on selection changes now, so this can't feed back on itself.
+            if (recipeCount.getAttribute('item-controls') === want) return
+            if (want === null) recipeCount.removeAttribute('item-controls')
+            else recipeCount.setAttribute('item-controls', want)
+        })
+
+        // ── Recipe: global strip only after upload starts (state-based) ───
+        // auto-upload="false" keeps files `pending` (hasActivity=false → strip
+        // hidden); the button kicks off the queue so the strip appears.
+        const recipeOnStart = document.getElementById('recipe-onstart')
+        document.getElementById('recipe-onstart-go')
+            .addEventListener('click', () => recipeOnStart.uploadAll())
     </script>
 
     <script type="module" src="/src/index.ts"></script>

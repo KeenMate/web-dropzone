@@ -50,6 +50,7 @@ import type {
     DisplayMode,
     SelectorAppearance,
     ListAppearance,
+    DropzoneControl,
     RollingRotation,
     CardSize,
     FileItemRenderContext
@@ -331,24 +332,37 @@ export class WebDropzone extends DropzoneCore {
         const { selectorAppearance, listAppearance, cardSize } = resolveDisplayConfig(this.config);
         const filesInside = !!this.config.isFilesInsideEnabled;
 
+        // Plyr-style `controls` allowlist. Absent → mount every applicable
+        // satellite (default). Present → only mount the named surfaces.
+        const showSurface = (name: DropzoneControl): boolean =>
+            !this.config.controls || this.config.controls.includes(name);
+        const showPicker = showSurface('picker');
+        const showList = showSurface('list') && listAppearance !== 'none';
+        const showProgress = showSurface('overall-progress');
+
         type BindableSatellite = HTMLElement & { bindToStore?: (el: HTMLElement) => void };
 
-        const picker = document.createElement('web-dropzone-picker') as BindableSatellite;
-        picker.setAttribute('selector-appearance', selectorAppearance);
-        if (selectorAppearance === 'card') {
-            picker.setAttribute('card-size', cardSize);
-        }
         // Files-inside composition only makes sense with a card selector
-        // (button / minimal have no inside-the-card surface). Falls back
+        // (button / minimal have no inside-the-card surface) AND needs both
+        // the picker (host of the `<slot>`) and the list present. Falls back
         // to the sibling-layout otherwise.
-        const insideMode = filesInside && selectorAppearance === 'card' && listAppearance !== 'none';
-        if (insideMode) {
-            picker.setAttribute('inside', 'true');
-        }
-        picker.bindToStore?.(host);
-        container.appendChild(picker);
+        const insideMode = filesInside && showPicker && showList && selectorAppearance === 'card';
 
-        if (listAppearance !== 'none') {
+        let picker: BindableSatellite | null = null;
+        if (showPicker) {
+            picker = document.createElement('web-dropzone-picker') as BindableSatellite;
+            picker.setAttribute('selector-appearance', selectorAppearance);
+            if (selectorAppearance === 'card') {
+                picker.setAttribute('card-size', cardSize);
+            }
+            if (insideMode) {
+                picker.setAttribute('inside', 'true');
+            }
+            picker.bindToStore?.(host);
+            container.appendChild(picker);
+        }
+
+        if (showList) {
             const list = document.createElement('web-dropzone-list') as BindableSatellite;
             list.setAttribute('list-appearance', listAppearance);
             if (insideMode) {
@@ -373,7 +387,7 @@ export class WebDropzone extends DropzoneCore {
             if (listAppearance === 'popover') {
                 list.addEventListener('dz-summary-click', () => this.togglePopover());
             }
-            if (insideMode) {
+            if (insideMode && picker) {
                 // List becomes a light-DOM child of the picker so the
                 // picker's internal `<slot>` projects it into the card.
                 picker.appendChild(list);
@@ -385,12 +399,14 @@ export class WebDropzone extends DropzoneCore {
             this.satelliteListEl = null;
         }
 
-        // Overall-progress satellite. Always appended (it auto-hides via
-        // `[data-empty="true"]`) — same behavior as the legacy inline
-        // strip which used `:empty` to collapse.
-        const progress = document.createElement('web-dropzone-progress') as BindableSatellite;
-        progress.bindToStore?.(host);
-        container.appendChild(progress);
+        // Overall-progress satellite. Appended (it auto-hides via
+        // `[data-empty="true"]`) — same behavior as the legacy inline strip
+        // which used `:empty` to collapse — unless `controls` excludes it.
+        if (showProgress) {
+            const progress = document.createElement('web-dropzone-progress') as BindableSatellite;
+            progress.bindToStore?.(host);
+            container.appendChild(progress);
+        }
     }
 
     private renderComponent(): string {
@@ -444,12 +460,19 @@ export class WebDropzone extends DropzoneCore {
         // there (it'd dangle below an icon-only trigger).
         const needsOverallProgress = needsListArea || needsSummary;
 
+        // Plyr-style `controls` allowlist. Absent → every surface renders
+        // (default). Present → only the named surfaces render; the checks below
+        // AND the composition intent with the existing structural conditions,
+        // so a surface still won't render where it structurally can't.
+        const showSurface = (name: DropzoneControl): boolean =>
+            !this.config.controls || this.config.controls.includes(name);
+
         return `
             <div class="${containerClasses}">
-                ${this.renderSelector(selectorAppearance, cardSize)}
+                ${showSurface('picker') ? this.renderSelector(selectorAppearance, cardSize) : ''}
                 ${needsSummary ? this.renderSummaryArea() : ''}
-                ${needsListArea ? this.renderFileListArea(listAppearance) : ''}
-                ${needsOverallProgress ? this.renderOverallProgressArea() : ''}
+                ${needsListArea && showSurface('list') ? this.renderFileListArea(listAppearance) : ''}
+                ${needsOverallProgress && showSurface('overall-progress') ? this.renderOverallProgressArea() : ''}
             </div>
         `;
     }
@@ -905,12 +928,27 @@ export class WebDropzone extends DropzoneCore {
     }
 
     /**
+     * One-shot icon-slot → `<img>` swap for the badges / detailed inline rows
+     * when a file's `previewUrl` lands asynchronously. No-op when the slot is
+     * absent (icon part disabled via `item-controls`), already an `<img>`, or
+     * the preview hasn't resolved yet. Grid has its own placeholder→img path.
+     */
+    private swapPreviewIcon(slot: Element | null, file: FileState): void {
+        if (!slot || !file.previewUrl || slot.querySelector('img')) return;
+        const img = document.createElement('img');
+        img.src = file.previewUrl;
+        img.alt = '';
+        slot.replaceChildren(img);
+    }
+
+    /**
      * In-place row patch for inline lists (list / detailed / grid / badges).
      * Most of these modes don't render progress, so the patch is light:
-     *   - badges: swap the status modifier class on the badge wrapper
-     *   - grid:  swap the placeholder out for an <img> when previewUrl
-     *            arrives (one-shot transition)
-     *   - all:   sync the remove button's hidden state
+     *   - badges:   status modifier class + icon→img swap on previewUrl
+     *   - detailed: icon→img swap on previewUrl (when show-thumbnails)
+     *   - grid:     swap the placeholder out for an <img> when previewUrl
+     *               arrives (one-shot transition)
+     *   - all:      sync the remove button's hidden state
      */
     private patchInlineRowInPlace(row: HTMLElement, file: FileState, appearance: ListAppearance): void {
         // Row-level data-status drives state-coloured progress bars (and any
@@ -931,6 +969,10 @@ export class WebDropzone extends DropzoneCore {
                 file,
                 'dz__badge-action'
             );
+            // One-shot icon → <img> swap when previewUrl lands (show-thumbnails).
+            if (this.shouldShowThumbnails('badges')) {
+                this.swapPreviewIcon(row.querySelector('.dz__badge-icon'), file);
+            }
         }
 
         // list / detailed / rolling all use the same `.dz__file-item--*`
@@ -946,6 +988,11 @@ export class WebDropzone extends DropzoneCore {
                 file,
                 'dz__file-item__action'
             );
+            // Detailed is the only file-item shape that honors thumbnails
+            // (list / rolling templates are icon-only). Swap on previewUrl.
+            if (appearance === 'detailed' && this.shouldShowThumbnails('detailed')) {
+                this.swapPreviewIcon(row.querySelector('.dz__file-item__icon'), file);
+            }
         }
 
         if (appearance === 'grid') {
@@ -1461,7 +1508,10 @@ export class WebDropzone extends DropzoneCore {
         return {
             reorderEligible: this.isReorderEligible(file),
             removable: this.isFileUserRemovable(file),
-            useThumbnail: this.shouldShowThumbnails(appearance)
+            useThumbnail: this.shouldShowThumbnails(appearance),
+            // `itemControls` allowlist → a Set the row templates filter on.
+            // Undefined (absent) keeps the default "render every part" path.
+            parts: this.config.itemControls ? new Set(this.config.itemControls) : undefined
         };
     }
 
@@ -2356,6 +2406,9 @@ export class WebDropzone extends DropzoneCore {
         host.addEventListener('file-added',           onFileAdded);
         host.addEventListener('file-removed',         onFileRemoved);
         host.addEventListener('change',               onChange);
+        // A config re-render (updateConfig) fires `dz-config-changed`, not the
+        // public `change` — refresh the same surfaces off it.
+        host.addEventListener('dz-config-changed',    onChange);
 
         this.substrateEventCleanup = (): void => {
             host.removeEventListener('file-progress',       onFileProgress);
@@ -2364,6 +2417,7 @@ export class WebDropzone extends DropzoneCore {
             host.removeEventListener('file-added',          onFileAdded);
             host.removeEventListener('file-removed',        onFileRemoved);
             host.removeEventListener('change',              onChange);
+            host.removeEventListener('dz-config-changed',   onChange);
         };
     }
 

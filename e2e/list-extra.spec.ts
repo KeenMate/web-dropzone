@@ -30,14 +30,18 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe('badges + show-thumbnails', () => {
-    test('image badges render with the show-thumbnails slot present', async ({ page }) => {
+    test('image badges render a thumbnail <img> in the icon slot', async ({ page }) => {
         await addPng(page, 'badges-thumb', 2);
-        const badges = dz(page, 'badges-thumb').locator('.dz__badge');
-        await expect(badges).toHaveCount(2);
-        // The thumbnail/icon slot is part of every badge — the test just
-        // verifies the slot element exists for image rows (the inner img
-        // comes after FileReader resolves; we don't depend on that here).
-        await expect(dz(page, 'badges-thumb').locator('.dz__badge-icon')).toHaveCount(2);
+        const d = dz(page, 'badges-thumb');
+        await expect(d.locator('.dz__badge')).toHaveCount(2);
+        await expect(d.locator('.dz__badge-icon')).toHaveCount(2);
+        // Regression: `show-thumbnails` must produce an actual <img> preview,
+        // not the file-type icon fallback. The previewUrl lands asynchronously
+        // (FileReader → data URL → store `file-updated`), so wait for the swap.
+        const imgs = d.locator('.dz__badge-icon img');
+        await expect(imgs).toHaveCount(2);
+        // And the <img> points at a decoded data URL, not an empty src.
+        await expect(imgs.first()).toHaveAttribute('src', /^data:image\//);
     });
 });
 

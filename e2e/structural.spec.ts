@@ -82,3 +82,18 @@ test.describe('callbacks ignored when mode != "structural"', () => {
         await expect(ig.locator('.dz__file-item--list')).toHaveCount(1);
     });
 });
+
+test.describe('structural + badges + show-thumbnails (built-in inline template)', () => {
+    test('previewUrl swaps the badge icon to an <img> via the inline patch path', async ({ page }) => {
+        await page.waitForFunction(() => typeof (window as any).__addPng === 'function');
+        await page.evaluate(() => (window as any).__addPng('str-badge-thumb', 2));
+        const d = dz(page, 'str-badge-thumb');
+        await expect(d.locator('.dz__badge')).toHaveCount(2);
+        // Regression: the structural inline path (patchInlineRowInPlace) must
+        // swap the badge icon slot to a real <img> when the async previewUrl
+        // lands — not leave the file-type icon fallback.
+        const imgs = d.locator('.dz__badge-icon img');
+        await expect(imgs).toHaveCount(2);
+        await expect(imgs.first()).toHaveAttribute('src', /^data:image\//);
+    });
+});

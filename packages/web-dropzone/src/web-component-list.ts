@@ -121,9 +121,14 @@ export class DropzoneListElement extends SatelliteElement {
             'file-added':   () => this.scheduleRenderAll(),
             'file-removed': () => this.scheduleRenderAll(),
             'change':       () => this.scheduleRenderAll(),
+            // Config re-render (e.g. `item-controls` changed) → re-render rows.
+            'dz-config-changed': () => this.scheduleRenderAll(),
             // progress / status changes → patch the affected row in place
             // (rendering at 50ms ticks across 20 files would burn DOM otherwise).
             'file-progress': (e) => this.patchRow((e as CustomEvent).detail.id),
+            // A previewUrl landing (async image preview) arrives as file-updated;
+            // swap the row's icon slot for the <img> without a full re-render.
+            'file-updated': (e) => this.patchPreview((e as CustomEvent).detail.file.id),
             // Status changes need extra handling for rolling (front-file
             // pick may shift — patchRow alone can't reflect that) and for
             // popover (the summary's status icon depends on aggregate
@@ -306,11 +311,30 @@ export class DropzoneListElement extends SatelliteElement {
     }
 
     private renderRow(file: FileState, appearance: ListAppearance): string {
-        if (appearance === 'badges')   return renderBadgeItem(file);
-        if (appearance === 'grid')     return renderGridItem(file);
-        if (appearance === 'detailed') return renderDetailedItem(file);
+        // `item-controls` allowlist → a Set the row templates filter on.
+        // Absent (undefined) keeps the default "render every part" path.
+        const ic = this.store?.getConfig().itemControls;
+        const parts = ic ? new Set(ic) : undefined;
+        const useThumbnail = this.shouldShowThumbnails(appearance);
+        const opts = { parts, useThumbnail };
+        if (appearance === 'badges')   return renderBadgeItem(file, opts);
+        if (appearance === 'grid')     return renderGridItem(file, opts);
+        if (appearance === 'detailed') return renderDetailedItem(file, opts);
         // 'rolling' uses the list-item template for the front-file row.
-        return renderListItem(file);
+        return renderListItem(file, opts);
+    }
+
+    /**
+     * Resolve the thumbnail flag with the same per-appearance auto-default as
+     * `WebDropzone.shouldShowThumbnails`: `show-thumbnails` (store config
+     * `isShowThumbnailsEnabled`) wins when set; otherwise only `grid` defaults
+     * to thumbnails. Kept in sync so the satellite list renders image previews
+     * for `list-appearance="badges" show-thumbnails` just like the built-in form.
+     */
+    private shouldShowThumbnails(appearance: ListAppearance): boolean {
+        const enabled = this.store?.getConfig().isShowThumbnailsEnabled;
+        if (enabled !== undefined) return enabled;
+        return appearance === 'grid';
     }
 
     // ========================================================================
@@ -562,6 +586,45 @@ export class DropzoneListElement extends SatelliteElement {
     // ========================================================================
     // ROW PATCHING — for progress / status ticks
     // ========================================================================
+
+    /**
+     * One-shot icon-slot → `<img>` swap when a file's `previewUrl` lands
+     * asynchronously (store emits `file-updated`). Only the appearances whose
+     * templates honor `useThumbnail` are patched — badges / detailed / grid —
+     * and only when `show-thumbnails` resolves on for that appearance. Skips if
+     * the slot is already an image, so repeated `file-updated` ticks are cheap.
+     */
+    private patchPreview(id: string): void {
+        if (!this.store) return;
+        const file = this.store.getFile(id);
+        if (!file || !file.previewUrl) return;
+        const appearance = this.resolveAppearance();
+        if (appearance !== 'badges' && appearance !== 'detailed' && appearance !== 'grid') return;
+        if (!this.shouldShowThumbnails(appearance)) return;
+        const row = this.container.querySelector<HTMLElement>(`[data-file-id="${id}"]`);
+        if (!row) return;
+
+        if (appearance === 'grid') {
+            const placeholder = row.querySelector('.dz__preview-item__placeholder');
+            if (!placeholder) return; // already swapped to <img>
+            const img = document.createElement('img');
+            img.className = 'dz__preview-item__image';
+            img.src = file.previewUrl;
+            img.alt = file.name;
+            placeholder.replaceWith(img);
+            return;
+        }
+
+        // badges + detailed both hold `renderPlaceholderInner` in an icon slot.
+        const slot = row.querySelector(
+            appearance === 'badges' ? '.dz__badge-icon' : '.dz__file-item__icon'
+        );
+        if (!slot || slot.querySelector('img')) return; // no icon part, or already patched
+        const img = document.createElement('img');
+        img.src = file.previewUrl;
+        img.alt = '';
+        slot.replaceChildren(img);
+    }
 
     private patchRow(id: string): void {
         if (!this.store) return;

@@ -62,7 +62,9 @@ export type {
     FileStatusChangedEventDetail,
     FileUpdatedEventDetail,
     FileRowUpdateEventDetail,
-    FilesChangedEventDetail
+    FilesChangedEventDetail,
+    DropzoneControl,
+    FileItemPart
 } from '@keenmate/web-dropzone-core';
 
 export { FILE_TYPE_ICONS } from '@keenmate/web-dropzone-core';

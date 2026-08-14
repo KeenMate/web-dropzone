@@ -37,6 +37,11 @@
         <web-dropzone id="ignored" display-mode="list" accept="*/*"></web-dropzone>
     </div>
 
+    <div class="fixture">
+        <div class="fixture-label">structural + badges + show-thumbnails, NO item callback → built-in inline template</div>
+        <web-dropzone id="str-badge-thumb" mode="structural" list-appearance="badges" show-thumbnails accept="image/*"></web-dropzone>
+    </div>
+
     <script type="module">
         import '/src/index.ts';
 
@@ -84,6 +89,23 @@
         window.__addNamed = (id, names) => {
             const dz = document.getElementById(id);
             const files = names.map(n => new File([new Uint8Array(8)], n, { type: 'text/plain' }));
+            return dz.addFiles(files);
+        };
+
+        // Real 1x1 PNG so the inline thumbnail path (patchInlineRowInPlace)
+        // has something to decode into a data URL.
+        window.__addPng = (id, count) => {
+            const dz = document.getElementById(id);
+            const pngBytes = new Uint8Array([
+                137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82,
+                0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0,
+                0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 248, 207, 192, 0, 0,
+                0, 3, 0, 1, 86, 76, 142, 84, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+            ]);
+            const files = [];
+            for (let i = 0; i < count; i++) {
+                files.push(new File([pngBytes], `s${i}.png`, { type: 'image/png' }));
+            }
             return dz.addFiles(files);
         };
     </script>
