@@ -33,6 +33,18 @@
         <web-dropzone id="popover-open" list-appearance="popover" accept="*/*" max-file-count="10"></web-dropzone>
     </div>
 
+    <div class="fixture">
+        <div class="fixture-label">grid — store-host --dz-* must cascade into the internal (managed) list satellite</div>
+        <web-dropzone id="grid-relay" list-appearance="grid" accept="image/*" max-file-count="10"
+            style="--dz-preview-grid-gap: 40px; --dz-preview-grid-columns: repeat(3, 1fr);"></web-dropzone>
+    </div>
+
+    <div class="fixture">
+        <div class="fixture-label">grid-layout="natural" — equal-height rows, tiles keep each image's aspect ratio</div>
+        <web-dropzone id="grid-natural" list-appearance="grid" grid-layout="natural" accept="image/*" max-file-count="10"
+            style="--dz-preview-row-height: 120px;"></web-dropzone>
+    </div>
+
     <script type="module">
         import '/src/index.ts';
         window.__addNamed = (id, names, mime = 'text/plain') => {
@@ -54,6 +66,21 @@
             for (let i = 0; i < count; i++) {
                 files.push(new File([pngBytes], `i${i}.png`, { type: 'image/png' }));
             }
+            return dz.addFiles(files);
+        };
+        // Real images of arbitrary width×height via canvas — so the grid can
+        // measure genuine aspect ratios (portrait vs landscape). `dims` is an
+        // array of [w, h] pairs; returns once every File is added.
+        window.__addSizedImages = async (id, dims) => {
+            const dz = document.getElementById(id);
+            const files = await Promise.all(dims.map(([w, h], i) => new Promise((resolve) => {
+                const c = document.createElement('canvas');
+                c.width = w; c.height = h;
+                const ctx = c.getContext('2d');
+                ctx.fillStyle = `hsl(${(i * 60) % 360} 70% 60%)`;
+                ctx.fillRect(0, 0, w, h);
+                c.toBlob((blob) => resolve(new File([blob], `img${i}-${w}x${h}.png`, { type: 'image/png' })), 'image/png');
+            })));
             return dz.addFiles(files);
         };
     </script>

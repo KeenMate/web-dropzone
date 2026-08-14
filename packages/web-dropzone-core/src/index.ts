@@ -94,7 +94,8 @@ export type {
     DropzoneControl,
     FileItemPart,
     RollingRotation,
-    CardSize
+    CardSize,
+    GridLayout
 } from './types';
 export { FILE_TYPE_ICONS } from './types';
 

@@ -102,7 +102,7 @@ export class DropzoneListElement extends SatelliteElement {
     }
 
     static get observedAttributes(): string[] {
-        return ['for', 'list-appearance', 'empty-message', 'nested'];
+        return ['for', 'list-appearance', 'grid-layout', 'empty-message', 'nested'];
     }
 
     attributeChangedCallback(): void {
@@ -213,8 +213,14 @@ export class DropzoneListElement extends SatelliteElement {
         const visible = cap > 0 && !this.showAll ? files.slice(0, cap) : files;
         const toggle = this.renderShowMoreToggle(files.length, cap, appearance);
 
+        // Grid tile layout (uniform | natural) — drives the equal-height
+        // justified gallery variant. Only emitted for the grid appearance.
+        const gridLayoutAttr = appearance === 'grid'
+            ? ` data-grid-layout="${resolveEnumAttribute(this, 'grid-layout', ['uniform', 'natural'] as const, 'uniform')}"`
+            : '';
+
         const rows = visible.map(f => this.renderRow(f, appearance)).join('');
-        this.container.innerHTML = `<div class="${containerClass}" data-list-appearance="${appearance}">${rows}${toggle}</div>`;
+        this.container.innerHTML = `<div class="${containerClass}" data-list-appearance="${appearance}"${gridLayoutAttr}>${rows}${toggle}</div>`;
         this.bindRowHandlers();
         this.bindToggleHandler();
         this.attachPreviewLoaders(visible);

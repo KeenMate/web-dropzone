@@ -128,6 +128,16 @@ export type RollingRotation = 'horizontal' | 'vertical' | 'slide-in';
 export type CardSize = 'minimal' | 'compact' | 'big';
 
 /**
+ * Tile layout for `listAppearance='grid'`.
+ * - 'uniform' — equal-size tiles on a responsive column grid (default). Each
+ *   thumbnail fills its cell per `--dz-preview-item-object-fit` (crop or fit).
+ * - 'natural' — a justified photo gallery: rows share one height
+ *   (`--dz-preview-row-height`) and every tile keeps its image's own aspect
+ *   ratio (mixed portrait/landscape, no crop, ragged right edge).
+ */
+export type GridLayout = 'uniform' | 'natural';
+
+/**
  * File upload status.
  * - `pending`   — accepted but no upload attempt yet
  * - `uploading` — `uploadFileCallback` is currently running
@@ -507,6 +517,13 @@ export interface DropzoneConfig {
     selectorAppearance?: SelectorAppearance;
     /** List appearance — list | detailed | grid | badges | popover | none */
     listAppearance?: ListAppearance;
+    /**
+     * Tile layout for `listAppearance='grid'` (HTML attr: `grid-layout`).
+     * `uniform` (default) = equal-size responsive tiles; `natural` = a
+     * justified gallery of equal-height rows that keep each image's aspect
+     * ratio. See {@link GridLayout}.
+     */
+    gridLayout?: GridLayout;
     /**
      * Plyr-style allowlist of top-level surfaces to render (HTML attr:
      * `controls`, comma-separated). See {@link DropzoneControl}. Unset → every

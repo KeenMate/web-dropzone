@@ -48,7 +48,28 @@
   color: var(--dz-text-color-1);
   font-family: var(--dz-font-family, var(--base-font-family, inherit));
   font-size: calc(var(--base-font-size-sm, 1.4) * var(--dz-rem, 10px));
+}
 
+/* ==============================================================================
+   THEME TOKENS — declared on :host(:not([managed]))
+   ==============================================================================
+   Same file is injected into the store host AND each satellite shadow. A plain
+   `:host { --dz-*: … }` re-declares every token on the satellite host, which
+   OUTRANKS the value inherited from a parent <web-dropzone> — so per-satellite
+   `:host` defaults silently mask store-level theming (set `--dz-preview-grid-*`
+   on <web-dropzone> and the internal <web-dropzone-list> never sees it).
+
+   Guarding the block with `:not([managed])` fixes it: the store host and any
+   STANDALONE satellite (`<web-dropzone-list for="…">` placed by the consumer)
+   still match, so they carry the defaults and theme independently. But the
+   satellites the store auto-mounts get a `managed` attribute (see
+   `mountSatellites`), so they declare NOTHING here and inherit every token
+   straight from the store host — making `--dz-*` set on <web-dropzone> cascade
+   through to all internal renderers. Same philosophy already applied to
+   `--dz-rem` and `--dz-file-list-max-height` (kept out of :host for the exact
+   same reason); this generalises it to the whole token set.
+   ============================================================================== */
+:host(:not([managed])) {
   /* ==========================================================================
      COLORS & THEME
      ==========================================================================
@@ -333,6 +354,14 @@
   --dz-preview-item-border: 1px solid var(--dz-border-color);
   --dz-preview-item-border-radius: calc(var(--base-border-radius-md, 0.6) * var(--dz-rem, 10px));
   --dz-preview-item-bg: var(--dz-primary-bg);
+  /* How the thumbnail fills its tile in the default (uniform) grid. `cover`
+     center-crops to the square; `contain` letterboxes the whole image. In
+     `grid-layout="natural"` the tile already matches the image ratio, so this
+     is forced to `contain` there (no crop, no bars). */
+  --dz-preview-item-object-fit: cover;
+  /* Row height for `grid-layout="natural"` — every row is exactly this tall;
+     tile widths follow each image's own aspect ratio. */
+  --dz-preview-row-height: calc(16 * var(--dz-rem, 10px));
 
   /* Preview Overlay */
   --dz-preview-overlay-bg: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);

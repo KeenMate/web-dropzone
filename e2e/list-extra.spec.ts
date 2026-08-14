@@ -45,6 +45,59 @@ test.describe('badges + show-thumbnails', () => {
     });
 });
 
+test.describe('CSS-var relay into managed satellites', () => {
+    // Regression: the internal <web-dropzone-list> has its own shadow root that
+    // injects the same variables.css. A plain `:host { --dz-*: … }` there would
+    // mask tokens set on the store host, so `--dz-preview-grid-*` on
+    // <web-dropzone> never reached the grid. The fix marks auto-mounted
+    // satellites `managed` and scopes the token block to :host(:not([managed]))
+    // so they inherit from the store host instead. This asserts the cascade.
+    test('store-host --dz-preview-grid-* reaches the internal grid container', async ({ page }) => {
+        await addPng(page, 'grid-relay', 6);
+        const props = await dz(page, 'grid-relay').evaluate((el: any) => {
+            const list = el.shadowRoot.querySelector('web-dropzone-list');
+            const grid = list.shadowRoot.querySelector('.dz__file-list--grid');
+            const cs = getComputedStyle(grid);
+            return { gap: cs.gap, tracks: cs.gridTemplateColumns.split(' ').length };
+        });
+        // Host inline sets gap:40px and columns:repeat(3,1fr). If the satellite
+        // re-declared its own :host defaults these would be 12px / 4-ish tracks.
+        expect(props.gap).toBe('40px');
+        expect(props.tracks).toBe(3);
+    });
+});
+
+test.describe('grid-layout="natural" (equal-height justified gallery)', () => {
+    test('rows share one height; tiles keep each image aspect ratio (no crop/stretch)', async ({ page }) => {
+        // A landscape (200×100) and a portrait (100×200) image.
+        await page.waitForFunction(() => typeof (window as any).__addSizedImages === 'function');
+        await page.evaluate(() => (window as any).__addSizedImages('grid-natural', [[200, 100], [100, 200]]));
+        const info = await dz(page, 'grid-natural').evaluate((el: any) => {
+            const list = el.shadowRoot.querySelector('web-dropzone-list');
+            const grid = list.shadowRoot.querySelector('.dz__file-list--grid');
+            const tiles = [...grid.querySelectorAll('.dz__preview-item')];
+            return {
+                layoutAttr: grid.getAttribute('data-grid-layout'),
+                display: getComputedStyle(grid).display,
+                rects: tiles.map((t: any) => {
+                    const r = t.getBoundingClientRect();
+                    return { w: Math.round(r.width), h: Math.round(r.height) };
+                }),
+            };
+        });
+        expect(info.layoutAttr).toBe('natural');
+        expect(info.display).toBe('flex');
+        expect(info.rects).toHaveLength(2);
+        // Equal height (the row height = 120px), different widths matching the
+        // 2:1 and 1:2 ratios → landscape tile is wider than the portrait tile.
+        expect(info.rects[0].h).toBe(info.rects[1].h);
+        expect(info.rects[0].h).toBe(120);
+        expect(info.rects[0].w).toBeGreaterThan(info.rects[1].w);   // landscape wider
+        expect(info.rects[0].w).toBeCloseTo(240, -1);               // 120 × 2:1
+        expect(info.rects[1].w).toBeCloseTo(60, -1);                // 120 × 1:2
+    });
+});
+
 test.describe('list-appearance="rolling"', () => {
     test('renders a single front-file slot + a queue indicator', async ({ page }) => {
         await addNamed(page, 'rolling', ['a.txt', 'b.txt', 'c.txt']);

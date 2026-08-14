@@ -32,6 +32,42 @@
   grid-column: 1 / -1;
 }
 
+/* Natural layout (`grid-layout="natural"`) — equal-height rows of mixed
+   aspect ratios, like a photo gallery. Switch from CSS grid to flex-wrap:
+   every tile is a fixed height (`--dz-preview-row-height`) and derives its
+   width from the image itself (width:auto), so portrait and landscape photos
+   sit side by side at one row height with a ragged right edge. Nothing is
+   cropped or stretched — the tile box matches the image ratio, so `contain`
+   shows the whole photo edge to edge. */
+.dz__file-list--grid[data-grid-layout="natural"] {
+  display: flex;
+  flex-direction: row;         /* the base .dz__file-list is column — reset it */
+  flex-wrap: wrap;
+  align-items: flex-start;     /* don't stretch tiles across the row */
+  /* gap already inherited from .dz__file-list--grid */
+}
+.dz__file-list--grid[data-grid-layout="natural"] .dz__preview-item {
+  aspect-ratio: auto;                                      /* drop the forced square */
+  height: var(--dz-preview-row-height, calc(16 * var(--dz-rem, 10px)));
+  width: auto;                                             /* shrink-to-fit the image */
+}
+.dz__file-list--grid[data-grid-layout="natural"] .dz__preview-item__image {
+  width: auto;                                             /* natural ratio drives width */
+  height: 100%;
+  object-fit: contain;                                     /* box == image ratio → no crop */
+}
+/* Non-image tiles have no intrinsic ratio; give them a square footprint so
+   they don't collapse to zero width in the flex row. */
+.dz__file-list--grid[data-grid-layout="natural"] .dz__preview-item__placeholder {
+  aspect-ratio: 1;
+  height: 100%;
+  width: auto;
+}
+/* The "Show N more" toggle still takes a full row in flex mode. */
+.dz__file-list--grid[data-grid-layout="natural"] .dz__show-more {
+  flex: 1 0 100%;
+}
+
 /* Reorder-completed mode — flexbox `order` slides completed rows to the
    end of the visual list without mutating `this.files` or rebuilding the
    DOM. The trigger is `data-reorder-bucket="complete"` (NOT data-status)

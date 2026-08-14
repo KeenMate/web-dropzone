@@ -351,6 +351,9 @@ export class WebDropzone extends DropzoneCore {
         let picker: BindableSatellite | null = null;
         if (showPicker) {
             picker = document.createElement('web-dropzone-picker') as BindableSatellite;
+            // `managed` → skip the satellite's own :host token defaults so it
+            // inherits every --dz-* from the store host (see variables.css).
+            picker.setAttribute('managed', '');
             picker.setAttribute('selector-appearance', selectorAppearance);
             if (selectorAppearance === 'card') {
                 picker.setAttribute('card-size', cardSize);
@@ -364,7 +367,11 @@ export class WebDropzone extends DropzoneCore {
 
         if (showList) {
             const list = document.createElement('web-dropzone-list') as BindableSatellite;
+            list.setAttribute('managed', '');   // inherit --dz-* from store host
             list.setAttribute('list-appearance', listAppearance);
+            // Grid tile layout (uniform | natural). Only meaningful for
+            // list-appearance="grid" but harmless to forward always.
+            list.setAttribute('grid-layout', this.config.gridLayout ?? 'uniform');
             if (insideMode) {
                 // Switch the list's container class family to
                 // `.dz__files-inside--*` so the existing files-inside CSS
@@ -404,6 +411,7 @@ export class WebDropzone extends DropzoneCore {
         // which used `:empty` to collapse — unless `controls` excludes it.
         if (showProgress) {
             const progress = document.createElement('web-dropzone-progress') as BindableSatellite;
+            progress.setAttribute('managed', '');   // inherit --dz-* from store host
             progress.bindToStore?.(host);
             container.appendChild(progress);
         }

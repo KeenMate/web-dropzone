@@ -48,6 +48,33 @@
             font-family: monospace;
             cursor: pointer;
         }
+        /* Grid-tuning panel — one control per row, label + input + value */
+        .tune-row {
+            display: grid;
+            grid-template-columns: 11rem 1fr 3.5rem;
+            align-items: center;
+            gap: 0.6rem;
+            margin: 0.5rem 0;
+            font-size: 0.85rem;
+            font-family: monospace;
+        }
+        .tune-row > span:first-child { color: #374151; }
+        .tune-row output { color: #6b7280; text-align: right; }
+        .tune-row input[type="range"] { width: 100%; }
+        .tune-row select { font-family: monospace; padding: 0.15rem 0.3rem; }
+        .tune-row.is-off { opacity: 0.4; }
+        .ctrl-panel.is-off { opacity: 0.45; }
+        .tune-readout {
+            margin-top: 0.75rem;
+            padding: 0.6rem 0.8rem;
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.78rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
@@ -269,6 +296,115 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
                         <button type="submit" style="margin-top: 0.8rem;">Submit</button>
                     </form>
                     <small class="form-text">Submit blocked by native form validity until at least 2 files ≥ 1 KB are selected.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRID TUNING — LIVE CONTROLS -->
+        <div class="card">
+            <h2>Grid tuning — live controls</h2>
+            <p>Grid mode is almost entirely CSS-variable driven. Drop a few images below, then move the sliders to reshape the grid in real time. The panel writes the same <code>--dz-*</code> custom properties you'd set in your own CSS — the live readout is copy-pasteable.</p>
+            <p>Switch <code>grid-layout</code> to <strong>natural</strong> for a justified photo gallery: mixed portrait/landscape images share one row height (<code>--dz-preview-row-height</code>) and keep their own aspect ratio — nothing cropped or stretched. In <strong>uniform</strong> layout, <code>object-fit</code> chooses crop (<code>cover</code>) vs. fit (<code>contain</code>).</p>
+
+            <div class="grid">
+                <div class="form-group">
+                    <web-dropzone id="grid-tune"
+                        list-appearance="grid"
+                        accept="image/*"
+                        multiple
+                        max-file-count="24"
+                        max-visible-files="24"
+                        prompt-text="Drop images to tune the grid"></web-dropzone>
+                    <small class="form-text">No images handy? Any file works — non-images fall back to a type icon tile, the geometry still reshapes.</small>
+                </div>
+
+                <div class="form-group">
+                    <fieldset class="ctrl-panel">
+                        <legend>columns</legend>
+                        <div class="tune-row">
+                            <span>mode</span>
+                            <select id="gt-mode">
+                                <option value="auto" selected>auto-fill (responsive)</option>
+                                <option value="fixed">fixed count</option>
+                            </select>
+                            <output></output>
+                        </div>
+                        <div class="tune-row" data-when="auto">
+                            <span>min tile</span>
+                            <input type="range" id="gt-min" min="60" max="220" step="4" value="120">
+                            <output id="gt-min-v">120px</output>
+                        </div>
+                        <div class="tune-row" data-when="fixed">
+                            <span>columns</span>
+                            <input type="range" id="gt-cols" min="1" max="8" step="1" value="4">
+                            <output id="gt-cols-v">4</output>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="ctrl-panel">
+                        <legend>tile</legend>
+                        <div class="tune-row">
+                            <span>gap</span>
+                            <input type="range" id="gt-gap" min="0" max="32" step="1" value="12">
+                            <output id="gt-gap-v">12px</output>
+                        </div>
+                        <div class="tune-row">
+                            <span>aspect-ratio</span>
+                            <select id="gt-aspect">
+                                <option value="1" selected>1 / 1 (square)</option>
+                                <option value="4 / 3">4 / 3</option>
+                                <option value="3 / 4">3 / 4 (portrait)</option>
+                                <option value="16 / 9">16 / 9</option>
+                            </select>
+                            <output></output>
+                        </div>
+                        <div class="tune-row">
+                            <span>border-radius</span>
+                            <input type="range" id="gt-radius" min="0" max="28" step="1" value="6">
+                            <output id="gt-radius-v">6px</output>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="ctrl-panel">
+                        <legend>layout &amp; fit</legend>
+                        <div class="tune-row">
+                            <span>grid-layout</span>
+                            <select id="gt-layout">
+                                <option value="uniform" selected>uniform (equal tiles)</option>
+                                <option value="natural">natural (equal-height rows)</option>
+                            </select>
+                            <output></output>
+                        </div>
+                        <div class="tune-row" data-when-layout="uniform">
+                            <span>object-fit</span>
+                            <select id="gt-fit">
+                                <option value="cover" selected>cover (crop to square)</option>
+                                <option value="contain">contain (fit, letterbox)</option>
+                            </select>
+                            <output></output>
+                        </div>
+                        <div class="tune-row" data-when-layout="natural">
+                            <span>row-height</span>
+                            <input type="range" id="gt-rowh" min="60" max="320" step="10" value="160">
+                            <output id="gt-rowh-v">160px</output>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="ctrl-panel">
+                        <legend>count &amp; height</legend>
+                        <div class="tune-row">
+                            <span>max-visible-files</span>
+                            <input type="range" id="gt-visible" min="1" max="24" step="1" value="24">
+                            <output id="gt-visible-v">24</output>
+                        </div>
+                        <div class="tune-row">
+                            <span>list-max-height</span>
+                            <input type="range" id="gt-height" min="0" max="600" step="20" value="0">
+                            <output id="gt-height-v">none</output>
+                        </div>
+                    </fieldset>
+
+                    <div class="tune-readout" id="gt-readout"></div>
                 </div>
             </div>
         </div>
@@ -675,6 +811,91 @@ const files = el.files       // current FileState[]</code></pre>
         const recipeOnStart = document.getElementById('recipe-onstart')
         document.getElementById('recipe-onstart-go')
             .addEventListener('click', () => recipeOnStart.uploadAll())
+
+        // ── Grid tuning — live CSS-variable control panel ─────────────────
+        // Each control writes a `--dz-*` custom property (or the
+        // `max-visible-files` attribute) straight onto the element, so the
+        // grid reshapes on `input`. The readout mirrors exactly what you'd
+        // author in your own stylesheet.
+        const gt = document.getElementById('grid-tune')
+        const $ = (id) => document.getElementById(id)
+        const gtEls = {
+            mode: $('gt-mode'), min: $('gt-min'), cols: $('gt-cols'),
+            gap: $('gt-gap'), aspect: $('gt-aspect'), radius: $('gt-radius'),
+            layout: $('gt-layout'), fit: $('gt-fit'), rowh: $('gt-rowh'),
+            visible: $('gt-visible'), height: $('gt-height'),
+        }
+        const gtSyncModeRows = () => {
+            const mode = gtEls.mode.value
+            for (const row of gt.closest('.card').querySelectorAll('.tune-row[data-when]')) {
+                row.classList.toggle('is-off', row.dataset.when !== mode)
+            }
+            // In natural layout the column tracks are ignored (flex-wrap, not
+            // grid) — dim the whole columns fieldset so that's obvious.
+            const natural = gtEls.layout.value === 'natural'
+            gtEls.mode.closest('.ctrl-panel').classList.toggle('is-off', natural)
+            for (const row of gt.closest('.card').querySelectorAll('.tune-row[data-when-layout]')) {
+                row.classList.toggle('is-off', row.dataset.whenLayout !== gtEls.layout.value)
+            }
+        }
+        const gtApply = () => {
+            const mode = gtEls.mode.value
+            const layout = gtEls.layout.value
+            const columns = mode === 'fixed'
+                ? `repeat(${gtEls.cols.value}, 1fr)`
+                : `repeat(auto-fill, minmax(${gtEls.min.value}px, 1fr))`
+            const gap = `${gtEls.gap.value}px`
+            const aspect = gtEls.aspect.value
+            const radius = `${gtEls.radius.value}px`
+            const fit = gtEls.fit.value
+            const rowh = `${gtEls.rowh.value}px`
+            const height = Number(gtEls.height.value)
+
+            gt.style.setProperty('--dz-preview-grid-columns', columns)
+            gt.style.setProperty('--dz-preview-grid-gap', gap)
+            gt.style.setProperty('--dz-preview-item-aspect-ratio', aspect)
+            gt.style.setProperty('--dz-preview-item-border-radius', radius)
+            gt.style.setProperty('--dz-preview-item-object-fit', fit)
+            gt.style.setProperty('--dz-preview-row-height', rowh)
+            if (height > 0) gt.style.setProperty('--dz-file-list-max-height', `${height}px`)
+            else gt.style.removeProperty('--dz-file-list-max-height')
+            gt.setAttribute('grid-layout', layout)
+            gt.setAttribute('max-visible-files', gtEls.visible.value)
+
+            // Value labels
+            $('gt-min-v').textContent = `${gtEls.min.value}px`
+            $('gt-cols-v').textContent = gtEls.cols.value
+            $('gt-gap-v').textContent = gap
+            $('gt-radius-v').textContent = radius
+            $('gt-rowh-v').textContent = rowh
+            $('gt-visible-v').textContent = gtEls.visible.value
+            $('gt-height-v').textContent = height > 0 ? `${height}px` : 'none'
+
+            // Copy-pasteable readout — only the tokens that apply to this layout.
+            const lines = []
+            if (layout === 'natural') {
+                lines.push(`--dz-preview-row-height: ${rowh};`)
+                lines.push(`--dz-preview-grid-gap: ${gap};`)
+                lines.push(`--dz-preview-item-border-radius: ${radius};`)
+            } else {
+                lines.push(`--dz-preview-grid-columns: ${columns};`)
+                lines.push(`--dz-preview-grid-gap: ${gap};`)
+                lines.push(`--dz-preview-item-aspect-ratio: ${aspect};`)
+                lines.push(`--dz-preview-item-border-radius: ${radius};`)
+                lines.push(`--dz-preview-item-object-fit: ${fit};`)
+            }
+            if (height > 0) lines.push(`--dz-file-list-max-height: ${height}px;`)
+            lines.push(`\ngrid-layout="${layout}"  max-visible-files="${gtEls.visible.value}"`)
+            $('gt-readout').textContent = lines.join('\n')
+        }
+        for (const el of Object.values(gtEls)) {
+            el.addEventListener('input', () => {
+                if (el === gtEls.mode || el === gtEls.layout) gtSyncModeRows()
+                gtApply()
+            })
+        }
+        gtSyncModeRows()
+        gtApply()
     </script>
 
     <script type="module" src="/src/index.ts"></script>
