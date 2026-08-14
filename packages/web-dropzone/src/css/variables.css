@@ -386,7 +386,7 @@
      washes the finished thumbnail so the big centred check/error glyph reads
      as a confirmation. Defaults to a translucent light tint (theme surface);
      override to a dark veil if your gallery sits on light imagery. */
-  --dz-preview-status-overlay-bg: color-mix(in srgb, var(--dz-background) 65%, transparent);
+  --dz-preview-status-overlay-bg: color-mix(in srgb, var(--dz-background) 80%, transparent);
   --dz-preview-status-overlay-icon-size: calc(4.8 * var(--dz-rem, 10px));
 
   /* Grid-tile hover action buttons — big, centered controls that live
