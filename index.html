@@ -268,12 +268,6 @@
                         icon: '📨',
                         title: 'Outlook-style split overlay',
                         description: 'Two dropzones share the viewport — split-screen "attach as file" vs "share as link" reveal during drag.'
-                    },
-                    {
-                        href: 'examples-themes-gallery.html',
-                        icon: '🎭',
-                        title: 'Theme Gallery',
-                        description: 'Six prebuilt themes — Dark, Neon, Corporate, Sunset, Forest, Minimal — showcasing what CSS variables make possible.'
                     }
                 ]
             },
@@ -322,6 +316,13 @@
         }
 
         renderSections()
+
+        // Feed the floating jump-nav (examples-chapter-nav.js) from the same
+        // registry, flattened across sections — so the index gets a quick
+        // "hop to any example" list with no extra data to maintain.
+        window.CHAPTER_NAV_ITEMS = sections.flatMap(section =>
+            section.pages.map(page => ({ label: page.title, href: page.href }))
+        )
     </script>
 
     <!-- Loads the dropzone module so window.components['web-dropzone'] is populated.
@@ -336,5 +337,7 @@
             document.getElementById('core-version').textContent = 'v' + api.core.version
         }
     </script>
+
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

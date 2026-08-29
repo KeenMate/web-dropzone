@@ -41,7 +41,7 @@
 
         <!-- MAX SIZE -->
         <div class="card">
-            <h2>Max File Size (<code>max-file-size</code>)</h2>
+            <h2>VA01 · Max File Size (<code>max-file-size</code>)</h2>
             <p><code>max-file-size</code> accepts bytes or a human suffix (<code>5MB</code>, <code>300kB</code>, <code>1.5GB</code> — binary/1024-based units). Files larger than the limit are rejected with code <code>'size'</code>.</p>
 
             <div class="grid">
@@ -72,7 +72,7 @@
 
         <!-- MAX FILES -->
         <div class="card">
-            <h2>Max File Count (<code>max-file-count</code>)</h2>
+            <h2>VA02 · Max File Count (<code>max-file-count</code>)</h2>
             <p>Once the count is reached, subsequent files are rejected with code <code>'count'</code>.</p>
 
             <div class="grid">
@@ -102,7 +102,7 @@
 
         <!-- ACCEPT FILTER -->
         <div class="card">
-            <h2>Type Filter (<code>accept</code>)</h2>
+            <h2>VA03 · Type Filter (<code>accept</code>)</h2>
             <p>Files that fail the MIME/extension match are rejected with code <code>'type'</code>.</p>
 
             <div class="form-group">
@@ -120,7 +120,7 @@
 
         <!-- CUSTOM VALIDATE CALLBACK -->
         <div class="card">
-            <h2>Custom Validator</h2>
+            <h2>VA04 · Custom Validator</h2>
             <p>Set <code>validateCallback</code> on the element to add custom validation. Return <code>{ valid: false, error: '...' }</code> to reject; the failure surfaces alongside built-in validation errors via the <code>files-rejected</code> event.</p>
 
             <div class="form-group">
@@ -147,7 +147,7 @@ el.validateCallback = (file, existingFiles) => {
 
         <!-- ASYNC CONFIRMATION GATES -->
         <div class="card">
-            <h2>Async Confirmation Gates</h2>
+            <h2>VA05 · Async Confirmation Gates</h2>
             <p><code>beforeFilesAddedCallback</code> and <code>beforeFilesRemovedCallback</code> let you pop a dialog before files actually enter or leave the dropzone. They run AFTER the sync validators pass (size, type, count, <code>validateCallback</code>) and are skipped for programmatic <code>removeFile(id)</code> / <code>clear()</code> calls unless you pass <code>{ confirm: true }</code>. Resolving <code>false</code> on the add gate emits <code>files-rejected</code> with <code>code: 'cancelled'</code>.</p>
 
             <div class="form-group">
@@ -181,7 +181,7 @@ el.beforeFilesRemovedCallback = async (files, allFiles) =&gt; {
 
         <!-- COMBINED -->
         <div class="card">
-            <h2>Combined Rules</h2>
+            <h2>VA06 · Combined Rules</h2>
             <p>All validation rules apply together. The first failing rule wins.</p>
 
             <div class="form-group">
@@ -201,7 +201,7 @@ el.beforeFilesRemovedCallback = async (files, allFiles) =&gt; {
 
         <!-- REJECTION CODES -->
         <div class="card">
-            <h2>Rejection Codes</h2>
+            <h2>VA07 · Rejection Codes</h2>
             <p>Each rejection includes a <code>code</code> so you can branch on it programmatically.</p>
 
             <div class="code-block">
@@ -290,5 +290,6 @@ el.beforeFilesRemovedCallback = async (files, allFiles) =&gt; {
     </script>
 
     <script type="module" src="/src/index.ts"></script>
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

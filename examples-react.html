@@ -116,7 +116,7 @@
         </header>
 
         <section class="example-section">
-            <h2>Why headless mode unlocks React patterns</h2>
+            <h2>RC01 · Why headless mode unlocks React patterns</h2>
             <p>React expects to own the DOM it manages. With <code>mode="headless"</code> the dropzone steps back: it holds <code>FileState[]</code>, dispatches events, and lets your component own the rendering. The native <code>&lt;web-dropzone-picker&gt;</code> satellite is still used as the drop surface, because re-implementing drag-and-drop in React would mean re-implementing a feature web-dropzone already ships.</p>
             <div class="note">
                 <div class="note-title">Pattern</div>
@@ -132,13 +132,13 @@
         </section>
 
         <section class="example-section">
-            <h2>Live demo</h2>
+            <h2>RC02 · Live demo</h2>
             <p>The React tree below renders the picker, list, and a toolbar with <em>pause all / resume all / retry all / clear</em>. Drop a few files and watch React re-render on every coalesced <code>files-changed</code> event.</p>
             <div id="react-root"></div>
         </section>
 
         <section class="example-section">
-            <h2>The whole component (htm flavour)</h2>
+            <h2>RC03 · The whole component (htm flavour)</h2>
             <div class="code-block">
 <pre>import React, { useEffect, useRef, useState } from 'https://esm.sh/react@18'
 import { createRoot } from 'https://esm.sh/react-dom@18/client'
@@ -320,5 +320,7 @@ createRoot(document.getElementById('react-root')).render(React.createElement(Upl
     </script>
 
     <script type="module" src="/src/index.ts"></script>
+
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

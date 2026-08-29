@@ -95,20 +95,6 @@
             padding-top: 1rem;
             border-top: 1px solid #f3f4f6;
         }
-        .compose-actions button {
-            background: #2563eb;
-            color: white;
-            border: 0;
-            border-radius: 6px;
-            padding: 0.5rem 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            font-family: inherit;
-        }
-        .compose-actions button.secondary {
-            background: #f3f4f6;
-            color: #374151;
-        }
 
         .attached {
             margin-top: 1rem;
@@ -144,7 +130,7 @@
         </header>
 
         <div class="card">
-            <h2>What it is</h2>
+            <h2>SO01 · What it is</h2>
             <p>Outlook online turns the message body into <strong>two drop targets</strong> the moment you start dragging a file into a draft: drop on the left to <em>attach as a file</em>, drop on the right to <em>share as a OneDrive link</em>. We can build that with what we have today: two <code>&lt;web-dropzone&gt;</code> instances, each with its own <code>overlay-target</code> pointing to one half of a grid container that overlays the editor.</p>
             <div class="note">
                 <div class="note-title">Why it works without new API</div>
@@ -153,7 +139,7 @@
         </div>
 
         <div class="card">
-            <h2>Try it</h2>
+            <h2>SO02 · Try it</h2>
             <label class="demo-toggle">
                 <input type="radio" name="active-demo" value="try" checked>
                 <span>Active demo</span>
@@ -333,7 +319,7 @@
         </script>
 
         <div class="card">
-            <h2>Stress test: two editors on one page</h2>
+            <h2>SO03 · Stress test: two editors on one page</h2>
             <label class="demo-toggle">
                 <input type="radio" name="active-demo" value="stress">
                 <span>Active demo</span>
@@ -428,7 +414,7 @@
         </web-dropzone>
 
         <div class="card">
-            <h2>How it works</h2>
+            <h2>SO04 · How it works</h2>
             <ol>
                 <li>The editor shell is <code>position: relative</code>. Inside it sits the WYSIWYG element and a sibling <code>.split-target</code> grid with <code>position: absolute; inset: 0</code> — the grid lays exactly over the editor.</li>
                 <li>The grid is <code>pointer-events: none</code>, so typing into the editor still works while no drag is happening.</li>
@@ -469,5 +455,6 @@
     </div>
 
     <script type="module" src="/src/index.ts"></script>
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

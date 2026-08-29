@@ -241,7 +241,7 @@
         </header>
 
         <section class="example-section">
-            <h2>The topology in one diagram</h2>
+            <h2>AR01 · The topology in one diagram</h2>
             <p>Every renderer binds to <em>exactly one</em> store via <code>for="&lt;store-id&gt;"</code>. The store dispatches <code>CustomEvent</code>s with <code>bubbles + composed</code>, so satellites in their own shadow roots receive them without polling.</p>
             <div class="topology-diagram">
                 <span class="code"><span class="tag-store">&lt;web-dropzone id="uploads"&gt;</span></span>
@@ -261,7 +261,7 @@
         <!-- ============================================================ -->
         <section class="example-section">
             <div class="scenario-title">
-                <h2>1 · Convenience form</h2>
+                <h2>AR02 · Convenience form</h2>
                 <span class="scenario-mode">USE CASE A</span>
             </div>
             <label class="demo-toggle">
@@ -290,7 +290,7 @@
         <!-- ============================================================ -->
         <section class="example-section">
             <div class="scenario-title">
-                <h2>2 · Decoupled picker + list</h2>
+                <h2>AR03 · Decoupled picker + list</h2>
                 <span class="scenario-mode">USE CASE C</span>
             </div>
             <label class="demo-toggle">
@@ -363,7 +363,7 @@
         <!-- ============================================================ -->
         <section class="example-section">
             <div class="scenario-title">
-                <h2>3 · Multiple independent contexts</h2>
+                <h2>AR04 · Multiple independent contexts</h2>
                 <span class="scenario-mode scenario-mode--a">MODE A</span>
             </div>
             <label class="demo-toggle">
@@ -411,7 +411,7 @@
         <!-- ============================================================ -->
         <section class="example-section">
             <div class="scenario-title">
-                <h2>4 · Shared queue, per-picker upload routing</h2>
+                <h2>AR05 · Shared queue, per-picker upload routing</h2>
                 <span class="scenario-mode scenario-mode--b">MODE B</span>
             </div>
             <label class="demo-toggle">
@@ -479,7 +479,7 @@
         <!-- ============================================================ -->
         <section class="example-section">
             <div class="scenario-title">
-                <h2>5 · Floating status indicator</h2>
+                <h2>AR06 · Floating status indicator</h2>
                 <span class="scenario-mode scenario-mode--e">USE CASE E</span>
             </div>
             <label class="demo-toggle">
@@ -512,7 +512,7 @@
         <!-- ============================================================ -->
         <section class="example-section">
             <div class="scenario-title">
-                <h2>6 · Indicator flexibility: inline, drawer-off, renderCallback</h2>
+                <h2>AR07 · Indicator flexibility: inline, drawer-off, renderCallback</h2>
                 <span class="scenario-mode scenario-mode--e">USE CASE E+</span>
             </div>
             <label class="demo-toggle">
@@ -607,7 +607,7 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
         <!-- ============================================================ -->
         <section class="example-section">
             <div class="scenario-title">
-                <h2>7 · Image grid — picker + grid list satellite</h2>
+                <h2>AR08 · Image grid — picker + grid list satellite</h2>
                 <span class="scenario-mode scenario-mode--a">USE CASE B</span>
             </div>
             <label class="demo-toggle">
@@ -666,7 +666,7 @@ spinner.renderBodyCallback = ({ aggregate }) =&gt; {
         <!-- USE CASE F: BYO renderer via files-changed -->
         <section class="card">
             <span class="scenario-mode">USE CASE F</span>
-            <h2>Bring your own renderer — <code>mode="headless"</code> + <code>files-changed</code></h2>
+            <h2>AR09 · Bring your own renderer — <code>mode="headless"</code> + <code>files-changed</code></h2>
             <label class="demo-toggle">
                 <input type="radio" name="active-demo" value="byo">
                 <span>Active demo</span>
@@ -1328,5 +1328,6 @@ store.addEventListener('files-changed', (e) =&gt; {
     </script>
 
     <script type="module" src="/src/index.ts"></script>
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

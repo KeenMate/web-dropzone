@@ -87,7 +87,7 @@
         </header>
 
         <section class="example-section">
-            <h2>Why Lit + headless mode is a natural fit</h2>
+            <h2>LT01 · Why Lit + headless mode is a natural fit</h2>
             <p>Web-dropzone is already a custom element, so it composes inside a Lit component the same way any other element does. With <code>mode="headless"</code> the store stops rendering its own list — your Lit element subscribes to the <code>files-changed</code> event and reactivity does the rest. The native <code>&lt;web-dropzone-picker&gt;</code> satellite still handles drag/drop so you keep the polished picker UI for free.</p>
             <div class="note">
                 <div class="note-title">Pattern</div>
@@ -100,13 +100,13 @@
         </section>
 
         <section class="example-section">
-            <h2>Live demo</h2>
+            <h2>LT02 · Live demo</h2>
             <p>The <code>&lt;lit-uploader&gt;</code> below uses <code>createRenderRoot()</code> to opt into light-DOM rendering so the satellite's <code>for=""</code> resolution (via <code>document.getElementById</code>) works without extra plumbing. Drop a few files — the list, summary line, and per-row pause/resume/retry are all driven by Lit reactive state.</p>
             <lit-uploader></lit-uploader>
         </section>
 
         <section class="example-section">
-            <h2>The whole component</h2>
+            <h2>LT03 · The whole component</h2>
             <div class="code-block">
 <pre>import { LitElement, html } from 'https://esm.sh/lit@3'
 
@@ -302,5 +302,7 @@ customElements.define('lit-uploader', LitUploader)</pre>
     </script>
 
     <script type="module" src="/src/index.ts"></script>
+
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

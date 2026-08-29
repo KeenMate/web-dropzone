@@ -85,7 +85,7 @@
 
         <!-- WHAT IT IS -->
         <div class="card">
-            <h2>What it is</h2>
+            <h2>DO01 · What it is</h2>
             <p>The <code>overlay-target</code> attribute points to an existing element on the page (by id or via the JS property as an <code>HTMLElement</code>). When the user starts dragging files anywhere on the page, the dropzone covers that element with a translucent drop overlay. Releasing the files onto the overlay adds them to the dropzone — even though the dropzone itself can be small or rendered far away in the DOM.</p>
 
             <div class="note">
@@ -100,7 +100,7 @@
 
         <!-- COMPACT + OVERLAY ON A FORM -->
         <div class="card" data-demo="form">
-            <h2>Form-as-target (no visible selector)</h2>
+            <h2>DO02 · Form-as-target (no visible selector)</h2>
             <label class="demo-toggle">
                 <input type="radio" name="active-demo" value="form" checked>
                 <span>Active demo</span>
@@ -143,7 +143,7 @@
 
         <!-- OVERLAY ON A SPECIFIC CARD -->
         <div class="card" data-demo="card">
-            <h2>Button selector + card as the drop target</h2>
+            <h2>DO03 · Button selector + card as the drop target</h2>
             <label class="demo-toggle">
                 <input type="radio" name="active-demo" value="card">
                 <span>Active demo</span>
@@ -178,7 +178,7 @@
 
         <!-- FULL PAGE OVERLAY VIA JS -->
         <div class="card" data-demo="fullpage">
-            <h2>Full-page overlay (target via JS property)</h2>
+            <h2>DO04 · Full-page overlay (target via JS property)</h2>
             <label class="demo-toggle">
                 <input type="radio" name="active-demo" value="fullpage">
                 <span>Active demo</span>
@@ -283,5 +283,6 @@ el.overlayTarget = document.body
     </script>
 
     <script type="module" src="/src/index.ts"></script>
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

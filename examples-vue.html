@@ -109,7 +109,7 @@
         </header>
 
         <section class="example-section">
-            <h2>What you need to tell Vue about custom elements</h2>
+            <h2>VU01 · What you need to tell Vue about custom elements</h2>
             <p>Vue treats unknown tags as components by default and warns when it can't resolve them. Tell the compiler that <code>web-dropzone*</code> tags are custom elements via <code>app.config.compilerOptions.isCustomElement</code>, and they pass through as native DOM. From there it's plain Vue reactivity: a <code>ref</code> for the store element, a <code>ref</code> for the file array, and a <code>computed</code> for whatever derived state the UI needs.</p>
             <div class="note">
                 <div class="note-title">Pattern</div>
@@ -122,13 +122,13 @@
         </section>
 
         <section class="example-section">
-            <h2>Live demo</h2>
+            <h2>VU02 · Live demo</h2>
             <p>The Vue app below renders the picker, the file list, and a stats grid that updates reactively on every coalesced event tick. Pause / resume / retry buttons call directly into the store's imperative API.</p>
             <div id="vue-root"></div>
         </section>
 
         <section class="example-section">
-            <h2>The whole component</h2>
+            <h2>VU03 · The whole component</h2>
             <div class="code-block">
 <pre>import { createApp, ref, computed, onMounted, onBeforeUnmount } from 'https://esm.sh/vue@3/dist/vue.esm-browser.js'
 
@@ -302,5 +302,6 @@ app.mount('#vue-root')</pre>
     </script>
 
     <script type="module" src="/src/index.ts"></script>
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

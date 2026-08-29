@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custom Rendering - Web Dropzone</title>
+    <title>Structural Rendering — Web Dropzone</title>
     <link rel="stylesheet" href="examples-shared.css">
 </head>
 <body>
     <div class="container">
         <header>
             <a href="index.html" class="back-link">← Back to Examples</a>
-            <h1>✨ Custom Rendering</h1>
-            <p class="subtitle">Override file items, prompts, and summaries via render callbacks</p>
+            <h1>✨ Structural Rendering</h1>
+            <p class="subtitle">Override file items, prompts, summaries, and the list wrapper via render callbacks</p>
         </header>
 
         <!-- INTRO -->
         <div class="card">
-            <h2>Structural mode (<code>mode="structural"</code>)</h2>
+            <h2>SR01 · Structural mode (<code>mode="structural"</code>)</h2>
             <p>This page covers <strong>mode 2 of 3</strong> — the framework owns when and what to render, you provide the HTML structure via callbacks. The hard-switch <code>mode="structural"</code> attribute is required: setting a render callback alone does nothing in the default <code>mode="bulk"</code>.</p>
 
             <div class="code-block">
@@ -41,7 +41,7 @@
 
         <!-- PROMPT -->
         <div class="card">
-            <h2>Custom Prompt (<code>renderPromptCallback</code>)</h2>
+            <h2>SR02 · Custom Prompt (<code>renderPromptCallback</code>)</h2>
             <p>Replaces the inner content of the dropzone prompt area.</p>
 
             <div class="grid">
@@ -74,7 +74,7 @@
 
         <!-- FILE ITEM -->
         <div class="card">
-            <h2>Custom File Item (<code>renderFileItemCallback</code>)</h2>
+            <h2>SR03 · Custom File Item (<code>renderFileItemCallback</code>)</h2>
             <p>Each call receives the <code>FileState</code> and a context object describing the render position. Return a string or an <code>HTMLElement</code>.</p>
 
             <div class="form-group">
@@ -111,7 +111,7 @@
 
         <!-- DOM ELEMENT RETURN -->
         <div class="card">
-            <h2>Returning a live <code>HTMLElement</code></h2>
+            <h2>SR04 · Returning a live <code>HTMLElement</code></h2>
             <p>If you'd rather build with the DOM API than concatenate strings, return an element directly. Useful for binding event listeners or attaching data.</p>
 
             <div class="form-group">
@@ -154,7 +154,7 @@
 
         <!-- SUMMARY -->
         <div class="card">
-            <h2>Custom Compact Summary (<code>renderSummaryCallback</code>)</h2>
+            <h2>SR05 · Custom Compact Summary (<code>renderSummaryCallback</code>)</h2>
             <p>Replaces the inline summary line that triggers the compact-mode popover. Required: include an element with class <code>dz__summary__line</code> so the popover click handler still binds correctly.</p>
 
             <div class="form-group">
@@ -194,7 +194,7 @@ el.customStylesCallback = () =&gt; `
 
         <!-- LIST WRAPPER -->
         <div class="card">
-            <h2>Custom List Wrapper (<code>renderListWrapperCallback</code>)</h2>
+            <h2>SR06 · Custom List Wrapper (<code>renderListWrapperCallback</code>)</h2>
             <p>Replaces the <code>&lt;div class="dz__file-list"&gt;</code> shell around the rows. Pairs with <code>renderFileItemCallback</code> to build table layouts. The wrapper receives the rows as an HTML string and the files array, returns the surrounding HTML.</p>
 
             <div class="form-group">
@@ -243,7 +243,7 @@ el.renderFileItemCallback = (file) =&gt; `
 
         <!-- ELEMENT-RETURNING ROW + EVENTS -->
         <div class="card">
-            <h2>Event-driven rows (<code>file-row-update</code>)</h2>
+            <h2>SR07 · Event-driven rows (<code>file-row-update</code>)</h2>
             <p>When <code>renderFileItemCallback</code> returns an <code>HTMLElement</code>, the framework preserves it across state changes — instead of re-rendering, it dispatches a <code>file-row-update</code> CustomEvent on the row. Listeners attached during the initial render survive every tick, so you can wire complex per-row behavior without redoing it on every progress event.</p>
 
             <div class="form-group">
@@ -660,5 +660,6 @@ el.renderFileItemCallback = (file) =&gt; `
     </script>
 
     <script type="module" src="/src/index.ts"></script>
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

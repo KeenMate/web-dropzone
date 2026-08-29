@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Example suite normalized to a shared vocabulary + chapter navigation** (dev-only; not part of the published packages). Mirrors the refactor already applied to the sibling `web-multiselect` examples:
+  - **`examples-shared.css` upgraded to the authoritative superset.** Was a stale subset (still titled "for multiselect", still carried the `web-multiselect option` FOAC rule). Now owns the full shared vocabulary — `.demo-card`, `.log-panel(--dark)`, `.reference-table`, `.note.warning`, `.btn-primary/secondary/outline` (+ `button:disabled`), `.dark-output`, `.badge(.new)`, `.controls`, grid presets via `--grid-min`, and the `.chapter-nav*` block — while keeping the dropzone-specific `.demo-toggle` / `.theme-card`. Each page's inline `<style>` was normalized down to genuinely page-specific rules.
+  - **Floating "on this page" chapter navigator** (`examples-chapter-nav.js`) added to every example page and to the index (fed a cross-page jump list from the page registry). Self-initializing, scroll-spied, positioned with Floating UI.
+  - **Section headings numbered** with the shared `PREFIX0N ·` convention (e.g. `AR01 ·`, `DC01 ·`) — stable per-page codes that double as chapter-nav labels.
+  - **Theme Gallery merged** into `examples-theming.html` (as a `#theme-gallery` section) and its standalone page removed; **Structural Rendering** page retitled to match its filename/registry (was "Custom Rendering").
+
 ## [1.0.0-rc02] - 2026-08-14 [PUBLISHED]
 
 ### Added

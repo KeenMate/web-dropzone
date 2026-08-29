@@ -17,28 +17,7 @@
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.5rem;
         }
-        .rem-demo-card {
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 1.5rem;
-            background: white;
-        }
-        .rem-demo-card h4 {
-            margin: 0 0 0.5rem 0;
-            font-size: 0.875rem;
-            color: #374151;
-        }
-        .rem-demo-card p {
-            margin: 0 0 1rem 0;
-            font-size: 0.75rem;
-            color: #6b7280;
-        }
-        .rem-demo-card code {
-            background: #f3f4f6;
-            padding: 0.125rem 0.375rem;
-            border-radius: 3px;
-            font-size: 0.7rem;
-        }
+        /* The rem demo cards use the shared .demo-card class. */
 
         #rem-compact { --dz-rem: 8px; }
         #rem-default { --dz-rem: 10px; }
@@ -118,6 +97,112 @@
             padding: 1.5rem;
             margin-top: 1rem;
         }
+
+        /* ---------------------------------------------------------------------
+           THEME GALLERY — six prebuilt themes (merged in from the former
+           examples-themes-gallery.html). Each themed card sets a handful of
+           --base-* / --dz-* variables; the .theme-card shell comes from shared.
+           --------------------------------------------------------------------- */
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 2rem;
+        }
+        .theme-card h3 { margin: 0 0 0.5rem 0; font-size: 1.5rem; }
+        .theme-card p { margin: 0 0 1.25rem 0; font-size: 0.95rem; }
+        .theme-card .form-group { margin-bottom: 1rem; }
+        .theme-card .form-group:last-child { margin-bottom: 0; }
+        .theme-card label { font-size: 0.85rem; }
+
+        /* DARK */
+        .dark-theme { background: #0f172a; color: #e2e8f0; }
+        .dark-theme h3, .dark-theme p, .dark-theme label { color: #e2e8f0; }
+        #dark-theme, #dark-theme-compact {
+            --base-input-background: #1e293b;
+            --base-text-color-1: #e2e8f0;
+            --base-text-color-3: #94a3b8;
+            --base-border-color: #334155;
+            --base-primary-bg: #1e293b;
+            --base-primary-bg-hover: #2c3a52;
+            --base-accent-color: #818cf8;
+            --base-text-on-accent: #ffffff;
+        }
+
+        /* NEON */
+        .neon-theme { background: #000000; color: #00ffff; }
+        .neon-theme h3 { color: #ff00ff; text-shadow: 0 0 10px #ff00ff; }
+        .neon-theme p, .neon-theme label { color: #00ffff; }
+        #neon-theme {
+            --base-input-background: #0a0a0a;
+            --base-text-color-1: #00ffff;
+            --base-text-color-3: #66ffff;
+            --base-border-color: #ff00ff;
+            --base-primary-bg: #0a0a0a;
+            --base-primary-bg-hover: #1a001a;
+            --base-accent-color: #ff00ff;
+            --base-text-on-accent: #ffffff;
+            --base-success-color: #00ff00;
+            --base-danger-color: #ff0066;
+        }
+
+        /* CORPORATE */
+        .corporate-theme { background: #f8fafc; color: #1e293b; border: 1px solid #e2e8f0; }
+        #corporate-theme {
+            --base-input-background: #ffffff;
+            --base-text-color-1: #0f172a;
+            --base-text-color-3: #64748b;
+            --base-border-color: #cbd5e1;
+            --base-primary-bg: #f1f5f9;
+            --base-primary-bg-hover: #e2e8f0;
+            --base-accent-color: #0369a1;
+            --base-accent-color-hover: #0284c7;
+            --base-border-radius-sm: 0.2;
+            --base-border-radius-md: 0.3;
+            --base-border-radius-lg: 0.4;
+        }
+
+        /* SUNSET */
+        .sunset-theme { background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%); color: #7c2d12; }
+        .sunset-theme h3, .sunset-theme p, .sunset-theme label { color: #7c2d12; }
+        #sunset-theme {
+            --base-input-background: #fffbeb;
+            --base-text-color-1: #7c2d12;
+            --base-text-color-3: #b45309;
+            --base-border-color: #fcd34d;
+            --base-primary-bg: #fef3c7;
+            --base-primary-bg-hover: #fde68a;
+            --base-accent-color: #ea580c;
+            --base-accent-color-hover: #c2410c;
+            --base-text-on-accent: #ffffff;
+            --base-border-radius-md: 1.0;
+            --base-border-radius-lg: 1.5;
+        }
+
+        /* FOREST */
+        .forest-theme { background: #064e3b; color: #d1fae5; }
+        .forest-theme h3, .forest-theme p, .forest-theme label { color: #d1fae5; }
+        #forest-theme {
+            --base-input-background: #065f46;
+            --base-text-color-1: #d1fae5;
+            --base-text-color-3: #a7f3d0;
+            --base-border-color: #047857;
+            --base-primary-bg: #065f46;
+            --base-primary-bg-hover: #047857;
+            --base-accent-color: #34d399;
+            --base-accent-color-hover: #10b981;
+            --base-text-on-accent: #064e3b;
+        }
+
+        /* MINIMAL (component-level vars) */
+        .minimal-theme { background: white; border: 1px solid #e5e7eb; }
+        #minimal-theme {
+            --dz-dropzone-border: 1px solid #d1d5db;
+            --dz-dropzone-border-radius: 0;
+            --dz-dropzone-min-height: 80px;
+            --dz-dropzone-icon-size: 24px;
+            --dz-dropzone-padding: 16px;
+            --dz-dropzone-text-font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -130,35 +215,35 @@
 
         <!-- INTRO -->
         <div class="card">
-            <h2>Three levels of theming</h2>
+            <h2>TH01 · Three levels of theming</h2>
             <p>From broadest to most surgical:</p>
             <ol style="margin: 0 0 1rem 1.5rem; line-height: 1.8;">
                 <li><strong><code>--base-*</code> variables</strong> — shared with <code>web-multiselect</code>, <code>web-daterangepicker</code>, and other KM components. Set them on a parent and every component picks up the same theme.</li>
                 <li><strong><code>--dz-*</code> variables</strong> — dropzone-only overrides for colors, radii, padding, font sizes, etc.</li>
                 <li><strong><code>--dz-rem</code> scaling</strong> — single CSS variable that proportionally scales every internal dimension.</li>
             </ol>
-            <p>For a showcase of what's possible, see the <a href="examples-themes-gallery.html">Theme Gallery</a>.</p>
+            <p>For a showcase of what's possible, see the <a href="#theme-gallery">Theme Gallery</a> further down this page.</p>
         </div>
 
         <!-- DZ-REM SCALING -->
         <div class="card">
-            <h2>Global scaling with <code>--dz-rem</code></h2>
+            <h2>TH02 · Global scaling with <code>--dz-rem</code></h2>
             <p>Every internal dimension is expressed as <code>calc(N * var(--dz-rem))</code>. Change <code>--dz-rem</code> once and the whole component scales — no per-variable overrides needed.</p>
 
             <div class="rem-demo">
-                <div class="rem-demo-card">
+                <div class="demo-card">
                     <h4>Compact (80%)</h4>
                     <p><code>--dz-rem: 8px</code></p>
                     <web-dropzone id="rem-compact" display-mode="detailed" accept="*/*" max-file-count="3"></web-dropzone>
                 </div>
 
-                <div class="rem-demo-card">
+                <div class="demo-card">
                     <h4>Default (100%)</h4>
                     <p><code>--dz-rem: 10px</code></p>
                     <web-dropzone id="rem-default" display-mode="detailed" accept="*/*" max-file-count="3"></web-dropzone>
                 </div>
 
-                <div class="rem-demo-card">
+                <div class="demo-card">
                     <h4>Large (120%)</h4>
                     <p><code>--dz-rem: 12px</code></p>
                     <web-dropzone id="rem-large" display-mode="detailed" accept="*/*" max-file-count="3"></web-dropzone>
@@ -178,7 +263,7 @@
 
         <!-- PER-VARIABLE OVERRIDES -->
         <div class="card">
-            <h2>Per-variable overrides (<code>--dz-*</code>)</h2>
+            <h2>TH03 · Per-variable overrides (<code>--dz-*</code>)</h2>
             <p>For surgical changes, override individual variables instead of <code>--dz-rem</code>.</p>
 
             <div class="grid">
@@ -204,7 +289,7 @@
 
         <!-- FONT FAMILY -->
         <div class="card">
-            <h2>Custom fonts via <code>--dz-font-family</code></h2>
+            <h2>TH04 · Custom fonts via <code>--dz-font-family</code></h2>
             <p>The shadow DOM inherits the host font. Set <code>font-family</code> directly or via <code>--dz-font-family</code>.</p>
 
             <div class="grid">
@@ -233,7 +318,7 @@ web-dropzone { --dz-font-family: 'Inter', sans-serif; }</code></pre>
 
         <!-- BASE VARIABLES INTRO -->
         <div class="card">
-            <h2>Cross-component theming with <code>--base-*</code></h2>
+            <h2>TH05 · Cross-component theming with <code>--base-*</code></h2>
             <p>The KM web-component family shares a small set of theming variables prefixed <code>--base-*</code>. Set them on a parent element and <em>every</em> KM component below inherits the same palette.</p>
 
             <div class="note">
@@ -249,7 +334,7 @@ web-dropzone { --dz-font-family: 'Inter', sans-serif; }</code></pre>
         <!-- LIVE PLAYGROUND -->
         <div class="controls-card">
             <div class="controls-header">
-                <h2>Live Playground</h2>
+                <h2>TH06 · Live Playground</h2>
                 <button class="reset-btn" onclick="resetVars()">Reset to defaults</button>
             </div>
 
@@ -328,7 +413,7 @@ web-dropzone { --dz-font-family: 'Inter', sans-serif; }</code></pre>
 
         <!-- LIVE PREVIEW -->
         <div class="card">
-            <h2>Live Preview</h2>
+            <h2>TH07 · Live Preview</h2>
             <p>This zone reflects the playground above — every dropzone inside picks up your edits instantly.</p>
 
             <div class="demo-zone" id="theme-zone">
@@ -356,9 +441,81 @@ web-dropzone { --dz-font-family: 'Inter', sans-serif; }</code></pre>
             </div>
         </div>
 
+        <!-- THEME GALLERY (merged from the former examples-themes-gallery.html) -->
+        <div class="card" id="theme-gallery">
+            <h2>TH08 · 🎭 Theme Gallery</h2>
+            <p>Six prebuilt themes showing what a handful of <code>--base-*</code> / <code>--dz-*</code> variables can do. Each card sets its own palette — the recipe below shows how to build your own.</p>
+
+            <div class="theme-grid">
+                <!-- DARK -->
+                <div class="theme-card dark-theme">
+                    <h3>🌙 Dark</h3>
+                    <p>Slate blue palette with subtle indigo accent.</p>
+                    <div class="form-group">
+                        <label>detailed</label>
+                        <web-dropzone id="dark-theme" display-mode="detailed" accept="*/*" max-file-count="5"></web-dropzone>
+                    </div>
+                    <div class="form-group">
+                        <label>compact</label>
+                        <web-dropzone id="dark-theme-compact" display-mode="compact" accept="*/*" max-file-count="10"></web-dropzone>
+                    </div>
+                </div>
+
+                <!-- NEON -->
+                <div class="theme-card neon-theme">
+                    <h3>⚡ Neon</h3>
+                    <p>Cyberpunk magenta and cyan on black.</p>
+                    <div class="form-group">
+                        <label>grid</label>
+                        <web-dropzone id="neon-theme" display-mode="grid" accept="image/*" max-file-count="6"></web-dropzone>
+                    </div>
+                </div>
+
+                <!-- CORPORATE -->
+                <div class="theme-card corporate-theme">
+                    <h3>💼 Corporate</h3>
+                    <p>Conservative palette with sharp 4px corners.</p>
+                    <div class="form-group">
+                        <label>detailed</label>
+                        <web-dropzone id="corporate-theme" display-mode="detailed" accept=".pdf,.docx,.xlsx" max-file-count="5"></web-dropzone>
+                    </div>
+                </div>
+
+                <!-- SUNSET -->
+                <div class="theme-card sunset-theme">
+                    <h3>🌅 Sunset</h3>
+                    <p>Warm amber tones with rounded corners.</p>
+                    <div class="form-group">
+                        <label>list</label>
+                        <web-dropzone id="sunset-theme" display-mode="list" accept="*/*" max-file-count="5"></web-dropzone>
+                    </div>
+                </div>
+
+                <!-- FOREST -->
+                <div class="theme-card forest-theme">
+                    <h3>🌲 Forest</h3>
+                    <p>Deep emerald with mint accent.</p>
+                    <div class="form-group">
+                        <label>detailed</label>
+                        <web-dropzone id="forest-theme" display-mode="detailed" accept="*/*" max-file-count="5"></web-dropzone>
+                    </div>
+                </div>
+
+                <!-- MINIMAL -->
+                <div class="theme-card minimal-theme">
+                    <h3>◻ Minimal</h3>
+                    <p>Component-level overrides for a flat, compact look.</p>
+                    <div class="form-group">
+                        <label>list</label>
+                        <web-dropzone id="minimal-theme" display-mode="list" accept="*/*" max-file-count="5"></web-dropzone>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- BUILDING A THEME -->
         <div class="card">
-            <h2>Building a theme — recipe</h2>
+            <h2>TH09 · Building a theme — recipe</h2>
             <p>Combine all three levels. Start broad with <code>--base-*</code>, then override <code>--dz-*</code> for dropzone-only touch-ups, and use <code>--dz-rem</code> if you need a different overall size.</p>
 
             <div class="code-block">
@@ -417,5 +574,6 @@ web-dropzone { --dz-rem: 11px; }</code></pre>
     </script>
 
     <script type="module" src="/src/index.ts"></script>
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

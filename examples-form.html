@@ -58,7 +58,7 @@
 
         <!-- HOW IT WORKS -->
         <div class="card">
-            <h2>How it works</h2>
+            <h2>FI01 · How it works</h2>
             <p><code>&lt;web-dropzone&gt;</code> is a <strong>form-associated custom element</strong>. Set <code>name="..."</code> and the surrounding form sees every selected file as a real <code>File</code> blob — exactly like <code>&lt;input type="file" multiple&gt;</code>.</p>
 
             <div class="note">
@@ -73,7 +73,7 @@
 
         <!-- LIVE FORM -->
         <div class="card">
-            <h2>Live Form Submission</h2>
+            <h2>FI02 · Live Form Submission</h2>
             <p>The form below intercepts submit and renders the captured <code>FormData</code> entries — no network request. Try selecting files, typing in the text fields, and hitting <strong>Submit</strong>.</p>
 
             <form id="upload-form">
@@ -113,7 +113,7 @@
 
         <!-- WHAT YOU GET SERVER-SIDE -->
         <div class="card">
-            <h2>What the server sees</h2>
+            <h2>FI03 · What the server sees</h2>
             <p>When this form is POSTed with <code>enctype="multipart/form-data"</code>, the server receives each file under the <code>attachments</code> field — same wire format as a standard file input.</p>
 
             <div class="code-block">
@@ -143,7 +143,7 @@ app.post('/upload', upload.array('attachments'), (req, res) => {
 
         <!-- RESET BEHAVIOR -->
         <div class="card">
-            <h2>Form Reset</h2>
+            <h2>FI04 · Form Reset</h2>
             <p>Native <code>form.reset()</code> clears the dropzone via <code>formResetCallback()</code>. The reset button above demonstrates this — pick a few files, hit Reset, and the selection disappears alongside the text fields.</p>
 
             <div class="code-block">
@@ -155,7 +155,7 @@ app.post('/upload', upload.array('attachments'), (req, res) => {
 
         <!-- NAMING -->
         <div class="card">
-            <h2>Field Naming</h2>
+            <h2>FI05 · Field Naming</h2>
             <p>Like any form control, the <code>name</code> attribute determines the key under which the dropzone's value appears in <code>FormData</code>.</p>
 
             <div class="grid">
@@ -224,5 +224,6 @@ app.post('/upload', upload.array('attachments'), (req, res) => {
     </script>
 
     <script type="module" src="/src/index.ts"></script>
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

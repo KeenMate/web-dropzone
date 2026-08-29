@@ -6,16 +6,6 @@
     <title>Simulated Uploads - Web Dropzone</title>
     <link rel="stylesheet" href="examples-shared.css">
     <style>
-        .code-block { font-size: 1.25rem; }
-        .scenario-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-        }
-        @media (max-width: 900px) {
-            .scenario-row { grid-template-columns: 1fr; }
-        }
-
         /* Playground control panel */
         .playground-controls {
             display: grid;
@@ -156,7 +146,7 @@
 
         <!-- INTRO -->
         <div class="card">
-            <h2>How this page works</h2>
+            <h2>UP01 · How this page works</h2>
             <p>web-dropzone's built-in upload pipeline takes a single async handler. The component runs files through a worker pool of size <code>concurrency</code>, awaits each handler Promise, drives <code>file.status</code> from the outcome, and exposes Pause / Resume / Cancel / Retry. The handler signature includes a <code>context</code> arg carrying <strong>resume offset</strong> and <strong>persistent metadata</strong> — so handlers backed by Content-Range / tus.io / S3 multipart can pick up where a paused upload left off:</p>
             <pre class="code-block"><code>dropzone.uploadFileCallback = async (file, onProgress, signal, context) => {
     // file       — the native File blob
@@ -175,7 +165,7 @@ dropzone.autoUpload   = true    // start uploads on add (default)</code></pre>
 
         <!-- PLAYGROUND -->
         <div class="card">
-            <h2>Playground</h2>
+            <h2>UP02 · Playground</h2>
             <p>One dropzone, all the knobs — selector + list appearance, success rate, concurrency, per-file duration, auto vs. manual upload. Every control persists to <code>localStorage</code> under the <code>dz-upload-</code> prefix so your last setup survives a reload. Manual mode lets you stage files and click <strong>Start uploads</strong> when ready — useful for "stage everything, submit on form submit" patterns.</p>
             <p>The handler is <strong>resume-aware</strong> — it honors <code>context.startBytes</code> and stashes an attempt counter in <code>file.metadata</code> via <code>context.setMetadata</code>. Pause + Resume continues from where the bar stopped; per-row Retry (or "Retry all") restarts a failed upload from <code>0</code>. The log panel below distinguishes <strong>fresh starts</strong>, <strong>resumes</strong> (mid-stream after pause), and <strong>retries</strong> (fresh start after a failure) so you can verify the metadata flows correctly across each transition. Drop the success rate to ~30% and you'll see the failure → retry loop in action.</p>
 
@@ -298,7 +288,7 @@ dropzone.autoUpload   = true    // start uploads on add (default)</code></pre>
 
         <!-- WIRING -->
         <div class="card">
-            <h2>How to wire a real upload</h2>
+            <h2>UP03 · How to wire a real upload</h2>
             <p>Set <code>uploadFileCallback</code> to a function that does the actual <code>fetch()</code> against your endpoint. The component handles the rest — queue, concurrency, status transitions, abort signal for pause/cancel/remove.</p>
             <p><strong>Single-shot upload</strong> (server-side state not resumable):</p>
             <pre class="code-block"><code>dropzone.uploadFileCallback = (file, onProgress, signal, ctx) => new Promise((resolve, reject) => {
@@ -708,5 +698,6 @@ dropzone.retryPolicy = { attempts: 3, delayMs: 1000, backoff: 2 }</code></pre>
     </script>
 
     <script type="module" src="/src/index.ts"></script>
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

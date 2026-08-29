@@ -87,7 +87,7 @@
 
         <!-- DISPLAY: THREE ORTHOGONAL AXES -->
         <div class="card">
-            <h2>Display: three orthogonal axes</h2>
+            <h2>DC01 · Display: three orthogonal axes</h2>
             <p>The visual surface is split into three independent attributes you can combine freely:</p>
             <ul style="margin: 0 0 1rem 1.5rem; line-height: 1.8;">
                 <li><code>selector-appearance</code> — <strong>card</strong> · button · minimal · <em>(what the user clicks/drops onto)</em></li>
@@ -99,7 +99,7 @@
 
         <!-- COMPOSABLE CONTROLS (Plyr-style) -->
         <div class="card">
-            <h2>Composable controls (<code>controls</code> + <code>item-controls</code>)</h2>
+            <h2>DC02 · Composable controls (<code>controls</code> + <code>item-controls</code>)</h2>
             <p>Two Plyr-style allowlists. <code>controls</code> picks which top-level <strong>surfaces</strong> render; <code>item-controls</code> picks which <strong>parts of each file row</strong> render. Both are comma-separated; when an attribute is absent everything renders. Toggle the boxes and watch the dropzone recompose live — add a file to see the progress parts animate.</p>
 
             <div class="grid">
@@ -139,7 +139,7 @@
 
         <!-- RECIPES: progress rules in userland -->
         <div class="card">
-            <h2>Recipes — progress rules in userland</h2>
+            <h2>DC03 · Recipes — progress rules in userland</h2>
             <p>Count- or state-based progress behaviour doesn't need dedicated attributes — compose it from the primitives above plus the <code>change</code> event and <code>auto-upload</code>. Two common asks:</p>
 
             <h3 style="margin: 1rem 0 0.5rem;">Per-row bars only at 4+ files <em>(count-based)</em></h3>
@@ -183,7 +183,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- SELECTOR APPEARANCE -->
         <div class="card">
-            <h2>Selector Appearance (<code>selector-appearance</code>)</h2>
+            <h2>DC04 · Selector Appearance (<code>selector-appearance</code>)</h2>
             <p>Four visual entry points for picking files.</p>
 
             <div class="grid">
@@ -227,7 +227,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- LIST APPEARANCE -->
         <div class="card">
-            <h2>List Appearance (<code>list-appearance</code>)</h2>
+            <h2>DC05 · List Appearance (<code>list-appearance</code>)</h2>
             <p>How the picked files are presented. Six options ranging from a simple vertical list to badge-style pills or a hidden popover.</p>
 
             <div class="grid">
@@ -302,7 +302,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- GRID TUNING — LIVE CONTROLS -->
         <div class="card">
-            <h2>Grid tuning — live controls</h2>
+            <h2>DC06 · Grid tuning — live controls</h2>
             <p>Grid mode is almost entirely CSS-variable driven. Drop a few images below, then move the sliders to reshape the grid in real time. The panel writes the same <code>--dz-*</code> custom properties you'd set in your own CSS — the live readout is copy-pasteable.</p>
             <p>Switch <code>grid-layout</code> to <strong>natural</strong> for a justified photo gallery: mixed portrait/landscape images share one row height (<code>--dz-preview-row-height</code>) and keep their own aspect ratio — nothing cropped or stretched. In <strong>uniform</strong> layout, <code>object-fit</code> chooses crop (<code>cover</code>) vs. fit (<code>contain</code>). Set <code>grid-status="overlay"</code> and let a file finish uploading to see the light veil + big centred check/error glyph.</p>
 
@@ -419,7 +419,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- CARD SIZE -->
         <div class="card">
-            <h2>Card Size (<code>card-size</code>)</h2>
+            <h2>DC07 · Card Size (<code>card-size</code>)</h2>
             <p>Density variants for the card selector. Only meaningful when <code>selector-appearance="card"</code>.</p>
 
             <div class="grid">
@@ -450,7 +450,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- FILES-INSIDE LAYOUT -->
         <div class="card">
-            <h2>Files-Inside Layout (<code>files-inside</code>)</h2>
+            <h2>DC08 · Files-Inside Layout (<code>files-inside</code>)</h2>
             <p>Render the file list <em>inside</em> the dropzone area instead of below it. Useful when vertical space is constrained or when you want a unified container look.</p>
 
             <div class="grid">
@@ -473,7 +473,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- COMMON COMBOS -->
         <div class="card">
-            <h2>Common combinations</h2>
+            <h2>DC09 · Common combinations</h2>
             <p>Mixing the three axes covers the patterns users actually want — toolbars, attachment fields, marketing landings, and more.</p>
 
             <div class="grid">
@@ -508,7 +508,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- SUMMARY TEMPLATE (popover/compact-specific) -->
         <div class="card">
-            <h2>Summary Template (<code>summary-template</code>)</h2>
+            <h2>DC10 · Summary Template (<code>summary-template</code>)</h2>
             <p>When <code>list-appearance="popover"</code> the summary line supports <code>{count}</code> and <code>{size}</code> placeholders — quick customization without writing JS. For richer summaries (pluralization, badges) use <code>renderSummaryCallback</code>; see <a href="examples-structural.html">Structural Rendering</a>.</p>
 
             <div class="grid">
@@ -531,7 +531,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- POPOVER PLACEMENT -->
         <div class="card">
-            <h2>Popover Placement (<code>popover-placement</code>)</h2>
+            <h2>DC11 · Popover Placement (<code>popover-placement</code>)</h2>
             <p>Positioning uses <a href="https://floating-ui.com" target="_blank">Floating UI</a>, so it auto-flips on viewport collisions. The attribute sets the preferred initial placement.</p>
 
             <div class="placement-grid">
@@ -564,7 +564,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- LEGACY SHORTHAND -->
         <div class="card">
-            <h2>Legacy <code>display-mode</code> shorthand</h2>
+            <h2>DC12 · Legacy <code>display-mode</code> shorthand</h2>
             <p>The original single-axis attribute still works as a shorthand. When both are set, the orthogonal attribute wins.</p>
 
             <ul style="margin: 0 0 1rem 1.5rem; line-height: 1.8;">
@@ -589,7 +589,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- SINGLE vs MULTIPLE -->
         <div class="card">
-            <h2>Single vs Multiple</h2>
+            <h2>DC13 · Single vs Multiple</h2>
             <p>The <code>multiple</code> attribute defaults to <code>true</code>. Set <code>multiple="false"</code> to lock to a single file (subsequent drops replace the existing selection).</p>
 
             <div class="grid">
@@ -607,7 +607,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- ACCEPT PATTERNS -->
         <div class="card">
-            <h2>Accept Patterns</h2>
+            <h2>DC14 · Accept Patterns</h2>
             <p>The <code>accept</code> attribute uses the same syntax as the native <code>&lt;input type="file"&gt;</code>: comma-separated MIME types, MIME wildcards, or file extensions.</p>
 
             <div class="grid">
@@ -635,7 +635,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- DISABLED -->
         <div class="card">
-            <h2>Disabled State</h2>
+            <h2>DC15 · Disabled State</h2>
             <p>The <code>disabled</code> attribute follows HTML convention: presence enables it, <code>="false"</code> overrides.</p>
 
             <div class="grid">
@@ -658,7 +658,7 @@ startBtn.addEventListener('click', () =&gt; dz.uploadAll())
 
         <!-- PROGRAMMATIC API -->
         <div class="card">
-            <h2>Programmatic API</h2>
+            <h2>DC16 · Programmatic API</h2>
             <p>Methods and events let you drive the dropzone from your own code.</p>
 
             <div class="form-group">
@@ -908,5 +908,6 @@ const files = el.files       // current FileState[]</code></pre>
     </script>
 
     <script type="module" src="/src/index.ts"></script>
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>

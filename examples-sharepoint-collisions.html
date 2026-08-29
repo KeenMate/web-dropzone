@@ -313,7 +313,7 @@
         </header>
 
         <div class="card">
-            <h2>What this demonstrates</h2>
+            <h2>SP01 · What this demonstrates</h2>
             <p>This is the flow a SharePoint / OneDrive document library uses when you drop files into a folder:</p>
             <ol style="margin:0.75rem 0 0 1.5rem;line-height:1.8;">
                 <li>The user drops files onto the zone.</li>
@@ -326,7 +326,7 @@
 
         <!-- LIVE DEMO -->
         <div class="card">
-            <h2>Live demo</h2>
+            <h2>SP02 · Live demo</h2>
             <p>The "server" here is just an in-page <code>Set</code> of filenames, with a fake 300ms round-trip. Drop a file matching one of these and you'll see the collision flow:</p>
 
             <div class="sp-inventory" id="sp-inventory">
@@ -360,7 +360,7 @@
 
         <!-- WIRING -->
         <div class="card">
-            <h2>How the wiring works</h2>
+            <h2>SP03 · How the wiring works</h2>
             <p>Three pieces:</p>
 
             <p><strong>1. A side <code>Map</code> holds the user's decision for each colliding file.</strong> It's keyed by <code>FileState.id</code> and updated by the per-row UI. The framework doesn't need to know it exists — the upload callback closes over it.</p>
@@ -852,5 +852,6 @@
     </script>
 
     <script type="module" src="/src/index.ts"></script>
+    <script type="module" src="examples-chapter-nav.js"></script>
 </body>
 </html>
