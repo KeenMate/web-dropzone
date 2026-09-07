@@ -35,9 +35,9 @@
   line-height: 1;
 }
 
-/* When the icon is a Lucide SVG (any non-paperclip state) it sizes to the
-   same slot as per-row status icons so the summary line doesn't jitter as
-   the aggregate state switches between emoji and SVG. */
+/* Every summary state is now a Lucide SVG (idle paperclip + per-status
+   glyphs), each sized to the same slot as the per-row status icons so the
+   summary line doesn't jitter as the aggregate state changes. */
 .dz__summary__icon > svg {
   width: var(--dz-status-icon-size);
   height: var(--dz-status-icon-size);

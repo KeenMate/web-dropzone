@@ -31,6 +31,12 @@
 .dz__overlay__icon {
   font-size: var(--dz-overlay-icon-size);
   line-height: 1;
+  display: inline-flex;
+}
+.dz__overlay__icon > svg {
+  width: 1em;
+  height: 1em;
+  display: block;
 }
 
 .dz__overlay__text {

@@ -626,6 +626,28 @@ export interface DropzoneConfig {
      *  `beforeFilesAddedCallback`. */
     validateCallback?: ((file: File, existingFiles: FileState[]) => ValidationResult) | null;
 
+    /**
+     * Icon overrides layered on top of the built-in category icons, keyed by
+     * file EXTENSION (`psd`, `.fig` — leading dot optional, case-insensitive)
+     * OR by category name (`image`, `archive`, `default`, …). Extension keys
+     * win over category keys, which win over the built-in Lucide icon. Values
+     * are raw HTML strings (SVG / `<img>` / emoji).
+     *
+     * ⚠️ Raw HTML — inserted via `innerHTML`, NOT sanitized. Only pass markup
+     * you control; never untrusted / user-supplied strings. See the HTML
+     * Injection (XSS) notice in the README.
+     */
+    fileIcons?: Record<string, string> | null;
+
+    /**
+     * Full-control icon resolver, consulted BEFORE `fileIcons` and the
+     * built-in categories. Return an HTML string to use it, or `null` /
+     * `undefined` to fall through to `fileIcons` → category → default.
+     *
+     * ⚠️ Raw HTML — same caveat as `fileIcons`: NOT sanitized.
+     */
+    fileIconCallback?: ((file: File) => string | null | undefined) | null;
+
     /** Async user-confirmation gate fired once per add batch AFTER all
      *  sync validation passes. Receives the array of File objects that
      *  survived validation. Resolve `true` to accept; resolve `false` to
@@ -1002,18 +1024,18 @@ export type FileTypeCategory =
     | 'text'
     | 'default';
 
+// FILE_TYPE_ICONS moved to `icons.ts` (the Lucide icon home) — re-exported from
+// the core barrel so `import { FILE_TYPE_ICONS } from '@keenmate/web-dropzone-core'`
+// still resolves. Kept out of this types module to avoid a types → icons cycle.
+
 /**
- * File type icon mapping
+ * The two consumer icon-override hooks, as a standalone slice so `getFileIcon`
+ * can take them without depending on the whole `DropzoneConfig`. A full
+ * `DropzoneConfig` is structurally assignable to this, so renderers can just
+ * pass `this.config`. See `DropzoneConfig.fileIcons` / `.fileIconCallback` for
+ * the resolution order and the raw-HTML (XSS) caveat.
  */
-export const FILE_TYPE_ICONS: Record<FileTypeCategory, string> = {
-    image: '🖼️',
-    video: '🎬',
-    audio: '🎵',
-    pdf: '📄',
-    doc: '📝',
-    spreadsheet: '📊',
-    archive: '📦',
-    code: '💻',
-    text: '📃',
-    default: '📁'
-};
+export interface FileIconOverrides {
+    fileIcons?: Record<string, string> | null;
+    fileIconCallback?: ((file: File) => string | null | undefined) | null;
+}

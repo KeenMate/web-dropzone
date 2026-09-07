@@ -69,7 +69,7 @@ export {
 
 // Status / action icons live in `../core/icons` so the satellite renderers
 // and any user-provided callbacks can share the same Lucide SVG family.
-import { STATUS_ICONS, STATUS_LABELS, actionForStatus } from '@keenmate/web-dropzone-core';
+import { STATUS_ICONS, STATUS_LABELS, actionForStatus, UI_ICONS } from '@keenmate/web-dropzone-core';
 // Row templates (list / detailed / grid / badges) are shared with the
 // `<web-dropzone-list>` satellite via `./row-templates` — single source of
 // truth so the polished styling in `_file-item.css` applies identically
@@ -1521,7 +1521,10 @@ export class WebDropzone extends DropzoneCore {
             useThumbnail: this.shouldShowThumbnails(appearance),
             // `itemControls` allowlist → a Set the row templates filter on.
             // Undefined (absent) keeps the default "render every part" path.
-            parts: this.config.itemControls ? new Set(this.config.itemControls) : undefined
+            parts: this.config.itemControls ? new Set(this.config.itemControls) : undefined,
+            // Consumer icon overrides (fileIcons map + fileIconCallback). The
+            // config satisfies FileIconOverrides structurally, so pass it whole.
+            iconOverrides: this.config
         };
     }
 
@@ -1543,7 +1546,7 @@ export class WebDropzone extends DropzoneCore {
 
     private renderCompactItem(file: FileState): string {
         const useThumbnail = this.shouldShowThumbnails('popover');
-        const inner = RowTemplate.renderPlaceholderInner(file, useThumbnail);
+        const inner = RowTemplate.renderPlaceholderInner(file, useThumbnail, this.config);
         const statusClass = `dz__popover__status--${file.status}`;
         const isUploading = file.status === 'uploading';
         const removable = this.isFileUserRemovable(file);
@@ -1589,7 +1592,7 @@ export class WebDropzone extends DropzoneCore {
     private renderSummaryIcon(): string {
         const overall = this.getOverallProgress();
         if (!overall.hasActivity) {
-            return '<span class="dz__summary__icon" data-status="pending">📎</span>';
+            return `<span class="dz__summary__icon" data-status="pending">${UI_ICONS.paperclip}</span>`;
         }
         const s = overall.aggregateStatus;
         return `<span class="dz__summary__icon dz__summary__icon--${s}" data-status="${s}" aria-label="Status: ${STATUS_LABELS[s]}">${STATUS_ICONS[s]}</span>`;

@@ -12,8 +12,10 @@
 
 import type {
     DropzoneConfig,
-    FileTypeCategory
+    FileTypeCategory,
+    FileIconOverrides
 } from './types';
+import { FILE_TYPE_ICONS, UI_ICONS } from './icons';
 
 /**
  * Default configuration values. The `Required<Omit<…>>` shape lists every
@@ -21,7 +23,7 @@ import type {
  * is either a callback (no default) or a runtime-resolved reference
  * (`container`, `hostElement`, `overlayTarget`).
  */
-export const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 'beforeFilesAddedCallback' | 'beforeFilesRemovedCallback' | 'uploadFileCallback' | 'renderFileItemCallback' | 'renderListWrapperCallback' | 'renderPromptCallback' | 'renderSummaryCallback' | 'customStylesCallback' | 'persistStateCallback' | 'loadStateCallback' | 'storageKey' | 'container' | 'hostElement' | 'overlayTarget' | 'selectorAppearance' | 'listAppearance' | 'gridLayout' | 'gridStatus' | 'controls' | 'itemControls' | 'cardSize' | 'isShowThumbnailsEnabled' | 'retryPolicy' | 'rollingRotation' | 'isHeadless' | 'renderRollingBodyCallback' | 'renderRollingFileInfoCallback' | 'renderRollingProgressCallback'>> = {
+export const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'fileIcons' | 'fileIconCallback' | 'validateCallback' | 'beforeFilesAddedCallback' | 'beforeFilesRemovedCallback' | 'uploadFileCallback' | 'renderFileItemCallback' | 'renderListWrapperCallback' | 'renderPromptCallback' | 'renderSummaryCallback' | 'customStylesCallback' | 'persistStateCallback' | 'loadStateCallback' | 'storageKey' | 'container' | 'hostElement' | 'overlayTarget' | 'selectorAppearance' | 'listAppearance' | 'gridLayout' | 'gridStatus' | 'controls' | 'itemControls' | 'cardSize' | 'isShowThumbnailsEnabled' | 'retryPolicy' | 'rollingRotation' | 'isHeadless' | 'renderRollingBodyCallback' | 'renderRollingFileInfoCallback' | 'renderRollingProgressCallback'>> = {
     isMultipleEnabled: true,
     accept: '',
     maxFileSize: 0,
@@ -39,7 +41,7 @@ export const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 
     progressThrottle: 0,
     displayMode: 'list',
     isFilesInsideEnabled: false,
-    icon: '📤',
+    icon: UI_ICONS.cloudUpload,
     promptText: 'Drop files here or click to browse',
     selectFilesText: 'Select files',
     noFileChosenText: 'No file chosen',
@@ -49,7 +51,7 @@ export const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 
     summaryTemplate: '{count} file(s), {size}',
     popoverPlacement: 'bottom-start',
     overlayText: 'Drop files here',
-    overlayIcon: '📎',
+    overlayIcon: UI_ICONS.upload,
     name: '',
     valueFormat: 'json',
     concurrency: 1,
@@ -61,22 +63,12 @@ export const DEFAULT_CONFIG: Required<Omit<DropzoneConfig, 'validateCallback' | 
 };
 
 /**
- * File-type emoji icons. Used by `getFileIcon` to render a glyph based on
- * the file's MIME type / extension; the renderer reaches for this directly
- * inside its row templates.
+ * File-type icons used by `getFileIcon` to render a glyph based on the file's
+ * MIME type / extension; the renderer reaches for this directly inside its row
+ * templates. Aliases the canonical Lucide set in `icons.ts` — kept exported
+ * under this historical name so existing `FILE_ICONS` imports keep resolving.
  */
-export const FILE_ICONS: Record<FileTypeCategory, string> = {
-    image: '🖼️',
-    video: '🎬',
-    audio: '🎵',
-    pdf: '📄',
-    doc: '📝',
-    spreadsheet: '📊',
-    archive: '📦',
-    code: '💻',
-    text: '📃',
-    default: '📁'
-};
+export const FILE_ICONS: Record<FileTypeCategory, string> = FILE_TYPE_ICONS;
 
 /**
  * Generate a unique ID for a file
@@ -117,12 +109,48 @@ export function getFileTypeCategory(file: File): FileTypeCategory {
     return 'default';
 }
 
+/** Lowercased extension without the dot (`photo.PNG` → `png`); '' if none. */
+function fileExtension(name: string): string {
+    const dot = name.lastIndexOf('.');
+    return dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
+}
+
 /**
- * Get file icon for a file
+ * Case- and leading-dot-insensitive lookup in a user icon map. Maps are tiny
+ * (a handful of keys), so the linear scan is cheaper than pre-normalizing.
  */
-export function getFileIcon(file: File): string {
-    const category = getFileTypeCategory(file);
-    return FILE_ICONS[category];
+function lookupIconMap(map: Record<string, string>, probe: string): string | undefined {
+    if (!probe) return undefined;
+    for (const key in map) {
+        if (key.replace(/^\./, '').toLowerCase() === probe) return map[key];
+    }
+    return undefined;
+}
+
+/**
+ * Resolve the icon markup for a file. Resolution order, first hit wins:
+ *   1. `overrides.fileIconCallback(file)` (non-null return)
+ *   2. `overrides.fileIcons[<extension>]`  (e.g. `psd`)
+ *   3. `overrides.fileIcons[<category>]`   (e.g. `archive`)
+ *   4. built-in Lucide category icon
+ *
+ * `overrides` is any object exposing `fileIcons` / `fileIconCallback` — a full
+ * `DropzoneConfig` qualifies, so renderers pass `this.config` directly. Returns
+ * a raw HTML string (see the XSS caveat on `DropzoneConfig.fileIcons`).
+ */
+export function getFileIcon(file: File, overrides?: FileIconOverrides): string {
+    const fromCallback = overrides?.fileIconCallback?.(file);
+    if (fromCallback != null) return fromCallback;
+
+    const map = overrides?.fileIcons;
+    if (map) {
+        const byExt = lookupIconMap(map, fileExtension(file.name));
+        if (byExt !== undefined) return byExt;
+        const byCategory = lookupIconMap(map, getFileTypeCategory(file));
+        if (byCategory !== undefined) return byCategory;
+    }
+
+    return FILE_ICONS[getFileTypeCategory(file)];
 }
 
 /**

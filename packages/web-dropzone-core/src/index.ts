@@ -42,7 +42,9 @@ export {
     ACTION_ICONS,
     ACTION_LABELS,
     actionForStatus,
-    createDropzoneSpinner
+    createDropzoneSpinner,
+    FILE_TYPE_ICONS,
+    UI_ICONS
 } from './icons';
 export type { RowAction } from './icons';
 
@@ -79,6 +81,7 @@ export type {
     FileDeletedEventDetail,
     DropzoneEventDetail,
     FileTypeCategory,
+    FileIconOverrides,
     AddFilesOptions,
     OverallProgress,
     DedupeMode,
@@ -98,7 +101,6 @@ export type {
     GridLayout,
     GridStatus
 } from './types';
-export { FILE_TYPE_ICONS } from './types';
 
 // ---- Logging utilities (runtime control) -------------------------------
 export {

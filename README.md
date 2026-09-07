@@ -114,7 +114,7 @@ dropzone.clear();
 | `drop-hint` | `string` | `'or click to browse'` | Hint text below drop text |
 | `overlay-target` | `string` | - | Element ID for drag overlay (ultra-compact mode) |
 | `overlay-text` | `string` | `'Drop files here'` | Text shown in drag overlay |
-| `overlay-icon` | `string` | `'📎'` | Icon shown in drag overlay |
+| `overlay-icon` | `string` (raw HTML) | Lucide `upload` | Icon shown in drag overlay. Accepts any HTML (SVG / `<img>` / emoji) — see the [XSS notice](#html-injection-xss-notice) |
 
 ## Display Modes
 
@@ -238,6 +238,49 @@ const isMultiple = dropzone.multiple;
 // Check if disabled
 const isDisabled = dropzone.disabled;
 ```
+
+## File-type icons
+
+Each file row shows an icon resolved from the file's **category** (`image`, `video`, `audio`, `pdf`, `doc`, `spreadsheet`, `archive`, `code`, `text`, `default`) — Lucide glyphs out of the box. Override them per **extension** or per **category** with the `fileIcons` map, or take full control with the `fileIconCallback`. Both are JS-only properties (no HTML attribute).
+
+```javascript
+const dropzone = document.querySelector('web-dropzone');
+
+// Map keyed by EXTENSION (leading dot optional, case-insensitive) or CATEGORY.
+// Extension keys win over category keys, which win over the built-in icon.
+dropzone.fileIcons = {
+  psd: '<svg viewBox="0 0 24 24">…</svg>',   // by extension
+  fig: '<img src="/icons/figma.svg" alt="">',
+  archive: '📦',                             // override a whole category
+};
+
+// Full-control resolver — consulted BEFORE the map. Return HTML to use it,
+// or null/undefined to fall through to fileIcons → category → default.
+dropzone.fileIconCallback = (file) =>
+  file.name.endsWith('.sketch') ? '<svg>…</svg>' : null;
+```
+
+**Resolution order** (first hit wins): `fileIconCallback` → `fileIcons[extension]` → `fileIcons[category]` → built-in category icon.
+
+> ⚠️ Icon values are **raw HTML** inserted via `innerHTML` and are **NOT sanitized**. Only pass markup you control — never untrusted / user-supplied strings. See the [HTML injection (XSS) notice](#html-injection-xss-notice).
+
+## HTML injection (XSS) notice
+
+The following properties / callbacks accept **raw HTML** and are intentionally **NOT XSS-safe** — this gives you full control over rendering but means you must sanitize any untrusted data before passing it in:
+
+| Property / callback | Output used in | Risk |
+|---------------------|----------------|------|
+| `fileIcons` (map values) | File-row icon slot (innerHTML) | HTML injection |
+| `fileIconCallback` | File-row icon slot (innerHTML) | HTML injection |
+| `icon` attr / property | Drop-zone + minimal prompt (innerHTML) | HTML injection |
+| `overlay-icon` attr / property | Drag overlay (innerHTML) | HTML injection |
+| `renderFileItemCallback` | File rows (innerHTML) | HTML injection |
+| `renderListWrapperCallback` | List wrapper (innerHTML) | HTML injection |
+| `renderPromptCallback` | Drop-area prompt (innerHTML) | HTML injection |
+| `renderSummaryCallback` | Compact-mode summary (innerHTML) | HTML injection |
+| `customStylesCallback` | Injected `<style>` (textContent) | CSS injection |
+
+**If any of these can contain user-generated content, sanitize it first** (e.g. DOMPurify). Built-in defaults and static markup you author are safe; the risk is only in interpolating untrusted strings.
 
 ## Methods
 

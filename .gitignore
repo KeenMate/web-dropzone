@@ -47,3 +47,6 @@ blob-report/
 
 # Static examples build output (vite.examples.config.ts)
 dist-examples/
+
+# Per-developer Make overrides (container runner, image name, port)
+.makefile.env

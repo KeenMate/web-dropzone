@@ -20,7 +20,7 @@ import {
     subscribeStoreEvents,
     resolveEnumAttribute
 } from './satellite-base';
-import { escapeHtml } from '@keenmate/web-dropzone-core';
+import { escapeHtml, UI_ICONS } from '@keenmate/web-dropzone-core';
 import type { DropzoneStoreAPI } from '@keenmate/web-dropzone-core';
 import type { DropzoneElement } from './web-component';
 import type {
@@ -32,7 +32,7 @@ import type {
 const SELECTOR_APPEARANCES = ['card', 'button', 'minimal', 'native'] as const;
 const CARD_SIZES = ['minimal', 'compact', 'big'] as const;
 
-const DEFAULT_ICON = '📤';
+const DEFAULT_ICON = UI_ICONS.cloudUpload;
 const DEFAULT_PROMPT = 'Drop files here or click to browse';
 const DEFAULT_DRAG_ACTIVE = 'Drop files here';
 const DEFAULT_SELECT_TEXT = 'Select files';

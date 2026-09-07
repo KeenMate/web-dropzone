@@ -56,6 +56,7 @@ export type {
     ChangeEventDetail,
     DropzoneEventDetail,
     FileTypeCategory,
+    FileIconOverrides,
     AddFilesOptions,
     OverallProgress,
     FileProgressEventDetail,
@@ -67,7 +68,7 @@ export type {
     FileItemPart
 } from '@keenmate/web-dropzone-core';
 
-export { FILE_TYPE_ICONS } from '@keenmate/web-dropzone-core';
+export { FILE_TYPE_ICONS, UI_ICONS } from '@keenmate/web-dropzone-core';
 
 // Export logging utilities for runtime control
 export {

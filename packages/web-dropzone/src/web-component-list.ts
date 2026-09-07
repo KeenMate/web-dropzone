@@ -33,7 +33,8 @@ import {
     createImagePreview,
     formatFileSize,
     STATUS_ICONS,
-    STATUS_LABELS
+    STATUS_LABELS,
+    UI_ICONS
 } from '@keenmate/web-dropzone-core';
 import {
     patchProgressFill,
@@ -282,7 +283,7 @@ export class DropzoneListElement extends SatelliteElement {
         const args = buildStatusSurfaceArgs(files, this.store);
         const status = args.overallStatus === 'idle' ? 'pending' : args.overallStatus;
         const icon = status === 'pending'
-            ? '📎'
+            ? UI_ICONS.paperclip
             : STATUS_ICONS[status];
         const iconClass = status === 'pending'
             ? 'dz__summary__icon'
@@ -320,10 +321,13 @@ export class DropzoneListElement extends SatelliteElement {
     private renderRow(file: FileState, appearance: ListAppearance): string {
         // `item-controls` allowlist → a Set the row templates filter on.
         // Absent (undefined) keeps the default "render every part" path.
-        const ic = this.store?.getConfig().itemControls;
+        const cfg = this.store?.getConfig();
+        const ic = cfg?.itemControls;
         const parts = ic ? new Set(ic) : undefined;
         const useThumbnail = this.shouldShowThumbnails(appearance);
-        const opts = { parts, useThumbnail };
+        // Store config satisfies FileIconOverrides structurally → forward it so
+        // the satellite honours the same fileIcons / fileIconCallback overrides.
+        const opts = { parts, useThumbnail, iconOverrides: cfg };
         if (appearance === 'badges')   return renderBadgeItem(file, opts);
         if (appearance === 'grid')     return renderGridItem(file, opts);
         if (appearance === 'detailed') return renderDetailedItem(file, opts);

@@ -39,7 +39,7 @@
     font: inherit;
     font-size: calc(1.3 * var(--dz-rem, 10px));
     box-shadow: 0 calc(0.4 * var(--dz-rem, 10px)) calc(1.6 * var(--dz-rem, 10px)) rgba(0,0,0,0.12);
-    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, opacity 160ms ease;
 }
 /* Explicit override for the `hidden` attribute. The chip's class rule
  * sets `display: inline-flex`, which has the same specificity as the
@@ -204,6 +204,17 @@
     opacity: 1;
 }
 
+/* Once the drawer is open the edge chip is redundant — its whole job is to
+ * summarize the queue while the panel is closed, and it sits at a higher
+ * z-index than the drawer, so leaving it up floats the status badge on top of
+ * the open panel. Hide it while the drawer is open. Inline mode is exempt: its
+ * drawer is anchored to the chip, so the chip must stay to hold the anchor. */
+:host([data-drawer-open='true']:not([data-position='inline'])) .dz__indicator__chip {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
 .dz__indicator__drawer-header {
     display: flex;
     align-items: center;
@@ -215,15 +226,34 @@
     font-weight: 600;
     font-size: calc(1.5 * var(--dz-rem, 10px));
 }
+/* Close button — the standard masked X (--dz-icon-remove), same glyph the file
+ * rows and web-multiselect's .ms__badge-remove use, rendered via a currentColor
+ * mask so it themes from one place. Previously a raw "×" text character, which
+ * read as a different, heavier glyph than the rest of the component. */
 .dz__indicator__drawer-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: calc(2.8 * var(--dz-rem, 10px));
+    height: calc(2.8 * var(--dz-rem, 10px));
+    padding: 0;
     background: none;
     border: none;
     cursor: pointer;
-    font-size: calc(2 * var(--dz-rem, 10px));
-    line-height: 1;
-    padding: calc(0.2 * var(--dz-rem, 10px)) calc(0.6 * var(--dz-rem, 10px));
     color: var(--dz-text-color-1);
     border-radius: calc(0.4 * var(--dz-rem, 10px));
+    transition: background-color var(--dz-transition-fast) var(--dz-easing-snappy),
+                color var(--dz-transition-fast) var(--dz-easing-snappy);
+}
+.dz__indicator__drawer-close::before {
+    content: "";
+    display: block;
+    width: calc(1.6 * var(--dz-rem, 10px));
+    height: calc(1.6 * var(--dz-rem, 10px));
+    background-color: currentColor;
+    -webkit-mask: var(--dz-icon-remove) center / contain no-repeat;
+            mask: var(--dz-icon-remove) center / contain no-repeat;
 }
 .dz__indicator__drawer-close:hover {
     background: var(--dz-hover-bg);

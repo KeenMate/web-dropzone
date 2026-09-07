@@ -29,7 +29,7 @@ import {
     ACTION_LABELS,
     actionForStatus
 } from '@keenmate/web-dropzone-core';
-import type { FileState, FileItemPart } from '@keenmate/web-dropzone-core';
+import type { FileState, FileItemPart, FileIconOverrides } from '@keenmate/web-dropzone-core';
 
 export { escapeHtml };
 
@@ -78,17 +78,23 @@ export interface RowTemplateOptions {
      * emit are simply never consulted.
      */
     parts?: ReadonlySet<FileItemPart>;
+    /**
+     * Consumer icon overrides (`fileIcons` map + `fileIconCallback`) forwarded
+     * to `getFileIcon`. A full `DropzoneConfig` satisfies this, so callers pass
+     * their store config straight through. Absent → built-in category icons.
+     */
+    iconOverrides?: FileIconOverrides;
 }
 
 /**
  * Inner content for the icon slot — `<img>` when thumbnail mode is on and
  * the file already has a preview URL, else the file-type emoji.
  */
-export function renderPlaceholderInner(file: FileState, useThumbnail: boolean): string {
+export function renderPlaceholderInner(file: FileState, useThumbnail: boolean, iconOverrides?: FileIconOverrides): string {
     if (useThumbnail && file.previewUrl) {
         return `<img src="${file.previewUrl}" alt="">`;
     }
-    return getFileIcon(file.file);
+    return getFileIcon(file.file, iconOverrides);
 }
 
 /**
@@ -143,7 +149,7 @@ export function renderListItem(file: FileState, opts: RowTemplateOptions = {}): 
 export function renderDetailedItem(file: FileState, opts: RowTemplateOptions = {}): string {
     const category = getFileTypeCategory(file.file);
     const useThumbnail = opts.useThumbnail ?? false;
-    const inner = renderPlaceholderInner(file, useThumbnail);
+    const inner = renderPlaceholderInner(file, useThumbnail, opts.iconOverrides);
     const reorderAttr = opts.reorderEligible ? ' data-reorder-bucket="complete"' : '';
     const removable = opts.removable !== false;
     const p = opts.parts;
@@ -183,7 +189,7 @@ export function renderGridItem(file: FileState, opts: RowTemplateOptions = {}): 
         ? ''
         : isImage && useThumbnail && file.previewUrl
             ? `<img src="${file.previewUrl}" alt="${escapeHtml(file.name)}" class="dz__preview-item__image">`
-            : `<div class="dz__preview-item__placeholder">${getFileIcon(file.file)}</div>`;
+            : `<div class="dz__preview-item__placeholder">${getFileIcon(file.file, opts.iconOverrides)}</div>`;
     const showName = showPart(p, 'name');
     const showAction = showPart(p, 'action');
     const showRemove = showPart(p, 'remove');
@@ -209,7 +215,7 @@ export function renderGridItem(file: FileState, opts: RowTemplateOptions = {}): 
 export function renderBadgeItem(file: FileState, opts: RowTemplateOptions = {}): string {
     const statusClass = file.status !== 'pending' ? `dz__badge--${file.status}` : '';
     const useThumbnail = opts.useThumbnail ?? false;
-    const inner = renderPlaceholderInner(file, useThumbnail);
+    const inner = renderPlaceholderInner(file, useThumbnail, opts.iconOverrides);
     const reorderAttr = opts.reorderEligible ? ' data-reorder-bucket="complete"' : '';
     const removable = opts.removable !== false;
     const p = opts.parts;

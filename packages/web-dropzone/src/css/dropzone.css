@@ -70,10 +70,20 @@
 }
 
 /* Dropzone icon */
+/* Lucide drop glyph sizes to the icon font-size (1em). Centred via inline-flex
+   so the SVG's baseline doesn't add descender space under the prompt text. */
 .dz__dropzone__icon {
   font-size: var(--dz-dropzone-icon-size);
   line-height: 1;
   color: var(--dz-dropzone-icon-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.dz__dropzone__icon > svg {
+  width: 1em;
+  height: 1em;
+  display: block;
 }
 
 /* Dropzone text */
@@ -261,6 +271,12 @@
 .dz__minimal__icon {
   font-size: var(--dz-minimal-icon-size);
   line-height: 1;
+  display: inline-flex;
+}
+.dz__minimal__icon > svg {
+  width: 1em;
+  height: 1em;
+  display: block;
 }
 .dz__minimal__badge {
   position: absolute;

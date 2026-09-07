@@ -1,6 +1,7 @@
-# Two-stage build: Vite compiles the examples to static files, Caddy serves them.
-# Result is a ~50 MB image (vs ~290 MB for the dev-server approach) with no Node
-# runtime and no node_modules shipped.
+# syntax=docker/dockerfile:1
+
+# Two-stage build: Vite compiles the examples to static files, nginx serves them.
+# No Node runtime and no node_modules ship in the final image.
 #
 # The examples-*.html demos import `/src/index.ts` (raw TS); vite.examples.config.ts
 # aliases that to the renderer source and emits a static multi-page bundle into
@@ -22,10 +23,18 @@ RUN npm ci
 COPY . .
 RUN npm run build:examples
 
-# ---- runtime: static file server, no Node ----
-FROM caddy:2-alpine
+# ---- serve: static file server, no Node ----
+FROM nginx:alpine AS serve
 
-COPY Caddyfile /etc/caddy/Caddyfile
-COPY --from=build /app/dist-examples /srv
+# Replace the stock server block with one that serves the static examples and
+# silently drops vulnerability-scanner traffic (see nginx.conf).
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 12200
+# The examples build is fully static (HTML + hashed asset bundles). Serve it
+# straight from nginx's web root — vite.examples.config.ts already rewrote the
+# dev `/src/index.ts` entry to the compiled bundle, so no post-copy patching is
+# needed (unlike the raw-HTML sibling components).
+COPY --from=build /app/dist-examples /usr/share/nginx/html
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

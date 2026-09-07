@@ -168,6 +168,14 @@
   object-fit: cover;
 }
 
+/* Lucide file-type glyph — sizes to the container's font-size (1em) so it
+   occupies the same footprint the emoji did, centred in the icon box. */
+.dz__file-item__icon > svg {
+  width: 1em;
+  height: 1em;
+  display: block;
+}
+
 /* File info container */
 .dz__file-item__info {
   flex: 1;
@@ -527,6 +535,11 @@
   height: 100%;
   font-size: calc(3.2 * var(--dz-rem, 10px));
   color: var(--dz-text-color-3);
+}
+.dz__preview-item__placeholder > svg {
+  width: 1em;
+  height: 1em;
+  display: block;
 }
 
 /* Full-cover hover scrim — dark layer that fades in over the tile so

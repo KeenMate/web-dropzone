@@ -689,6 +689,45 @@ const files = el.files       // current FileState[]</code></pre>
             </div>
         </div>
 
+        <!-- CUSTOM FILE-TYPE ICONS -->
+        <div class="card">
+            <h2>DC17 · Custom file-type icons (<code>fileIcons</code> + <code>fileIconCallback</code>)</h2>
+            <p>Each row's icon resolves from the file's <strong>category</strong> by default (Lucide glyphs). Override per <strong>extension</strong> or per <strong>category</strong> with the <code>fileIcons</code> map, or take full control with <code>fileIconCallback</code>. Values are <strong>any HTML string</strong> — this demo mixes an inline <strong>SVG</strong> (<code>.psd</code>), an <strong><code>&lt;img&gt;</code></strong> (<code>.fig</code>), and <strong>emoji</strong> (<code>.sketch</code>, the <code>archive</code> category, and the callback).</p>
+
+            <div class="form-group">
+                <label>Detailed list — overrides already applied</label>
+                <web-dropzone id="icon-demo" display-mode="detailed" accept="*/*" auto-upload="false"></web-dropzone>
+                <div class="controls" style="margin-top: 0.75rem;">
+                    <button onclick="seedIconDemo()">Add sample files</button>
+                    <button onclick="document.getElementById('icon-demo').clear()">clear()</button>
+                </div>
+                <p style="margin-top:0.5rem; color: var(--text-muted, #64748b); font-size: 0.85rem;">
+                    <code>hero.psd</code> → SVG · <code>ui.fig</code> → <code>&lt;img&gt;</code> · <code>logo.sketch</code> → 💎 ·
+                    <code>assets.zip</code> → 📦 (archive category) · <code>invoice-*.pdf</code> → 🧾 (callback) ·
+                    <code>photo.jpg</code> / <code>notes.txt</code> → built-in Lucide.
+                </p>
+            </div>
+
+            <p class="note warning">⚠️ Icon values are inserted as <strong>raw HTML</strong> (<code>innerHTML</code>) and are <strong>NOT sanitized</strong>. Only pass markup you control — never untrusted / user-supplied strings.</p>
+
+            <div class="code-block">
+                <pre><code>const el = document.getElementById('icon-demo')
+
+// Keyed by EXTENSION (leading dot optional, case-insensitive) OR CATEGORY.
+// Extension keys win over category keys, which win over the built-in icon.
+el.fileIcons = {
+  psd:     '&lt;svg …&gt;…&lt;/svg&gt;',            // extension → inline SVG
+  fig:     '&lt;img src="…" alt=""&gt;',            // extension → &lt;img&gt;
+  sketch:  '💎',                              // extension → emoji
+  archive: '📦',                              // whole CATEGORY → emoji
+}
+
+// Consulted BEFORE the map. Return HTML to use it, or null to fall through.
+el.fileIconCallback = (file) =&gt;
+  /^invoice/i.test(file.name) ? '🧾' : null</code></pre>
+            </div>
+        </div>
+
         <footer>
             <p><a href="index.html">← Back to Examples</a></p>
         </footer>
@@ -905,6 +944,40 @@ const files = el.files       // current FileState[]</code></pre>
         }
         gtSyncModeRows()
         gtApply()
+
+        // ── Custom file-type icons (fileIcons + fileIconCallback) ─────────
+        // Overrides accept ANY HTML string. This demo deliberately mixes an
+        // inline Lucide SVG, a full-colour <img> (self-contained data-URI so it
+        // works offline), and emoji — keyed by extension and by category. The
+        // callback wins over the map (see `invoice-*` below, which overrides
+        // even the built-in pdf icon).
+        const iconDemo = document.getElementById('icon-demo')
+        // Lucide `palette`, sized to 1em by the component's icon-slot CSS.
+        const PSD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`
+        // Full-colour <img> via a data-URI SVG (single-quoted attrs + named
+        // colours so no `"` or `#` breaks the URI). Inline-sized to 1em so it
+        // matches the glyphs rather than filling the icon box like a thumbnail.
+        const FIG_IMG = `<img alt="" style="width:1em;height:1em" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='9' cy='6' r='3' fill='tomato'/><circle cx='9' cy='18' r='3' fill='mediumseagreen'/><rect x='6' y='9' width='6' height='6' rx='3' fill='mediumpurple'/><circle cx='15' cy='12' r='3' fill='orange'/></svg>">`
+        iconDemo.fileIcons = {
+            psd: PSD_SVG,     // by extension → inline SVG
+            fig: FIG_IMG,     // by extension → <img>
+            sketch: '💎',     // by extension → emoji
+            archive: '📦',    // whole category → emoji
+        }
+        iconDemo.fileIconCallback = (file) => /^invoice/i.test(file.name) ? '🧾' : null
+
+        window.seedIconDemo = () => {
+            const mk = (name, type = '') => new File([new Uint8Array(64)], name, { type })
+            iconDemo.addFiles([
+                mk('hero.psd'),
+                mk('ui.fig'),
+                mk('logo.sketch'),
+                mk('assets.zip', 'application/zip'),
+                mk('invoice-2026-09.pdf', 'application/pdf'),
+                mk('photo.jpg', 'image/jpeg'),
+                mk('notes.txt', 'text/plain'),
+            ])
+        }
     </script>
 
     <script type="module" src="/src/index.ts"></script>

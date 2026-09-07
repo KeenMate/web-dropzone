@@ -7,13 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Consumer file-icon overrides — `fileIcons` map + `fileIconCallback`** (JS-only config properties, no HTML attribute). Each file row's icon resolves from the file's *category* by default; these hooks let you override per **extension** or per **category**, or take full control:
+  - `fileIcons` — a `Record<string, string>` keyed by **extension** (`psd`, `.fig` — leading dot optional, case-insensitive) **or** by **category** name (`image`, `archive`, `default`, …). Extension keys win over category keys.
+  - `fileIconCallback: (file: File) => string | null | undefined` — consulted first; return HTML to use it, or `null`/`undefined` to fall through.
+  - **Resolution order** (first hit wins): `fileIconCallback` → `fileIcons[extension]` → `fileIcons[category]` → built-in category icon. Honoured by the convenience form, the popover, and the `<web-dropzone-list>` satellite alike. Values are **raw HTML** (SVG / `<img>` / emoji) inserted via `innerHTML` and are **not sanitized** — see the new HTML Injection (XSS) notice in the README.
+- **`FILE_TYPE_ICONS` and `UI_ICONS` exports** from `@keenmate/web-dropzone-core` (and re-exported from `@keenmate/web-dropzone`) — the canonical Lucide category glyphs and the chrome glyphs (`cloudUpload`, `upload`, `paperclip`), plus a `FileIconOverrides` type for typing the two new hooks.
+- **Static examples container image** (dev-only tooling; not part of the published packages). Mirrors the sibling `web-multiselect` setup: a two-stage `Dockerfile` (Vite builds `dist-examples/` → **nginx** serves it) with a hardened `nginx.conf` that silently `444`-drops vulnerability-scanner traffic (bad User-Agents, exploit-probe extensions/paths) and sends `no-cache` for the un-hashed HTML. Driven by `make image-build` / `image-run` / `image-stop` / `image-clean` with a per-developer `.makefile.env` (runner/name/port), plus a `docker-compose.yml`.
+
 ### Changed
 
+- **All icons reworked to Lucide.** The remaining emoji glyphs are gone: the 10 file-type category icons (🖼️🎬🎵📄📝📊📦💻📃📁), the drop-zone / minimal prompt icon (📤 → `cloud-upload`), the drag-overlay icon (📎 → `upload`), and the popover / rolling-list idle summary (📎 → `paperclip`). All are now inline Lucide SVG (24/24, `currentColor`, stroke-2) sized to `1em` so they inherit the container's `--dz-rem`-derived font-size — matching the visual language and sizing model of `web-multiselect`. The two identical file-icon maps were deduped into a single source in `icons.ts`.
+- **`--dz-icon-remove` aligned to Lucide `x`.** The per-row remove button and the indicator drawer's close button now use the same 24/24 Lucide `x` mask as `web-multiselect`'s `--ms-icon-remove` (was a bespoke 12/12 X path).
+- **Examples image serve stage switched from Caddy to nginx** (see Added) — the old `Caddyfile` is removed.
 - **Example suite normalized to a shared vocabulary + chapter navigation** (dev-only; not part of the published packages). Mirrors the refactor already applied to the sibling `web-multiselect` examples:
   - **`examples-shared.css` upgraded to the authoritative superset.** Was a stale subset (still titled "for multiselect", still carried the `web-multiselect option` FOAC rule). Now owns the full shared vocabulary — `.demo-card`, `.log-panel(--dark)`, `.reference-table`, `.note.warning`, `.btn-primary/secondary/outline` (+ `button:disabled`), `.dark-output`, `.badge(.new)`, `.controls`, grid presets via `--grid-min`, and the `.chapter-nav*` block — while keeping the dropzone-specific `.demo-toggle` / `.theme-card`. Each page's inline `<style>` was normalized down to genuinely page-specific rules.
   - **Floating "on this page" chapter navigator** (`examples-chapter-nav.js`) added to every example page and to the index (fed a cross-page jump list from the page registry). Self-initializing, scroll-spied, positioned with Floating UI.
   - **Section headings numbered** with the shared `PREFIX0N ·` convention (e.g. `AR01 ·`, `DC01 ·`) — stable per-page codes that double as chapter-nav labels.
   - **Theme Gallery merged** into `examples-theming.html` (as a `#theme-gallery` section) and its standalone page removed; **Structural Rendering** page retitled to match its filename/registry (was "Custom Rendering").
+
+### Fixed
+
+- **`<web-dropzone-indicator>` edge chip now hides while its drawer is open.** The chip sits at a higher `z-index` than the drawer, so the status badge ("N failed", percent, …) floated on top of the open panel. It now fades out when a non-inline (`position="right|left|top|bottom"`) drawer opens and returns when it closes. Inline mode is exempt (its drawer is anchored to the chip).
+- **`<web-dropzone-indicator>` drawer close button uses the standard X icon.** Was a raw `×` text glyph (heavier and inconsistent with the rest of the set); now the shared `--dz-icon-remove` Lucide `x`, matching the file-row remove buttons.
 
 ## [1.0.0-rc02] - 2026-08-14 [PUBLISHED]
 

@@ -321,7 +321,7 @@ export class DropzoneIndicatorElement extends SatelliteElement {
         this.drawerEl.innerHTML = `
             <header class="dz__indicator__drawer-header">
                 <span class="dz__indicator__drawer-title">${escapeHtml(labelAttr)}</span>
-                <button type="button" class="dz__indicator__drawer-close" aria-label="Close">×</button>
+                <button type="button" class="dz__indicator__drawer-close" aria-label="Close"></button>
             </header>
             <div class="dz__indicator__drawer-body"></div>
         `;
